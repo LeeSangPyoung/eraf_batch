@@ -1,0 +1,43 @@
+@import './styles/styles.scss';
+@import './styles/fonts.css';
+
+.Toastify__toast-container {
+  width: unset !important;
+  max-width: 500px !important;
+}
+
+.simplebar-scrollbar::before {
+  background-color: gray !important;
+}
+
+.MuiTablePagination-actions {
+  .MuiIconButton-root.Mui-disabled {
+    cursor: not-allowed;
+    pointer-events: auto;
+    svg {
+      color: #b0b0b0;
+    }
+  }
+}
+
+.MuiPickersArrowSwitcher-root {
+  .MuiIconButton-root.Mui-disabled {
+    cursor: not-allowed;
+    pointer-events: auto;
+    svg {
+      color: #b0b0b0;
+    }
+  }
+}
+
+.Mui-disabled{
+  -webkit-text-fill-color: gray !important;
+}
+
+.p-0-important {
+  padding: 0 !important;
+}
+
+.MuiTableCell-root {
+  padding: 8px 12px !important;
+}

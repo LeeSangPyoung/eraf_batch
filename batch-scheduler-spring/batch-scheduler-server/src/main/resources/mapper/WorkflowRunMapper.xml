@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tes.batch.scheduler.domain.workflow.mapper.WorkflowRunMapper">
+
+    <!-- Result Map -->
+    <resultMap id="WorkflowRunResultMap" type="com.tes.batch.scheduler.domain.workflow.vo.WorkflowRunVO">
+        <id property="workflowRunId" column="workflow_run_id"/>
+        <result property="workflowId" column="workflow_id"/>
+        <result property="workflowName" column="workflow_name"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="status" column="status"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="totalJobs" column="total_jobs"/>
+        <result property="completedJobs" column="completed_jobs"/>
+        <result property="failedJobs" column="failed_jobs"/>
+        <result property="durationMs" column="duration_ms"/>
+    </resultMap>
+
+    <!-- Base Column List -->
+    <sql id="BaseColumns">
+        workflow_run_id, workflow_id, workflow_name, start_date, end_date,
+        status, error_message, total_jobs, completed_jobs, failed_jobs, duration_ms
+    </sql>
+
+    <!-- Find by ID -->
+    <select id="findById" resultMap="WorkflowRunResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow_run
+        WHERE workflow_run_id = #{workflowRunId}
+    </select>
+
+    <!-- Find by Workflow ID -->
+    <select id="findByWorkflowId" resultMap="WorkflowRunResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow_run
+        WHERE workflow_id = #{workflowId}
+        ORDER BY workflow_run_id DESC
+    </select>
+
+    <!-- Find Latest by Workflow ID -->
+    <select id="findLatestByWorkflowId" resultMap="WorkflowRunResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow_run
+        WHERE workflow_id = #{workflowId}
+        ORDER BY workflow_run_id DESC
+        LIMIT 1
+    </select>
+
+    <!-- Find Workflow Runs with Filters -->
+    <select id="findByFilters" resultMap="WorkflowRunResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow_run
+        <where>
+            <if test="workflowId != null and workflowId != ''">
+                AND workflow_id = #{workflowId}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="startDateFrom != null">
+                AND start_date &gt;= #{startDateFrom}
+            </if>
+            <if test="startDateTo != null">
+                AND start_date &lt;= #{startDateTo}
+            </if>
+        </where>
+        ORDER BY workflow_run_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- Count Workflow Runs with Filters -->
+    <select id="countByFilters" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_workflow_run
+        <where>
+            <if test="workflowId != null and workflowId != ''">
+                AND workflow_id = #{workflowId}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="startDateFrom != null">
+                AND start_date &gt;= #{startDateFrom}
+            </if>
+            <if test="startDateTo != null">
+                AND start_date &lt;= #{startDateTo}
+            </if>
+        </where>
+    </select>
+
+    <!-- Find Running Workflows -->
+    <select id="findRunningWorkflows" resultMap="WorkflowRunResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow_run
+        WHERE status = 'RUNNING'
+    </select>
+
+    <!-- Insert Workflow Run -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="workflowRunId">
+        INSERT INTO scheduler_workflow_run (
+            workflow_id, workflow_name, start_date, end_date, status,
+            error_message, total_jobs, completed_jobs, failed_jobs, duration_ms
+        ) VALUES (
+            #{workflowId}, #{workflowName}, #{startDate}, #{endDate}, #{status},
+            #{errorMessage}, #{totalJobs}, #{completedJobs}, #{failedJobs}, #{durationMs}
+        )
+    </insert>
+
+    <!-- Update Status -->
+    <update id="updateStatus">
+        UPDATE scheduler_workflow_run
+        SET status = #{status},
+            end_date = #{endDate},
+            duration_ms = #{durationMs},
+            error_message = #{errorMessage}
+        WHERE workflow_run_id = #{workflowRunId}
+    </update>
+
+    <!-- Update Job Counts -->
+    <update id="updateJobCounts">
+        UPDATE scheduler_workflow_run
+        SET completed_jobs = #{completedJobs},
+            failed_jobs = #{failedJobs}
+        WHERE workflow_run_id = #{workflowRunId}
+    </update>
+
+    <!-- Delete Workflow Run -->
+    <delete id="delete">
+        DELETE FROM scheduler_workflow_run WHERE workflow_run_id = #{workflowRunId}
+    </delete>
+
+    <!-- Delete by Workflow ID -->
+    <delete id="deleteByWorkflowId">
+        DELETE FROM scheduler_workflow_run WHERE workflow_id = #{workflowId}
+    </delete>
+
+</mapper>

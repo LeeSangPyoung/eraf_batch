@@ -1,0 +1,57 @@
+# Django and extensions - Python 3.12 compatible
+Django>=4.2,<5.0
+djangorestframework>=3.14,<3.17
+djangorestframework-simplejwt>=5.2.2,<6.0
+django-cors-headers>=3.13,<5.0
+django-filter>=23.2,<26.0
+django-picklefield>=3.1,<4.0
+
+# Celery and dependencies (Python 3.12 compatible)
+celery>=5.5.0,<6.0
+billiard>=4.2.1
+redis>=4.5.0,<6.0  # Now free to use modern Redis versions!
+django-celery-results>=2.5.0
+django-celery-beat>=2.5.0  # You already have this configured
+python-redis-lock>=4.0.0
+
+# PostgreSQL & DB URL
+psycopg2-binary>=2.9.5
+dj-database-url>=2.0.0
+
+# Monitoring, logging, and observability
+flower>=2.0.0
+python-logging-loki>=0.3.1
+python-loki-logger>=0.3.0
+concurrent-log-handler>=0.9.20
+
+# Time & Date
+tzlocal>=5.2,<6.0
+pytz>=2024.1
+python-dateutil>=2.9.0
+
+# HTTP requests
+requests>=2.32.0,<3.0
+
+# YAML support
+pyyaml>=6.0
+
+# OpenTelemetry (latest versions with Python 3.12 support)
+opentelemetry-api>=1.35.0
+opentelemetry-sdk>=1.35.0
+opentelemetry-instrumentation-django>=0.56b0
+opentelemetry-instrumentation-celery>=0.56b0
+opentelemetry-exporter-otlp>=1.35.0
+opentelemetry-instrumentation-logging>=0.56b0
+opentelemetry-instrumentation-psycopg2>=0.56b0
+opentelemetry-instrumentation-redis>=0.56b0
+opentelemetry-instrumentation-requests>=0.56b0
+opentelemetry-instrumentation-sqlite3>=0.56b0
+opentelemetry-instrumentation-urllib>=0.56b0
+opentelemetry-instrumentation-urllib3>=0.56b0
+
+# Production server
+gunicorn>=22.0.0
+gevent>=24.0.0
+
+# Environment configuration
+python-dotenv>=1.0.0

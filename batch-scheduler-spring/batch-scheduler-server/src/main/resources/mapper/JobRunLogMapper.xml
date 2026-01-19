@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tes.batch.scheduler.domain.job.mapper.JobRunLogMapper">
+
+    <!-- Result Map -->
+    <resultMap id="JobRunLogResultMap" type="com.tes.batch.scheduler.domain.job.vo.JobRunLogVO">
+        <id property="logId" column="log_id"/>
+        <result property="jobId" column="job_id"/>
+        <result property="groupId" column="group_id"/>
+        <result property="systemId" column="system_id"/>
+        <result property="celeryTaskName" column="celery_task_name"/>
+        <result property="jobName" column="job_name"/>
+        <result property="groupName" column="group_name"/>
+        <result property="systemName" column="system_name"/>
+        <result property="operation" column="operation"/>
+        <result property="batchType" column="batch_type"/>
+        <result property="status" column="status"/>
+        <result property="reqStartDate" column="req_start_date"/>
+        <result property="actualStartDate" column="actual_start_date"/>
+        <result property="actualEndDate" column="actual_end_date"/>
+        <result property="runDuration" column="run_duration"/>
+        <result property="retryCount" column="retry_count"/>
+        <result property="errorNo" column="error_no"/>
+        <result property="errors" column="errors"/>
+        <result property="output" column="output"/>
+        <result property="additionalInfo" column="additional_info"/>
+        <result property="workflowRunId" column="workflow_run_id"/>
+        <result property="workflowPriority" column="workflow_priority"/>
+    </resultMap>
+
+    <!-- Base Column List -->
+    <sql id="BaseColumns">
+        log_id, job_id, group_id, system_id, celery_task_name, job_name,
+        group_name, system_name, operation, batch_type, status, req_start_date,
+        actual_start_date, actual_end_date, run_duration, retry_count, error_no,
+        errors, output, additional_info, workflow_run_id, workflow_priority
+    </sql>
+
+    <!-- Find by ID -->
+    <select id="findById" resultMap="JobRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_run_logs
+        WHERE log_id = #{logId}
+    </select>
+
+    <!-- Find by Job ID -->
+    <select id="findByJobId" resultMap="JobRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_run_logs
+        WHERE job_id = #{jobId}
+        ORDER BY log_id DESC
+    </select>
+
+    <!-- Find Latest by Job ID -->
+    <select id="findLatestByJobId" resultMap="JobRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_run_logs
+        WHERE job_id = #{jobId}
+        ORDER BY log_id DESC
+        LIMIT 1
+    </select>
+
+    <!-- Find by Workflow Run ID -->
+    <select id="findByWorkflowRunId" resultMap="JobRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_run_logs
+        WHERE workflow_run_id = #{workflowRunId}
+        ORDER BY workflow_priority ASC, log_id ASC
+    </select>
+
+    <!-- Find Logs with Filters -->
+    <select id="findByFilters" resultMap="JobRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_run_logs
+        <where>
+            <if test="jobId != null and jobId != ''">
+                AND job_id = #{jobId}
+            </if>
+            <if test="groupId != null and groupId != ''">
+                AND group_id = #{groupId}
+            </if>
+            <if test="systemId != null and systemId != ''">
+                AND system_id = #{systemId}
+            </if>
+            <if test="operation != null and operation != ''">
+                AND operation = #{operation}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="textSearch != null and textSearch != ''">
+                AND LOWER(job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+            </if>
+            <if test="reqStartDateFrom != null">
+                AND req_start_date &gt;= #{reqStartDateFrom}
+            </if>
+            <if test="reqStartDateTo != null">
+                AND req_start_date &lt;= #{reqStartDateTo}
+            </if>
+        </where>
+        ORDER BY log_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- Count Logs with Filters -->
+    <select id="countByFilters" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_job_run_logs
+        <where>
+            <if test="jobId != null and jobId != ''">
+                AND job_id = #{jobId}
+            </if>
+            <if test="groupId != null and groupId != ''">
+                AND group_id = #{groupId}
+            </if>
+            <if test="systemId != null and systemId != ''">
+                AND system_id = #{systemId}
+            </if>
+            <if test="operation != null and operation != ''">
+                AND operation = #{operation}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="textSearch != null and textSearch != ''">
+                AND LOWER(job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+            </if>
+            <if test="reqStartDateFrom != null">
+                AND req_start_date &gt;= #{reqStartDateFrom}
+            </if>
+            <if test="reqStartDateTo != null">
+                AND req_start_date &lt;= #{reqStartDateTo}
+            </if>
+        </where>
+    </select>
+
+    <!-- Find Logs by Filters and Group IDs -->
+    <select id="findByFiltersAndGroupIds" resultMap="JobRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_run_logs
+        WHERE group_id IN
+        <foreach collection="groupIds" item="gid" open="(" separator="," close=")">
+            #{gid}
+        </foreach>
+        <if test="jobId != null and jobId != ''">
+            AND job_id = #{jobId}
+        </if>
+        <if test="systemId != null and systemId != ''">
+            AND system_id = #{systemId}
+        </if>
+        <if test="operation != null and operation != ''">
+            AND operation = #{operation}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="textSearch != null and textSearch != ''">
+            AND LOWER(job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+        </if>
+        <if test="reqStartDateFrom != null">
+            AND req_start_date &gt;= #{reqStartDateFrom}
+        </if>
+        <if test="reqStartDateTo != null">
+            AND req_start_date &lt;= #{reqStartDateTo}
+        </if>
+        ORDER BY log_id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- Count Logs by Filters and Group IDs -->
+    <select id="countByFiltersAndGroupIds" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_job_run_logs
+        WHERE group_id IN
+        <foreach collection="groupIds" item="gid" open="(" separator="," close=")">
+            #{gid}
+        </foreach>
+        <if test="jobId != null and jobId != ''">
+            AND job_id = #{jobId}
+        </if>
+        <if test="systemId != null and systemId != ''">
+            AND system_id = #{systemId}
+        </if>
+        <if test="operation != null and operation != ''">
+            AND operation = #{operation}
+        </if>
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="textSearch != null and textSearch != ''">
+            AND LOWER(job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+        </if>
+        <if test="reqStartDateFrom != null">
+            AND req_start_date &gt;= #{reqStartDateFrom}
+        </if>
+        <if test="reqStartDateTo != null">
+            AND req_start_date &lt;= #{reqStartDateTo}
+        </if>
+    </select>
+
+    <!-- Count by Job ID and Status -->
+    <select id="countByJobIdAndStatus" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_job_run_logs
+        WHERE job_id = #{jobId} AND status = #{status}
+    </select>
+
+    <!-- Insert Log -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="logId">
+        INSERT INTO scheduler_job_run_logs (
+            job_id, group_id, system_id, celery_task_name, job_name,
+            group_name, system_name, operation, batch_type, status, req_start_date,
+            actual_start_date, actual_end_date, run_duration, retry_count, error_no,
+            errors, output, additional_info, workflow_run_id, workflow_priority
+        ) VALUES (
+            #{jobId}, #{groupId}, #{systemId}, #{celeryTaskName}, #{jobName},
+            #{groupName}, #{systemName}, #{operation}, #{batchType}, #{status}, #{reqStartDate},
+            #{actualStartDate}, #{actualEndDate}, #{runDuration}, #{retryCount}, #{errorNo},
+            #{errors}, #{output}, #{additionalInfo}, #{workflowRunId}, #{workflowPriority}
+        )
+    </insert>
+
+    <!-- Update Status -->
+    <update id="updateStatus">
+        UPDATE scheduler_job_run_logs
+        SET status = #{status},
+            actual_end_date = #{actualEndDate},
+            run_duration = #{runDuration},
+            error_no = #{errorNo},
+            errors = #{errors},
+            output = #{output}
+        WHERE log_id = #{logId}
+    </update>
+
+    <!-- Delete Log -->
+    <delete id="delete">
+        DELETE FROM scheduler_job_run_logs WHERE log_id = #{logId}
+    </delete>
+
+    <!-- Delete Logs by Job ID -->
+    <delete id="deleteByJobId">
+        DELETE FROM scheduler_job_run_logs WHERE job_id = #{jobId}
+    </delete>
+
+</mapper>

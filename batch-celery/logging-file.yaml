@@ -1,0 +1,32 @@
+version: 1
+disable_existing_loggers: False
+
+formatters:
+  default:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(trace_id)s %(span_id)s %(trace_flags)s - %(message)s'
+
+handlers:
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: default
+    filename: '/var/log/celery_be.log'  # Adjust as needed
+    maxBytes: 10485760
+    backupCount: 7
+  loki:
+    class: logging_loki.LokiHandler
+    level: INFO
+    formatter: default
+    url: 'http://10.38.48.151:3100/loki/api/v1/push'  # Replace with your Loki endpoint
+    tags:
+      application: 'batch-celery-dev'
+
+loggers:
+  batch-celery-logger:
+    level: INFO
+    handlers: [file, loki]
+    propagate: no
+
+root:
+  level: INFO
+  handlers: [file, loki]

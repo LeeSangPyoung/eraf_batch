@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tes.batch.scheduler.domain.group.mapper.JobGroupMapper">
+
+    <!-- Result Map -->
+    <resultMap id="JobGroupResultMap" type="com.tes.batch.scheduler.domain.group.vo.JobGroupVO">
+        <id property="groupId" column="group_id"/>
+        <result property="groupName" column="group_name"/>
+        <result property="groupComments" column="group_comments"/>
+        <result property="frstRegDate" column="frst_reg_date"/>
+        <result property="lastChgDate" column="last_chg_date"/>
+        <result property="frstRegUserId" column="frst_reg_user_id"/>
+        <result property="lastRegUserId" column="last_reg_user_id"/>
+    </resultMap>
+
+    <!-- Base Column List -->
+    <sql id="BaseColumns">
+        group_id, group_name, group_comments, frst_reg_date, last_chg_date,
+        frst_reg_user_id, last_reg_user_id
+    </sql>
+
+    <!-- Find by ID -->
+    <select id="findById" resultMap="JobGroupResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_groups
+        WHERE group_id = #{groupId}
+    </select>
+
+    <!-- Find by Group Name -->
+    <select id="findByGroupName" resultMap="JobGroupResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_groups
+        WHERE group_name = #{groupName}
+    </select>
+
+    <!-- Check if Group Name exists -->
+    <select id="existsByGroupName" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM scheduler_job_groups WHERE group_name = #{groupName}
+        )
+    </select>
+
+    <!-- Find All Groups -->
+    <select id="findAll" resultMap="JobGroupResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_groups
+        ORDER BY group_name ASC
+    </select>
+
+    <!-- Find Groups by IDs -->
+    <select id="findByGroupIdIn" resultMap="JobGroupResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_groups
+        WHERE group_id IN
+        <foreach collection="groupIds" item="groupId" open="(" separator="," close=")">
+            #{groupId}
+        </foreach>
+        ORDER BY group_name ASC
+    </select>
+
+    <!-- Find Groups with Filters -->
+    <select id="findByFilters" resultMap="JobGroupResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_groups
+        <where>
+            <if test="textSearch != null and textSearch != ''">
+                AND (
+                    LOWER(group_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    OR LOWER(group_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                )
+            </if>
+        </where>
+        ORDER BY group_name ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- Count Groups with Filters -->
+    <select id="countByFilters" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_job_groups
+        <where>
+            <if test="textSearch != null and textSearch != ''">
+                AND (
+                    LOWER(group_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    OR LOWER(group_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                )
+            </if>
+        </where>
+    </select>
+
+    <!-- Find Groups by IDs with Paging -->
+    <select id="findByGroupIdInWithPaging" resultMap="JobGroupResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_groups
+        WHERE group_id IN
+        <foreach collection="groupIds" item="groupId" open="(" separator="," close=")">
+            #{groupId}
+        </foreach>
+        ORDER BY group_name ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- Count Groups by IDs -->
+    <select id="countByGroupIdIn" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_job_groups
+        WHERE group_id IN
+        <foreach collection="groupIds" item="groupId" open="(" separator="," close=")">
+            #{groupId}
+        </foreach>
+    </select>
+
+    <!-- Insert Group -->
+    <insert id="insert">
+        INSERT INTO scheduler_job_groups (
+            group_id, group_name, group_comments, frst_reg_date, last_chg_date,
+            frst_reg_user_id, last_reg_user_id
+        ) VALUES (
+            #{groupId}, #{groupName}, #{groupComments}, #{frstRegDate}, #{lastChgDate},
+            #{frstRegUserId}, #{lastRegUserId}
+        )
+    </insert>
+
+    <!-- Update Group -->
+    <update id="update">
+        UPDATE scheduler_job_groups
+        SET group_name = #{groupName},
+            group_comments = #{groupComments},
+            last_chg_date = #{lastChgDate},
+            last_reg_user_id = #{lastRegUserId}
+        WHERE group_id = #{groupId}
+    </update>
+
+    <!-- Delete Group -->
+    <delete id="delete">
+        DELETE FROM scheduler_job_groups WHERE group_id = #{groupId}
+    </delete>
+
+</mapper>

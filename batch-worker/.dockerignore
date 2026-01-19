@@ -1,0 +1,10 @@
+.env
+.idea
+*.zip
+*.tar.gz
+
+# virtual environments
+venv/
+
+# log directory
+log/

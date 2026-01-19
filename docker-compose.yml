@@ -1,0 +1,215 @@
+version: '3.8'
+
+services:
+  batch-scheduler-fe:
+    image: batch_scheduler_fe:20250930.1
+    build:
+      context: ./fe-batch-scheduler
+      dockerfile: Dockerfile
+      args:
+        VITE_BACKEND_URL: http://${HOST_IP}:3499
+        VITE_WEB_SOCKET_URL:
+        VITE_SERVER_LOG_URL: http://${HOST_IP}:3000
+        VITE_SERVER_LOG_DASHBOARD_ID: df41ddbd-118b-443b-8e54-8f7391afbaca
+    container_name: batch_scheduler_fe
+    restart: always
+    ports:
+      - "3456:80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+  # Batch Scheduler Service (Flask)
+  batch-scheduler:
+    image: batch_scheduler_app:20250930.1
+    build:
+      context: ./batch_scheduler
+      dockerfile: Dockerfile
+    container_name: batch_scheduler_app
+    command: bash startup.sh
+    restart: always
+    ports:
+      - "3499:5500"
+    env_file:
+      - ./batch_scheduler/.env
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    volumes:
+      - ./batch_scheduler/keys:/app/keys
+      - ./batch_scheduler/reference:/app/reference
+      - /home/admin/.ssh:/app/.ssh
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      - batch-scheduler-db
+
+  # Batch Celery Service (Django + Celery Beat + Flower)
+  batch-celery-be:
+    image: batch_celery_be:20250930.1
+    build:
+      context: ./batch-celery
+      dockerfile: Dockerfile
+    container_name: batch_celery_be
+    restart: always
+    command: bash startup.sh
+    ports:
+      - "5086:8000"
+    env_file:
+      - ./batch-celery/.env
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      - batch-celery-db
+      - redis
+
+  batch-celery-scan-scheduler:
+    image: batch_celery_be:20250930.1
+    build:
+      context: ./batch-celery
+      dockerfile: Dockerfile
+    container_name: batch_celery_be_scheduler
+    restart: always
+    command: python -m batchbe.scheduler
+    env_file:
+      - ./batch-celery/.env
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      - batch-celery-be
+
+  # Celery Beat Scheduler
+  batch-celery-beat:
+    image: batch_celery_be:20250930.1
+    build:
+      context: ./batch-celery
+      dockerfile: Dockerfile
+    container_name: batch_celery_beat
+    restart: always
+    command: celery -A batchbe.celery beat --loglevel=info --scheduler=django_celery_beat.schedulers:DatabaseScheduler --max-interval=1 -l debug
+    env_file:
+      - ./batch-celery/.env
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      - batch-celery-be
+
+  # Flower - Celery Monitoring
+  batch-celery-flower:
+    image: batch_celery_be:20250930.1
+    build:
+      context: ./batch-celery
+      dockerfile: Dockerfile
+    container_name: batch_celery_flower
+    restart: always
+    command: celery -A batchbe flower --address=0.0.0.0 --port=5555
+    ports:
+      - "3998:5555"
+    env_file:
+      - ./batch-celery/.env
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      - batch-celery-be
+
+  # Add worker to consume celery queue (e.g. celery.backend_cleanup, etc.)
+  batch-celery-worker:
+    image: batch_celery_be:20250930.1
+    build:
+      context: ./batch-celery
+      dockerfile: Dockerfile
+    container_name: batch_celery_worker
+    restart: always
+    command: celery -A batchbe worker --loglevel=info -c 1
+    env_file:
+      - ./batch-celery/.env
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    depends_on:
+      - batch-celery-be
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    
+  batch-scheduler-db:
+    image: postgres:15
+    container_name: batch_scheduler_db
+    environment:
+      POSTGRES_USER: ${SCHEDULER_DB_USER}
+      POSTGRES_PASSWORD: ${SCHEDULER_DB_PASSWORD}
+      POSTGRES_DB: scheduler
+    command: ["postgres", "-c", "max_connections=500"]
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./batch_scheduler_data:/var/lib/postgresql/data
+      - ./init-scheduler-schema.sql:/docker-entrypoint-initdb.d/init-scheduler-schema.sql
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  batch-celery-db:
+    image: postgres:15
+    container_name: batch_celery_db
+    environment:
+      POSTGRES_USER: ${CELERY_DB_USER}
+      POSTGRES_PASSWORD: ${CELERY_DB_PASSWORD}
+      POSTGRES_DB: celery
+    command: ["postgres", "-c", "max_connections=500"]
+    ports:
+      - "3567:5432"
+    volumes:
+      - ./batch_celery_data:/var/lib/postgresql/data
+      - ./init-celery-schema.sql:/docker-entrypoint-initdb.d/init-celery-schema.sql
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  redis_data:
+    driver: local

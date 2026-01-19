@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tes.batch.scheduler.domain.workflow.mapper.WorkflowMapper">
+
+    <!-- Result Map -->
+    <resultMap id="WorkflowResultMap" type="com.tes.batch.scheduler.domain.workflow.vo.WorkflowVO">
+        <id property="id" column="id"/>
+        <result property="workflowName" column="workflow_name"/>
+        <result property="groupId" column="group_id"/>
+        <result property="latestStatus" column="latest_status"/>
+        <result property="startDate" column="start_date"/>
+        <result property="repeatInterval" column="repeat_interval"/>
+        <result property="timezone" column="timezone"/>
+        <result property="nextRunDate" column="next_run_date"/>
+        <result property="lastRunDate" column="last_run_date"/>
+        <result property="frstRegDate" column="frst_reg_date"/>
+        <result property="lastChgDate" column="last_chg_date"/>
+        <result property="groupName" column="group_name"/>
+    </resultMap>
+
+    <!-- Base Column List -->
+    <sql id="BaseColumns">
+        w.id, w.workflow_name, w.group_id, w.latest_status, w.start_date,
+        w.repeat_interval, w.timezone, w.next_run_date, w.last_run_date,
+        w.frst_reg_date, w.last_chg_date
+    </sql>
+
+    <!-- Find by ID -->
+    <select id="findById" resultMap="WorkflowResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow w
+        WHERE w.id = #{id}
+    </select>
+
+    <!-- Find by ID with Relations -->
+    <select id="findByIdWithRelations" resultMap="WorkflowResultMap">
+        SELECT <include refid="BaseColumns"/>, g.group_name
+        FROM scheduler_workflow w
+        LEFT JOIN scheduler_job_groups g ON w.group_id = g.group_id
+        WHERE w.id = #{id}
+    </select>
+
+    <!-- Find by Workflow Name -->
+    <select id="findByWorkflowName" resultMap="WorkflowResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow w
+        WHERE w.workflow_name = #{workflowName}
+    </select>
+
+    <!-- Find by Name (alias for findByWorkflowName) -->
+    <select id="findByName" resultMap="WorkflowResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow w
+        WHERE w.workflow_name = #{workflowName}
+    </select>
+
+    <!-- Check if Workflow Name exists -->
+    <select id="existsByWorkflowName" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM scheduler_workflow WHERE workflow_name = #{workflowName}
+        )
+    </select>
+
+    <!-- Find Workflows to Execute -->
+    <select id="findWorkflowsToExecute" resultMap="WorkflowResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow w
+        WHERE w.next_run_date IS NOT NULL
+          AND w.next_run_date &lt;= #{now}
+    </select>
+
+    <!-- Find Workflows with Filters -->
+    <select id="findByFilters" resultMap="WorkflowResultMap">
+        SELECT <include refid="BaseColumns"/>, g.group_name
+        FROM scheduler_workflow w
+        LEFT JOIN scheduler_job_groups g ON w.group_id = g.group_id
+        <where>
+            <if test="workflowName != null and workflowName != ''">
+                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%'))
+            </if>
+            <if test="groupId != null and groupId != ''">
+                AND w.group_id = #{groupId}
+            </if>
+            <if test="latestStatus != null and latestStatus != ''">
+                AND w.latest_status = #{latestStatus}
+            </if>
+            <if test="textSearch != null and textSearch != ''">
+                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+            </if>
+        </where>
+        ORDER BY w.workflow_name ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- Count Workflows with Filters -->
+    <select id="countByFilters" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_workflow w
+        <where>
+            <if test="workflowName != null and workflowName != ''">
+                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%'))
+            </if>
+            <if test="groupId != null and groupId != ''">
+                AND w.group_id = #{groupId}
+            </if>
+            <if test="latestStatus != null and latestStatus != ''">
+                AND w.latest_status = #{latestStatus}
+            </if>
+            <if test="textSearch != null and textSearch != ''">
+                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+            </if>
+        </where>
+    </select>
+
+    <!-- Find Workflows by Filters and Group IDs -->
+    <select id="findByFiltersAndGroupIds" resultMap="WorkflowResultMap">
+        SELECT <include refid="BaseColumns"/>, g.group_name
+        FROM scheduler_workflow w
+        LEFT JOIN scheduler_job_groups g ON w.group_id = g.group_id
+        WHERE w.group_id IN
+        <foreach collection="groupIds" item="gid" open="(" separator="," close=")">
+            #{gid}
+        </foreach>
+        <if test="workflowName != null and workflowName != ''">
+            AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%'))
+        </if>
+        <if test="latestStatus != null and latestStatus != ''">
+            AND w.latest_status = #{latestStatus}
+        </if>
+        ORDER BY w.workflow_name ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- Count Workflows by Filters and Group IDs -->
+    <select id="countByFiltersAndGroupIds" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_workflow w
+        WHERE w.group_id IN
+        <foreach collection="groupIds" item="gid" open="(" separator="," close=")">
+            #{gid}
+        </foreach>
+        <if test="workflowName != null and workflowName != ''">
+            AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%'))
+        </if>
+        <if test="latestStatus != null and latestStatus != ''">
+            AND w.latest_status = #{latestStatus}
+        </if>
+    </select>
+
+    <!-- Insert Workflow -->
+    <insert id="insert">
+        INSERT INTO scheduler_workflow (
+            id, workflow_name, group_id, latest_status, start_date,
+            repeat_interval, timezone, next_run_date, last_run_date,
+            frst_reg_date, last_chg_date
+        ) VALUES (
+            #{id}, #{workflowName}, #{groupId}, #{latestStatus}, #{startDate},
+            #{repeatInterval}, #{timezone}, #{nextRunDate}, #{lastRunDate},
+            #{frstRegDate}, #{lastChgDate}
+        )
+    </insert>
+
+    <!-- Update Workflow -->
+    <update id="update">
+        UPDATE scheduler_workflow
+        SET workflow_name = #{workflowName},
+            group_id = #{groupId},
+            start_date = #{startDate},
+            repeat_interval = #{repeatInterval},
+            timezone = #{timezone},
+            next_run_date = #{nextRunDate},
+            last_chg_date = #{lastChgDate}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Update Status -->
+    <update id="updateStatus">
+        UPDATE scheduler_workflow
+        SET latest_status = #{latestStatus},
+            last_run_date = #{lastRunDate},
+            next_run_date = #{nextRunDate}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Delete Workflow -->
+    <delete id="delete">
+        DELETE FROM scheduler_workflow WHERE id = #{id}
+    </delete>
+
+</mapper>

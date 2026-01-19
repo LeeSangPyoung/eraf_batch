@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Logs
+log/*.log
+log/*.gz
+*.log
+
+# Documentation
+README.md
+*.md
+
+# Development files
+tests/
+.pytest_cache/
+.coverage
+.env.example
+
+# Docker
+Dockerfile.*
+docker-compose*.yml
+docker-compose*.yaml
+
+# Scripts (keep only essential ones)
+start_local.sh
+stop_local.sh
+start_server.sh
+stop_server.sh
+
+# Deployment
+deploy/
+nginx/
+
+# Keys (should be mounted as volumes)
+keys/
+
+nohup.out

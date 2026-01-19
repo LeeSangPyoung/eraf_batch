@@ -1,0 +1,55 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: batch-scheduler-agent
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 1
+
+# Agent Configuration
+agent:
+  queue-name: ${AGENT_QUEUE_NAME:default-queue}
+  server-id: ${AGENT_SERVER_ID:default-server}
+  heartbeat:
+    interval: 10000  # 10 seconds
+    timeout: 60000   # 60 seconds
+  executor:
+    core-pool-size: 5
+    max-pool-size: 20
+    queue-capacity: 100
+    thread-name-prefix: job-executor-
+
+# Scheduler Server URL (for status reporting)
+scheduler:
+  api-url: ${SCHEDULER_URL:http://localhost:8080}
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.tes.batch: DEBUG

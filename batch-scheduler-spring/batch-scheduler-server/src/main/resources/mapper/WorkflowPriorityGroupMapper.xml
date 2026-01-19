@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tes.batch.scheduler.domain.workflow.mapper.WorkflowPriorityGroupMapper">
+
+    <!-- Result Map -->
+    <resultMap id="WorkflowPriorityGroupResultMap" type="com.tes.batch.scheduler.domain.workflow.vo.WorkflowPriorityGroupVO">
+        <id property="id" column="id"/>
+        <result property="workflowId" column="workflow_id"/>
+        <result property="latestStatus" column="latest_status"/>
+        <result property="priority" column="priority"/>
+        <result property="ignoreResult" column="ignore_result"/>
+        <result property="frstRegDate" column="frst_reg_date"/>
+        <result property="lastChgDate" column="last_chg_date"/>
+    </resultMap>
+
+    <!-- Result Map with Jobs -->
+    <resultMap id="WorkflowPriorityGroupWithJobsResultMap" type="com.tes.batch.scheduler.domain.workflow.vo.WorkflowPriorityGroupVO">
+        <id property="id" column="id"/>
+        <result property="workflowId" column="workflow_id"/>
+        <result property="latestStatus" column="latest_status"/>
+        <result property="priority" column="priority"/>
+        <result property="ignoreResult" column="ignore_result"/>
+        <result property="frstRegDate" column="frst_reg_date"/>
+        <result property="lastChgDate" column="last_chg_date"/>
+        <collection property="jobs" ofType="com.tes.batch.scheduler.domain.job.vo.JobVO">
+            <id property="jobId" column="job_id"/>
+            <result property="jobName" column="job_name"/>
+            <result property="systemId" column="system_id"/>
+            <result property="groupId" column="group_id"/>
+            <result property="jobType" column="job_type"/>
+            <result property="jobAction" column="job_action"/>
+            <result property="jobBody" column="job_body"/>
+            <result property="jobComments" column="job_comments"/>
+            <result property="workflowDelay" column="workflow_delay"/>
+            <result property="ignoreResult" column="job_ignore_result"/>
+        </collection>
+    </resultMap>
+
+    <!-- Base Column List -->
+    <sql id="BaseColumns">
+        pg.id, pg.workflow_id, pg.latest_status, pg.priority, pg.ignore_result,
+        pg.frst_reg_date, pg.last_chg_date
+    </sql>
+
+    <!-- Find by ID -->
+    <select id="findById" resultMap="WorkflowPriorityGroupResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow_priority_group pg
+        WHERE pg.id = #{id}
+    </select>
+
+    <!-- Find by Workflow ID -->
+    <select id="findByWorkflowId" resultMap="WorkflowPriorityGroupResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow_priority_group pg
+        WHERE pg.workflow_id = #{workflowId}
+        ORDER BY pg.priority ASC
+    </select>
+
+    <!-- Find by Workflow ID with Jobs -->
+    <select id="findByWorkflowIdWithJobs" resultMap="WorkflowPriorityGroupWithJobsResultMap">
+        SELECT pg.id, pg.workflow_id, pg.latest_status, pg.priority, pg.ignore_result,
+               pg.frst_reg_date, pg.last_chg_date,
+               j.job_id, j.job_name, j.system_id, j.group_id, j.job_type, j.job_action,
+               j.job_body, j.job_comments, j.workflow_delay, j.ignore_result AS job_ignore_result
+        FROM scheduler_workflow_priority_group pg
+        LEFT JOIN scheduler_workflow_priority_group_jobs pgj ON pg.id = pgj.priority_group_id
+        LEFT JOIN scheduler_jobs j ON pgj.job_id = j.job_id
+        WHERE pg.workflow_id = #{workflowId}
+        ORDER BY pg.priority ASC, j.priority ASC
+    </select>
+
+    <!-- Insert Priority Group -->
+    <insert id="insert">
+        INSERT INTO scheduler_workflow_priority_group (
+            id, workflow_id, latest_status, priority, ignore_result,
+            frst_reg_date, last_chg_date
+        ) VALUES (
+            #{id}, #{workflowId}, #{latestStatus}, #{priority}, #{ignoreResult},
+            #{frstRegDate}, #{lastChgDate}
+        )
+    </insert>
+
+    <!-- Update Priority Group -->
+    <update id="update">
+        UPDATE scheduler_workflow_priority_group
+        SET priority = #{priority},
+            ignore_result = #{ignoreResult},
+            last_chg_date = #{lastChgDate}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Update Status -->
+    <update id="updateStatus">
+        UPDATE scheduler_workflow_priority_group
+        SET latest_status = #{latestStatus}
+        WHERE id = #{id}
+    </update>
+
+    <!-- Delete Priority Group -->
+    <delete id="delete">
+        DELETE FROM scheduler_workflow_priority_group WHERE id = #{id}
+    </delete>
+
+    <!-- Delete by Workflow ID -->
+    <delete id="deleteByWorkflowId">
+        DELETE FROM scheduler_workflow_priority_group WHERE workflow_id = #{workflowId}
+    </delete>
+
+    <!-- Insert Priority Group - Job relation -->
+    <insert id="insertPriorityGroupJob">
+        INSERT INTO scheduler_workflow_priority_group_jobs (priority_group_id, job_id)
+        VALUES (#{priorityGroupId}, #{jobId})
+    </insert>
+
+    <!-- Delete Priority Group Jobs -->
+    <delete id="deletePriorityGroupJobs">
+        DELETE FROM scheduler_workflow_priority_group_jobs WHERE priority_group_id = #{priorityGroupId}
+    </delete>
+
+    <!-- Find Job IDs by Priority Group ID -->
+    <select id="findJobIdsByPriorityGroupId" resultType="string">
+        SELECT job_id
+        FROM scheduler_workflow_priority_group_jobs
+        WHERE priority_group_id = #{priorityGroupId}
+    </select>
+
+</mapper>

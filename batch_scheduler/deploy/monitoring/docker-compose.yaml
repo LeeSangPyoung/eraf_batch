@@ -1,0 +1,74 @@
+version: "3"
+
+services:
+  otel-collector:
+    container_name: otel-collector
+    image: otel/opentelemetry-collector-contrib
+    command: --config=/etc/otel-collector-config.yaml
+    restart: "always"
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    restart: "always"
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: "always"
+    ports:
+      - "9090:9090"
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - otel-collector
+
+  tempo:
+    image: grafana/tempo:latest
+    command: -config.file=/etc/tempo.yaml
+    restart: "always"
+    volumes:
+      - ./tempo-config.yaml:/etc/tempo.yaml
+      - tempo_data:/var/tempo
+    environment:
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    ports:
+      - "3200:3200"
+      - "4319:4317"
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: "always"
+    environment:
+      - GF_FEATURE_TOGGLES_ENABLE=correlations
+      - NO_PROXY=localhost,127.0.0.1,otel-collector,tempo,loki,prometheus,grafana,172.17.0.0/16,10.0.0.0/8,192.168.0.0/16
+    volumes:
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    depends_on:
+      - loki
+      - tempo
+
+volumes:
+  tempo_data:
+    driver: local

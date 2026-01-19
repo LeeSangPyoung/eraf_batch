@@ -1,0 +1,15 @@
+ALLOWED_HOSTS=localhost,10.38.148.151
+LOG_LEVEL=INFO
+CELERY_BROKER_URL=redis://10.38.148.151:6379/0
+DATABASE_URL=postgres://postgres:postgres@10.38.148.151:3567/celery?currentSchema=batch_celery
+CELERY_RESULT_BACKEND=django-db
+BASE_URL=http://10.38.148.151:3499
+LOG_DIR=./log/batch_celery/
+LOG_MAX_BYTES=10485760
+LOG_BACKUP_COUNT=7
+# Enable/disable OpenTelemetry monitoring (true/false)
+OTEL_MONITOR=True
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+OTEL_SERVICE_NAME=batch-celery-dev
+OTEL_EXPORTER_OTLP_INSECURE=True
+BEAT_MAX_INTERVAL=1
