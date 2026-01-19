@@ -127,7 +127,7 @@ public class WorkflowExecutionService {
                         .jobType(JobType.valueOf(job.getJobType()))
                         .jobAction(job.getJobAction())
                         .jobBody(job.getJobBody())
-                        .maxDurationSeconds(job.getMaxRunDuration() != null ? job.getMaxRunDuration() : 3600L)
+                        .maxDurationSeconds(parseDurationToSeconds(job.getMaxRunDuration()))
                         .retryCount(0)
                         .workflowRunId(workflowRunId)
                         .priority(job.getPriority())
@@ -204,5 +204,28 @@ public class WorkflowExecutionService {
 
             workflowMapper.updateStatus(workflowId, status, endTime, nextRunDate);
         }
+    }
+
+    /**
+     * Parse duration string (HH:MM:SS) to seconds
+     */
+    private Long parseDurationToSeconds(String duration) {
+        if (duration == null || duration.isEmpty()) {
+            return 3600L; // Default 1 hour
+        }
+
+        try {
+            String[] parts = duration.split(":");
+            if (parts.length == 3) {
+                long hours = Long.parseLong(parts[0]);
+                long minutes = Long.parseLong(parts[1]);
+                long seconds = Long.parseLong(parts[2]);
+                return hours * 3600 + minutes * 60 + seconds;
+            }
+        } catch (NumberFormatException e) {
+            log.warn("Invalid duration format: {}", duration);
+        }
+
+        return 3600L; // Default 1 hour
     }
 }

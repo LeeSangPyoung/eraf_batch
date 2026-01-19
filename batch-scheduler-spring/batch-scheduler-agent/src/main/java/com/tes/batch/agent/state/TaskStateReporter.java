@@ -26,9 +26,9 @@ public class TaskStateReporter {
     public void reportResult(JobResult result) {
         try {
             redisTemplate.convertAndSend(RESULT_CHANNEL, result);
-            log.info("Reported job result: {} - {}", result.jobId(), result.status());
+            log.info("Reported job result: {} - {}", result.getJobId(), result.getStatus());
         } catch (Exception e) {
-            log.error("Failed to report job result: {}", result.jobId(), e);
+            log.error("Failed to report job result: {}", result.getJobId(), e);
         }
     }
 

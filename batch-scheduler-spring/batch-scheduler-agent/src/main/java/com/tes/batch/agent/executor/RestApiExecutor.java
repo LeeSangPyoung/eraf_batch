@@ -28,9 +28,9 @@ public class RestApiExecutor {
      * @return Response body as string
      */
     public String execute(JobMessage message) {
-        String url = message.jobAction();
-        String body = message.jobBody();
-        Duration timeout = message.maxDuration() != null ? message.maxDuration() : Duration.ofMinutes(5);
+        String url = message.getJobAction();
+        String body = message.getJobBody();
+        Duration timeout = message.getMaxDuration() != null ? message.getMaxDuration() : Duration.ofMinutes(5);
 
         log.info("Executing REST API call: {} (timeout: {})", url, timeout);
 

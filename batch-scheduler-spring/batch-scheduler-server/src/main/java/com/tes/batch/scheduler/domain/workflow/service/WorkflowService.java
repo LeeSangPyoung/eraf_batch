@@ -270,16 +270,16 @@ public class WorkflowService {
     public ApiResponse<List<WorkflowRunResponse>> filterRuns(WorkflowRunFilterRequest request) {
         int offset = (request.getPage() - 1) * request.getPageSize();
 
-        List<WorkflowRunVO> runs = workflowRunMapper.findByFilter(
+        List<WorkflowRunVO> runs = workflowRunMapper.findByFilters(
                 request.getWorkflowId(),
                 request.getStatus(),
                 request.getStartDateFrom(),
                 request.getStartDateTo(),
-                offset,
-                request.getPageSize()
+                request.getPageSize(),
+                offset
         );
 
-        int total = workflowRunMapper.countByFilter(
+        int total = (int) workflowRunMapper.countByFilters(
                 request.getWorkflowId(),
                 request.getStatus(),
                 request.getStartDateFrom(),
@@ -295,7 +295,7 @@ public class WorkflowService {
 
     @Transactional(readOnly = true)
     public ApiResponse<WorkflowRunResponse> runDetail(String runId) {
-        WorkflowRunVO run = workflowRunMapper.findById(runId);
+        WorkflowRunVO run = workflowRunMapper.findById(Long.parseLong(runId));
         if (run == null) {
             return ApiResponse.error("Workflow run not found: " + runId);
         }

@@ -24,8 +24,8 @@ public class ExecutableExecutor {
      * @return Command output
      */
     public String execute(JobMessage message) {
-        String command = message.jobAction();
-        Duration timeout = message.maxDuration() != null ? message.maxDuration() : Duration.ofMinutes(5);
+        String command = message.getJobAction();
+        Duration timeout = message.getMaxDuration() != null ? message.getMaxDuration() : Duration.ofMinutes(5);
 
         log.info("Executing command: {} (timeout: {})", command, timeout);
 

@@ -61,6 +61,13 @@ public class ApiResponse<T> {
     }
 
     /**
+     * Create a successful response with data and total count (alias).
+     */
+    public static <T> ApiResponse<T> successWithTotal(T data, long total) {
+        return success(data, total);
+    }
+
+    /**
      * Create an error response.
      */
     public static <T> ApiResponse<T> error(String message) {

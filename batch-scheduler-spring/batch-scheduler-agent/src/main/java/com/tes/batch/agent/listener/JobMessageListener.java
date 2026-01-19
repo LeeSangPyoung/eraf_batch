@@ -53,11 +53,11 @@ public class JobMessageListener implements MessageListener {
 
     @Async("jobExecutor")
     public void executeJobAsync(JobMessage jobMessage) {
-        log.info("Starting job execution: {}", jobMessage.jobId());
+        log.info("Starting job execution: {}", jobMessage.getJobId());
 
         try {
             // Report job started
-            stateReporter.reportStarted(jobMessage.jobId(), jobMessage.taskId());
+            stateReporter.reportStarted(jobMessage.getJobId(), jobMessage.getTaskId());
 
             // Execute job
             JobResult result = jobExecutor.execute(jobMessage);
@@ -66,12 +66,12 @@ public class JobMessageListener implements MessageListener {
             stateReporter.reportResult(result);
 
         } catch (Exception e) {
-            log.error("Job execution failed: {}", jobMessage.jobId(), e);
+            log.error("Job execution failed: {}", jobMessage.getJobId(), e);
 
             // Report failure
             JobResult failResult = JobResult.builder()
-                    .jobId(jobMessage.jobId())
-                    .taskId(jobMessage.taskId())
+                    .jobId(jobMessage.getJobId())
+                    .taskId(jobMessage.getTaskId())
                     .status(com.tes.batch.common.enums.TaskStatus.FAILED)
                     .error(e.getMessage())
                     .endTime(System.currentTimeMillis())

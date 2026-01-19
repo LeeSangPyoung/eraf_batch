@@ -53,8 +53,8 @@ public class JobResultListener implements MessageListener {
     }
 
     private void processResult(JobResult result) {
-        String jobId = result.jobId();
-        TaskStatus status = result.status();
+        String jobId = result.getJobId();
+        TaskStatus status = result.getStatus();
 
         // Update job state
         String newState;
@@ -83,7 +83,7 @@ public class JobResultListener implements MessageListener {
             failureCount++;
         }
 
-        jobMapper.updateRunStats(jobId, result.startTime(), runCount, failureCount, result.retryAttempt());
+        jobMapper.updateRunStats(jobId, result.getStartTime(), runCount, failureCount, result.getRetryAttempt());
 
         // Update job state (only if not running)
         if (status != TaskStatus.RUNNING) {
@@ -91,11 +91,11 @@ public class JobResultListener implements MessageListener {
         }
 
         // Update run log
-        if (result.taskId() != null && status != TaskStatus.RUNNING) {
+        if (result.getTaskId() != null && status != TaskStatus.RUNNING) {
             // Calculate duration
             String duration = null;
-            if (result.startTime() != null && result.endTime() != null) {
-                long durationMs = result.endTime() - result.startTime();
+            if (result.getStartTime() != null && result.getEndTime() != null) {
+                long durationMs = result.getEndTime() - result.getStartTime();
                 duration = formatDuration(durationMs);
             }
 
@@ -110,18 +110,18 @@ public class JobResultListener implements MessageListener {
 
             // Find and update the log entry
             try {
-                Long logId = Long.parseLong(result.taskId());
+                Long logId = Long.parseLong(result.getTaskId());
                 jobRunLogMapper.updateStatus(
                         logId,
                         logStatus,
-                        result.endTime(),
+                        result.getEndTime(),
                         duration,
                         null,
-                        result.error(),
-                        result.output()
+                        result.getError(),
+                        result.getOutput()
                 );
             } catch (NumberFormatException e) {
-                log.warn("Invalid task ID format: {}", result.taskId());
+                log.warn("Invalid task ID format: {}", result.getTaskId());
             }
         }
 

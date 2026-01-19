@@ -7,6 +7,8 @@ import org.dmfs.rfc5545.recur.RecurrenceRule;
 import org.dmfs.rfc5545.recur.RecurrenceRuleIterator;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.TimeZone;
 
@@ -74,6 +76,33 @@ public class RRuleParser {
             log.error("Error parsing RRULE: {}", rrule, e);
             return null;
         }
+    }
+
+    /**
+     * Get the next run time as epoch milliseconds
+     *
+     * @param rrule RRULE string
+     * @param afterMillis Get occurrences after this time (epoch ms)
+     * @param zoneId Time zone
+     * @return Next occurrence as epoch milliseconds, or null if no more occurrences
+     */
+    public Long getNextRunTime(String rrule, Long afterMillis, ZoneId zoneId) {
+        if (rrule == null || rrule.isEmpty()) {
+            return null;
+        }
+
+        long after = afterMillis != null ? afterMillis : System.currentTimeMillis();
+        ZonedDateTime afterDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(after), zoneId);
+        ZonedDateTime next = getNextOccurrence(rrule, afterDateTime);
+
+        return next != null ? next.toInstant().toEpochMilli() : null;
+    }
+
+    /**
+     * Get the next run time as epoch milliseconds (overload for long)
+     */
+    public Long getNextRunTime(String rrule, long afterMillis, ZoneId zoneId) {
+        return getNextRunTime(rrule, Long.valueOf(afterMillis), zoneId);
     }
 
     /**

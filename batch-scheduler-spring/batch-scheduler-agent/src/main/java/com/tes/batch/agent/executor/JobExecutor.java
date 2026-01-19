@@ -25,55 +25,55 @@ public class JobExecutor {
      * Execute a job and return the result
      */
     public JobResult execute(JobMessage message) {
-        log.info("Executing job: {} (type: {})", message.jobId(), message.jobType());
+        log.info("Executing job: {} (type: {})", message.getJobId(), message.getJobType());
 
         long startTime = System.currentTimeMillis();
 
         try {
             String output;
 
-            if (message.jobType() == JobType.REST_API) {
+            if (message.getJobType() == JobType.REST_API) {
                 output = restApiExecutor.execute(message);
-            } else if (message.jobType() == JobType.EXECUTABLE) {
+            } else if (message.getJobType() == JobType.EXECUTABLE) {
                 output = executableExecutor.execute(message);
             } else {
-                throw new IllegalArgumentException("Unknown job type: " + message.jobType());
+                throw new IllegalArgumentException("Unknown job type: " + message.getJobType());
             }
 
             long endTime = System.currentTimeMillis();
 
             return JobResult.builder()
-                    .jobId(message.jobId())
-                    .taskId(message.taskId())
+                    .jobId(message.getJobId())
+                    .taskId(message.getTaskId())
                     .status(TaskStatus.SUCCESS)
                     .output(output)
                     .startTime(startTime)
                     .endTime(endTime)
-                    .retryAttempt(message.retryCount())
+                    .retryAttempt(message.getRetryCount())
                     .build();
 
         } catch (JobTimeoutException e) {
-            log.error("Job timeout: {}", message.jobId(), e);
+            log.error("Job timeout: {}", message.getJobId(), e);
             return JobResult.builder()
-                    .jobId(message.jobId())
-                    .taskId(message.taskId())
+                    .jobId(message.getJobId())
+                    .taskId(message.getTaskId())
                     .status(TaskStatus.TIMEOUT)
                     .error(e.getMessage())
                     .startTime(startTime)
                     .endTime(System.currentTimeMillis())
-                    .retryAttempt(message.retryCount())
+                    .retryAttempt(message.getRetryCount())
                     .build();
 
         } catch (Exception e) {
-            log.error("Job execution failed: {}", message.jobId(), e);
+            log.error("Job execution failed: {}", message.getJobId(), e);
             return JobResult.builder()
-                    .jobId(message.jobId())
-                    .taskId(message.taskId())
+                    .jobId(message.getJobId())
+                    .taskId(message.getTaskId())
                     .status(TaskStatus.FAILED)
                     .error(e.getMessage())
                     .startTime(startTime)
                     .endTime(System.currentTimeMillis())
-                    .retryAttempt(message.retryCount())
+                    .retryAttempt(message.getRetryCount())
                     .build();
         }
     }
