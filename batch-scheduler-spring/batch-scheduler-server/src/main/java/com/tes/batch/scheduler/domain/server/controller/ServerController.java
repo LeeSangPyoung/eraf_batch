@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -91,6 +92,23 @@ public class ServerController {
             return ApiResponse.success(null);
         } catch (Exception e) {
             log.error("Failed to delete server", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Restart server workers
+     * POST /server/restart
+     */
+    @PostMapping("/restart")
+    public ApiResponse<Void> restartServer(@RequestBody Map<String, Object> request) {
+        try {
+            String systemName = (String) request.get("system_name");
+            Boolean redeploy = (Boolean) request.getOrDefault("redeploy", false);
+            serverService.restartServer(systemName, redeploy);
+            return ApiResponse.success(null);
+        } catch (Exception e) {
+            log.error("Failed to restart server", e);
             return ApiResponse.error(e.getMessage());
         }
     }

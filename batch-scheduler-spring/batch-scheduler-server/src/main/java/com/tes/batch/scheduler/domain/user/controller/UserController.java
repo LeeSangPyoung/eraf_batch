@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Slf4j
 @RestController
 @RequestMapping("/user")
@@ -70,6 +72,21 @@ public class UserController {
             }
             return ApiResponse.success(null);
         } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Get all users
+     * GET /user/all
+     */
+    @GetMapping("/all")
+    public ApiResponse<List<UserInfoResponse>> getAllUsers() {
+        try {
+            List<UserInfoResponse> users = userService.getAllUsers();
+            return ApiResponse.success(users);
+        } catch (Exception e) {
+            log.error("Failed to get all users", e);
             return ApiResponse.error(e.getMessage());
         }
     }

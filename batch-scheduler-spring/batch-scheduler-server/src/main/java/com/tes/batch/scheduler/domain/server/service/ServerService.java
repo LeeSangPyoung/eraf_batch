@@ -5,6 +5,7 @@ import com.tes.batch.scheduler.domain.server.dto.ServerRequest;
 import com.tes.batch.scheduler.domain.server.mapper.JobServerMapper;
 import com.tes.batch.scheduler.domain.server.vo.JobServerVO;
 import com.tes.batch.scheduler.security.SecurityUtils;
+import com.tes.batch.scheduler.ssh.SshService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ public class ServerService {
 
     private final JobServerMapper serverMapper;
     private final SecurityUtils securityUtils;
+    private final SshService sshService;
 
     @Transactional(readOnly = true)
     public List<JobServerVO> getServers(ServerFilterRequest request) {
@@ -51,24 +53,61 @@ public class ServerService {
         long now = System.currentTimeMillis();
         String currentUserId = securityUtils.getCurrentId();
         String systemId = UUID.randomUUID().toString();
+        String queueName = systemId.replace("-", "");
+
+        // Parse SSH user from host_ip_addr if format is user@host
+        String hostIpAddr = request.getHostIpAddr();
+        String sshUser = request.getSshUser();
+        if (hostIpAddr != null && hostIpAddr.contains("@")) {
+            String[] parts = hostIpAddr.split("@", 2);
+            sshUser = parts[0];
+            hostIpAddr = parts[1];
+        }
 
         JobServerVO server = JobServerVO.builder()
                 .systemId(systemId)
                 .systemName(request.getSystemName())
                 .hostName(request.getHostName())
-                .hostIpAddr(request.getHostIpAddr())
+                .hostIpAddr(hostIpAddr)
                 .secondaryHostIpAddr(request.getSecondaryHostIpAddr())
                 .systemComments(request.getSystemComments())
-                .queueName(systemId.replace("-", ""))
+                .queueName(queueName)
                 .folderPath(request.getFolderPath())
                 .secondaryFolderPath(request.getSecondaryFolderPath())
-                .sshUser(request.getSshUser())
+                .sshUser(sshUser)
                 .agentStatus("UNKNOWN")
                 .frstRegDate(now)
                 .lastChgDate(now)
                 .frstRegUserId(currentUserId)
                 .lastRegUserId(currentUserId)
                 .build();
+
+        // Deploy worker to primary host
+        try {
+            if (hostIpAddr != null && request.getFolderPath() != null) {
+                log.info("Starting agent deployment to {}@{}", sshUser, hostIpAddr);
+                sshService.deployWorker(hostIpAddr, sshUser, request.getFolderPath(), queueName);
+                server.setAgentStatus("ONLINE");
+                log.info("Agent deployment completed successfully");
+            } else {
+                log.warn("Skipping deployment: hostIpAddr={}, folderPath={}", hostIpAddr, request.getFolderPath());
+            }
+        } catch (Exception e) {
+            log.error("Failed to deploy worker to primary host: {}", e.getMessage(), e);
+            server.setAgentStatus("OFFLINE");
+        }
+
+        // Deploy worker to secondary host if exists
+        try {
+            String secondaryHost = request.getSecondaryHostIpAddr();
+            String secondaryFolder = request.getSecondaryFolderPath();
+            if (secondaryHost != null && !secondaryHost.isEmpty() &&
+                secondaryFolder != null && !secondaryFolder.isEmpty()) {
+                sshService.deployWorker(secondaryHost, sshUser, secondaryFolder, queueName);
+            }
+        } catch (Exception e) {
+            log.error("Failed to deploy worker to secondary host: {}", e.getMessage());
+        }
 
         serverMapper.insert(server);
         return server;
@@ -108,11 +147,70 @@ public class ServerService {
         if (existing == null) {
             throw new IllegalArgumentException("Server not found: " + systemId);
         }
+
+        // Stop and clean worker on primary host
+        try {
+            if (existing.getHostIpAddr() != null && existing.getFolderPath() != null) {
+                sshService.stopWorker(existing.getHostIpAddr(), existing.getSshUser(), existing.getFolderPath());
+                sshService.cleanWorkerFolder(existing.getHostIpAddr(), existing.getSshUser(), existing.getFolderPath());
+            }
+        } catch (Exception e) {
+            log.error("Failed to stop/clean worker on primary host: {}", e.getMessage());
+        }
+
+        // Stop and clean worker on secondary host
+        try {
+            if (existing.getSecondaryHostIpAddr() != null && existing.getSecondaryFolderPath() != null) {
+                sshService.stopWorker(existing.getSecondaryHostIpAddr(), existing.getSshUser(), existing.getSecondaryFolderPath());
+                sshService.cleanWorkerFolder(existing.getSecondaryHostIpAddr(), existing.getSshUser(), existing.getSecondaryFolderPath());
+            }
+        } catch (Exception e) {
+            log.error("Failed to stop/clean worker on secondary host: {}", e.getMessage());
+        }
+
         serverMapper.delete(systemId);
     }
 
     @Transactional
     public void updateAgentStatus(String systemId, String status) {
         serverMapper.updateAgentStatus(systemId, status);
+    }
+
+    /**
+     * Restart workers (stop and start)
+     */
+    public void restartServer(String systemName, boolean redeploy) {
+        List<JobServerVO> servers;
+        if (systemName != null && !systemName.isEmpty()) {
+            JobServerVO server = serverMapper.findBySystemName(systemName);
+            if (server == null) {
+                throw new IllegalArgumentException("Server not found: " + systemName);
+            }
+            servers = List.of(server);
+        } else {
+            servers = serverMapper.findAll();
+        }
+
+        for (JobServerVO server : servers) {
+            try {
+                // Stop worker
+                if (server.getHostIpAddr() != null && server.getFolderPath() != null) {
+                    sshService.stopWorker(server.getHostIpAddr(), server.getSshUser(), server.getFolderPath());
+
+                    if (redeploy) {
+                        // Redeploy: copy files and start
+                        sshService.deployWorker(server.getHostIpAddr(), server.getSshUser(),
+                                server.getFolderPath(), server.getQueueName());
+                    } else {
+                        // Just restart
+                        sshService.restartWorker(server.getHostIpAddr(), server.getSshUser(), server.getFolderPath());
+                    }
+                    serverMapper.updateAgentStatus(server.getSystemId(), "ONLINE");
+                }
+            } catch (Exception e) {
+                log.error("Failed to restart worker for {}: {}", server.getSystemName(), e.getMessage());
+                serverMapper.updateAgentStatus(server.getSystemId(), "OFFLINE");
+            }
+        }
     }
 }

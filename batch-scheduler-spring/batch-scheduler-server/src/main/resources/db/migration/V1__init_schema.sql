@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS scheduler_jobs (
     job_type VARCHAR(20) NOT NULL,
     job_action TEXT,
     job_body TEXT,
+    job_comments TEXT,
     start_date BIGINT,
     end_date BIGINT,
     repeat_interval TEXT,
@@ -77,11 +78,14 @@ CREATE TABLE IF NOT EXISTS scheduler_jobs (
     restart_on_failure BOOLEAN DEFAULT false,
     restartable BOOLEAN DEFAULT true,
     ignore_result BOOLEAN DEFAULT false,
+    run_forever BOOLEAN DEFAULT false,
     workflow_id VARCHAR(36),
     priority_group_id VARCHAR(36),
     workflow_delay INTEGER DEFAULT 0,
     frst_reg_date BIGINT,
-    last_chg_date BIGINT
+    last_chg_date BIGINT,
+    frst_reg_user_id VARCHAR(36),
+    last_reg_user_id VARCHAR(36)
 );
 
 -- Job Run Log table

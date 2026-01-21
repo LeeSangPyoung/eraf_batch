@@ -115,4 +115,19 @@ public class UserService {
     public void updateLastActivityTime(String id) {
         userMapper.updateLastActivityTime(id, System.currentTimeMillis());
     }
+
+    /**
+     * Get all users
+     */
+    @Transactional(readOnly = true)
+    public List<UserInfoResponse> getAllUsers() {
+        List<UserVO> users = userMapper.findAll();
+        return users.stream()
+                .map(user -> {
+                    List<String> groupIds = userMapper.findRelatedGroupIds(user.getId());
+                    user.setRelatedGroupIds(groupIds);
+                    return UserInfoResponse.from(user);
+                })
+                .toList();
+    }
 }

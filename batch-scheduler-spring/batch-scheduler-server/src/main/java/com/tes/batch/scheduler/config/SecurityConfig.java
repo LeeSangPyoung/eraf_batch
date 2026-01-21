@@ -35,22 +35,26 @@ public class SecurityConfig {
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public org.springframework.security.web.SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .anonymous(anonymous -> anonymous.principal("anonymousUser"))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exception -> exception
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 .accessDeniedHandler(jwtAccessDeniedHandler)
             )
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints
-                .requestMatchers("/user/login").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/health").permitAll()
-                .requestMatchers("/ws/**").permitAll()
-                .requestMatchers("/logs/**").permitAll()
+                // Public endpoints - order matters!
+                .requestMatchers(
+                    "/user/login",
+                    "/actuator/**",
+                    "/health",
+                    "/ws/**",
+                    "/logs/**",
+                    "/error"
+                ).permitAll()
                 // Admin only endpoints
                 .requestMatchers("/user/create", "/user/delete", "/user/reset").hasRole("ADMIN")
                 .requestMatchers("/server/create", "/server/update", "/server/delete").hasRole("ADMIN")

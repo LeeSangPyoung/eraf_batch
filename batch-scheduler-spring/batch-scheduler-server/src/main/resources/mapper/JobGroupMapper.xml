@@ -6,17 +6,14 @@
     <resultMap id="JobGroupResultMap" type="com.tes.batch.scheduler.domain.group.vo.JobGroupVO">
         <id property="groupId" column="group_id"/>
         <result property="groupName" column="group_name"/>
-        <result property="groupComments" column="group_comments"/>
+        <result property="groupComments" column="group_description"/>
         <result property="frstRegDate" column="frst_reg_date"/>
         <result property="lastChgDate" column="last_chg_date"/>
-        <result property="frstRegUserId" column="frst_reg_user_id"/>
-        <result property="lastRegUserId" column="last_reg_user_id"/>
     </resultMap>
 
     <!-- Base Column List -->
     <sql id="BaseColumns">
-        group_id, group_name, group_comments, frst_reg_date, last_chg_date,
-        frst_reg_user_id, last_reg_user_id
+        group_id, group_name, group_description, frst_reg_date, last_chg_date
     </sql>
 
     <!-- Find by ID -->
@@ -66,7 +63,7 @@
             <if test="textSearch != null and textSearch != ''">
                 AND (
                     LOWER(group_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(group_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    OR LOWER(group_description) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
                 )
             </if>
         </where>
@@ -82,7 +79,7 @@
             <if test="textSearch != null and textSearch != ''">
                 AND (
                     LOWER(group_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(group_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    OR LOWER(group_description) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
                 )
             </if>
         </where>
@@ -113,11 +110,9 @@
     <!-- Insert Group -->
     <insert id="insert">
         INSERT INTO scheduler_job_groups (
-            group_id, group_name, group_comments, frst_reg_date, last_chg_date,
-            frst_reg_user_id, last_reg_user_id
+            group_id, group_name, group_description, frst_reg_date, last_chg_date
         ) VALUES (
-            #{groupId}, #{groupName}, #{groupComments}, #{frstRegDate}, #{lastChgDate},
-            #{frstRegUserId}, #{lastRegUserId}
+            #{groupId}, #{groupName}, #{groupComments}, #{frstRegDate}, #{lastChgDate}
         )
     </insert>
 
@@ -125,9 +120,8 @@
     <update id="update">
         UPDATE scheduler_job_groups
         SET group_name = #{groupName},
-            group_comments = #{groupComments},
-            last_chg_date = #{lastChgDate},
-            last_reg_user_id = #{lastRegUserId}
+            group_description = #{groupComments},
+            last_chg_date = #{lastChgDate}
         WHERE group_id = #{groupId}
     </update>
 

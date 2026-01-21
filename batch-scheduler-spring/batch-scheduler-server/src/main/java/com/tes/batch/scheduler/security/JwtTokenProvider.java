@@ -42,8 +42,8 @@ public class JwtTokenProvider {
         Claims claims = Jwts.claims().subject(userId).build();
         Map<String, Object> claimsMap = new HashMap<>();
         claimsMap.put("id", id);
-        claimsMap.put("userType", userType);
-        claimsMap.put("groupIds", groupIds != null ? groupIds : Collections.emptySet());
+        claimsMap.put("user_type", userType);
+        claimsMap.put("group_ids", groupIds != null ? groupIds : Collections.emptySet());
 
         Date now = new Date();
         Date validity = new Date(now.getTime() + validityInMilliseconds);
@@ -63,7 +63,7 @@ public class JwtTokenProvider {
     public Authentication getAuthentication(String token) {
         Claims claims = getClaims(token);
         String userId = claims.getSubject();
-        Integer userType = claims.get("userType", Integer.class);
+        Integer userType = claims.get("user_type", Integer.class);
 
         Collection<GrantedAuthority> authorities = new ArrayList<>();
         if (userType != null && userType == 0) {
@@ -93,7 +93,7 @@ public class JwtTokenProvider {
      * Get user type from token
      */
     public Integer getUserType(String token) {
-        return getClaims(token).get("userType", Integer.class);
+        return getClaims(token).get("user_type", Integer.class);
     }
 
     /**
@@ -101,7 +101,7 @@ public class JwtTokenProvider {
      */
     @SuppressWarnings("unchecked")
     public Set<String> getGroupIds(String token) {
-        List<String> groupList = getClaims(token).get("groupIds", List.class);
+        List<String> groupList = getClaims(token).get("group_ids", List.class);
         return groupList != null ? new HashSet<>(groupList) : Collections.emptySet();
     }
 

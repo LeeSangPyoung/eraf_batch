@@ -77,11 +77,16 @@ jwt:
 # Application Configuration
 app:
   scheduler:
-    api-url: http://localhost:8080
+    api-url: http://192.168.254.102:8080
   agent:
-    jar-path: ./batch-scheduler-agent.jar
+    jar-path: ./batch-scheduler-agent.jar  # 서버 실행 디렉토리 기준
   session:
     timeout: 3600  # 1 hour in seconds
+
+# SSH Configuration
+ssh:
+  keys-path: ./keys
+  default-username: tangosvc
 
 # Actuator Configuration
 management:

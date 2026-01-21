@@ -21,6 +21,22 @@ public class WorkflowController {
         return workflowService.filter(request);
     }
 
+    /**
+     * Get filter options (workflows for dropdown)
+     * GET /workflow/getFilter
+     */
+    @GetMapping("/getFilter")
+    public ApiResponse<List<WorkflowResponse>> getFilterOptions(
+            @RequestParam(value = "page_size", defaultValue = "100") Integer pageSize,
+            @RequestParam(value = "page_number", defaultValue = "1") Integer pageNumber,
+            @RequestParam(value = "search_text", required = false) String searchText) {
+        WorkflowFilterRequest request = new WorkflowFilterRequest();
+        request.setPageSize(pageSize);
+        request.setPage(pageNumber);
+        request.setWorkflowName(searchText);
+        return workflowService.filter(request);
+    }
+
     @PostMapping("/detail")
     public ApiResponse<WorkflowResponse> detail(@RequestBody Map<String, String> request) {
         String workflowId = request.get("id");

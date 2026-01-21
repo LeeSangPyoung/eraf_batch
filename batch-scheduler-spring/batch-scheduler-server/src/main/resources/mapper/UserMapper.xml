@@ -12,9 +12,9 @@
         <result property="userPwd" column="user_pwd"/>
         <result property="celpTlno" column="celp_tlno"/>
         <result property="emailAddr" column="email_addr"/>
-        <result property="loginFailCount" column="lgin_fail_ncnt"/>
+        <result property="loginFailCount" column="login_fail_count"/>
         <result property="lastPwdChgDate" column="last_pwd_chg_date"/>
-        <result property="lastLoginTime" column="last_lgin_timr"/>
+        <result property="lastLoginTime" column="last_login_time"/>
         <result property="frstRegDate" column="frst_reg_date"/>
         <result property="lastChgDate" column="last_chg_date"/>
         <result property="lastActivityTime" column="last_activity_time"/>
@@ -23,8 +23,8 @@
     <!-- Base Column List -->
     <sql id="BaseColumns">
         id, user_id, user_name, user_type, user_status, user_pwd,
-        celp_tlno, email_addr, lgin_fail_ncnt, last_pwd_chg_date,
-        last_lgin_timr, frst_reg_date, last_chg_date, last_activity_time
+        celp_tlno, email_addr, login_fail_count, last_pwd_chg_date,
+        last_login_time, frst_reg_date, last_chg_date, last_activity_time
     </sql>
 
     <!-- Find by ID -->
@@ -65,8 +65,8 @@
     <!-- Find Users with Filters -->
     <select id="findByFilters" resultMap="UserResultMap">
         SELECT DISTINCT u.id, u.user_id, u.user_name, u.user_type, u.user_status, u.user_pwd,
-               u.celp_tlno, u.email_addr, u.lgin_fail_ncnt, u.last_pwd_chg_date,
-               u.last_lgin_timr, u.frst_reg_date, u.last_chg_date, u.last_activity_time
+               u.celp_tlno, u.email_addr, u.login_fail_count, u.last_pwd_chg_date,
+               u.last_login_time, u.frst_reg_date, u.last_chg_date, u.last_activity_time
         FROM scheduler_users u
         <if test="groupId != null">
             INNER JOIN scheduler_related_group_user rgu ON u.id = rgu.user_id
@@ -115,8 +115,8 @@
     <!-- Find Users by Related Group IDs -->
     <select id="findByRelatedGroupIds" resultMap="UserResultMap">
         SELECT DISTINCT u.id, u.user_id, u.user_name, u.user_type, u.user_status, u.user_pwd,
-               u.celp_tlno, u.email_addr, u.lgin_fail_ncnt, u.last_pwd_chg_date,
-               u.last_lgin_timr, u.frst_reg_date, u.last_chg_date, u.last_activity_time
+               u.celp_tlno, u.email_addr, u.login_fail_count, u.last_pwd_chg_date,
+               u.last_login_time, u.frst_reg_date, u.last_chg_date, u.last_activity_time
         FROM scheduler_users u
         INNER JOIN scheduler_related_group_user rgu ON u.id = rgu.user_id
         WHERE rgu.group_id IN
@@ -131,8 +131,8 @@
     <insert id="insert">
         INSERT INTO scheduler_users (
             id, user_id, user_name, user_type, user_status, user_pwd,
-            celp_tlno, email_addr, lgin_fail_ncnt, last_pwd_chg_date,
-            last_lgin_timr, frst_reg_date, last_chg_date, last_activity_time
+            celp_tlno, email_addr, login_fail_count, last_pwd_chg_date,
+            last_login_time, frst_reg_date, last_chg_date, last_activity_time
         ) VALUES (
             #{id}, #{userId}, #{userName}, #{userType}, #{userStatus}, #{userPwd},
             #{celpTlno}, #{emailAddr}, #{loginFailCount}, #{lastPwdChgDate},
@@ -164,8 +164,8 @@
     <!-- Update Login Success -->
     <update id="updateLoginSuccess">
         UPDATE scheduler_users
-        SET last_lgin_timr = #{lastLoginTime},
-            lgin_fail_ncnt = 0,
+        SET last_login_time = #{lastLoginTime},
+            login_fail_count = 0,
             last_activity_time = #{lastLoginTime}
         WHERE id = #{id}
     </update>
@@ -173,7 +173,7 @@
     <!-- Increment Login Fail Count -->
     <update id="incrementLoginFailCount">
         UPDATE scheduler_users
-        SET lgin_fail_ncnt = lgin_fail_ncnt + 1
+        SET login_fail_count = login_fail_count + 1
         WHERE id = #{id}
     </update>
 
@@ -199,8 +199,8 @@
 
     <!-- Insert User-Group Relation -->
     <insert id="insertUserGroup">
-        INSERT INTO scheduler_related_group_user (id, user_id, group_id)
-        VALUES (#{id}, #{userId}, #{groupId})
+        INSERT INTO scheduler_related_group_user (user_id, group_id)
+        VALUES (#{userId}, #{groupId})
     </insert>
 
     <!-- Delete User-Group Relations -->

@@ -21,6 +21,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
 
+    // Public paths that don't require authentication
+    private static final String[] PUBLIC_PATHS = {
+        "/user/login",
+        "/actuator",
+        "/health",
+        "/ws",
+        "/logs"
+    };
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        for (String publicPath : PUBLIC_PATHS) {
+            if (path.startsWith(publicPath)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,

@@ -20,7 +20,7 @@ INSERT INTO scheduler_users (
     'Administrator',
     0,  -- Admin type
     true,
-    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3KNyQ0.tFiPWwYBMXzG2',  -- admin123
+    '$2a$10$oILeAuCUZdzTJ6cSADE1AupjZkx/lYETFPBXyt8iZU20p5.WnA6vK',  -- admin123
     0,
     EXTRACT(EPOCH FROM NOW()) * 1000,
     EXTRACT(EPOCH FROM NOW()) * 1000

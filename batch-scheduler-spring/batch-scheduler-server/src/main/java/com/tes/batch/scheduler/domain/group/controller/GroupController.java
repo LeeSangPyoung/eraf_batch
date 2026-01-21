@@ -40,10 +40,18 @@ public class GroupController {
      * GET /group/getFilter
      */
     @GetMapping("/getFilter")
-    public ApiResponse<List<JobGroupVO>> getFilterOptions() {
+    public ApiResponse<List<JobGroupVO>> getFilterOptions(
+            @RequestParam(value = "page_size", defaultValue = "100") Integer pageSize,
+            @RequestParam(value = "page_number", defaultValue = "1") Integer pageNumber,
+            @RequestParam(value = "search_text", required = false) String searchText) {
         try {
-            List<JobGroupVO> groups = groupService.getAllGroups();
-            return ApiResponse.success(groups);
+            GroupFilterRequest request = new GroupFilterRequest();
+            request.setSize(pageSize);
+            request.setPage(pageNumber > 0 ? pageNumber - 1 : 0);
+            request.setTextSearch(searchText);
+            List<JobGroupVO> groups = groupService.getGroups(request);
+            long total = groupService.countGroups(request);
+            return ApiResponse.success(groups, total);
         } catch (Exception e) {
             log.error("Failed to get filter options", e);
             return ApiResponse.error(e.getMessage());

@@ -38,6 +38,31 @@ public class JobController {
     }
 
     /**
+     * Get filter options for jobs (used by dropdown selectors)
+     * POST /job/getFilter
+     */
+    @PostMapping("/getFilter")
+    public ApiResponse<List<JobVO>> getFilterOptions(@RequestBody(required = false) JobFilterRequest request) {
+        try {
+            if (request == null) {
+                request = new JobFilterRequest();
+            }
+            if (request.getSize() == null) {
+                request.setSize(100);
+            }
+            if (request.getPage() == null) {
+                request.setPage(0);
+            }
+            List<JobVO> jobs = jobService.getJobs(request);
+            long total = jobService.countJobs(request);
+            return ApiResponse.success(jobs, total);
+        } catch (Exception e) {
+            log.error("Failed to get job filter options", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
      * Get job detail
      * GET /job/detail
      */
