@@ -1,10 +1,13 @@
 package com.tes.batch.scheduler.workflow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -17,8 +20,17 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class WorkflowResultListener implements MessageListener {
 
+    private final RedisMessageListenerContainer listenerContainer;
     private final WorkflowExecutionService workflowExecutionService;
     private final ObjectMapper objectMapper;
+
+    private static final String RESULT_CHANNEL = "workflow:result";
+
+    @PostConstruct
+    public void subscribe() {
+        listenerContainer.addMessageListener(this, new ChannelTopic(RESULT_CHANNEL));
+        log.info("Subscribed to workflow result channel: {}", RESULT_CHANNEL);
+    }
 
     @Override
     public void onMessage(Message message, byte[] pattern) {

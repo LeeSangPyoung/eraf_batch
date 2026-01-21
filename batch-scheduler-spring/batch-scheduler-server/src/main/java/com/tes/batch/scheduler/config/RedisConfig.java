@@ -3,13 +3,10 @@ package com.tes.batch.scheduler.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.tes.batch.scheduler.message.JobResultListener;
-import com.tes.batch.scheduler.workflow.WorkflowResultListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -39,18 +36,10 @@ public class RedisConfig {
 
     @Bean
     public RedisMessageListenerContainer redisMessageListenerContainer(
-            RedisConnectionFactory connectionFactory,
-            JobResultListener jobResultListener,
-            WorkflowResultListener workflowResultListener) {
+            RedisConnectionFactory connectionFactory) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
-
-        // Register job result listener
-        container.addMessageListener(jobResultListener, new ChannelTopic("job:result"));
-
-        // Register workflow result listener
-        container.addMessageListener(workflowResultListener, new ChannelTopic("workflow:result"));
-
+        // Listeners will register themselves via @PostConstruct
         return container;
     }
 }

@@ -27,7 +27,7 @@ INSERT INTO scheduler_users (
 ) ON CONFLICT (user_id) DO NOTHING;
 
 -- Insert default job group
-INSERT INTO scheduler_job_group (
+INSERT INTO scheduler_job_groups (
     group_id,
     group_name,
     group_description,

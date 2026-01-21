@@ -7,7 +7,7 @@ spring:
 
   # Database Configuration
   datasource:
-    url: jdbc:postgresql://localhost:5432/batch
+    url: jdbc:postgresql://192.168.254.102:5432/batch
     username: batch
     password: batch123
     driver-class-name: org.postgresql.Driver
@@ -27,7 +27,7 @@ spring:
   # Redis Configuration
   data:
     redis:
-      host: localhost
+      host: 192.168.254.102
       port: 6379
       timeout: 5000ms
       lettuce:
