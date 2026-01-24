@@ -11,10 +11,11 @@ const useMyInfo = () => {
   } = useSWR('/user/info', async (url) => {
     try {
       const response = await api.get(url);
-      return response.data.data[0];
+      // Server returns single object, not array
+      return response.data.data;
     } catch (error) {
-      toast.error('Error fetching users');
-      return [];
+      toast.error('Error fetching user info');
+      return null;
     }
   });
 

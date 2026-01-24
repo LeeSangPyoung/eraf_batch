@@ -3,6 +3,7 @@ package com.tes.batch.scheduler;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -12,7 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * Main entry point for the Scheduler Server.
  * Provides REST API, Quartz scheduling, and Agent management.
  */
-@SpringBootApplication
+@SpringBootApplication(exclude = {QuartzAutoConfiguration.class})
 @EnableAsync
 @EnableScheduling
 @MapperScan("com.tes.batch.scheduler.domain.*.mapper")

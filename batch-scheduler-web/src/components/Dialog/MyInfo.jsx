@@ -67,14 +67,14 @@ const MyInfo = ({ open, onClose }) => {
                     <Typography className="text-grayDark text-sm mb-2">
                       User Type
                     </Typography>
-                    <BaseTextField disabled value={userType.label} fullWidth />
+                    <BaseTextField disabled value={userType?.label || ''} fullWidth />
                   </Box>
 
                   <Box>
                     <Typography className="text-grayDark text-sm mb-2">
                       Email
                     </Typography>
-                    <BaseTextField disabled value={info.email_addr} fullWidth />
+                    <BaseTextField disabled value={info.email_addr || ''} fullWidth />
                   </Box>
                 </Box>
 
@@ -95,10 +95,10 @@ const MyInfo = ({ open, onClose }) => {
                     <Typography className="text-grayDark text-sm mb-2">
                       Phone
                     </Typography>
-                    <BaseTextField disabled value={info.celp_tlno} fullWidth />
+                    <BaseTextField disabled value={info.celp_tlno || ''} fullWidth />
                   </Box>
 
-                  {groups && groups.length > 0 && (
+                  {info.related_scheduler_group && info.related_scheduler_group.length > 0 && (
                     <Box>
                       <Typography className="text-grayDark text-sm mb-2">
                         Groups
@@ -107,9 +107,9 @@ const MyInfo = ({ open, onClose }) => {
                         disabled
                         fullWidth
                         value={groups
-                          .filter((gr) => gr.related)
+                          ?.filter((gr) => info.related_scheduler_group.includes(gr.id))
                           .map((item) => item.name)
-                          .join(', ')
+                          .join(', ') || ''
                         }
                       />
                     </Box>

@@ -140,9 +140,9 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
         // set default values creator and blocked field when update in server
         frst_reg_user_id: jobData?.frstRegUserId || user?.id,
         last_reg_user_id: user?.id,
-        system: jobData ? { id: jobData.systemId, name: jobData.system } : null,
-        group: jobData ? { id: jobData.groupId, name: jobData.group } : null,
-        job_name: jobData?.jobName || '',
+        system: jobData ? { id: jobData.system_id, name: jobData.system } : null,
+        group: jobData ? { id: jobData.group_id, name: jobData.group } : null,
+        job_name: jobData?.job_name || '',
         start_date: jobData?.startDate
           ? dayjs(jobData.startDate)
           : dayjs().second(0).millisecond(0),
@@ -184,7 +184,7 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
         ...(data.end_date && {
           end_date: formatDateTime(data.end_date, data.end_time),
         }),
-        ...(jobData && { job_id: jobData.jobId }),
+        ...(jobData && { job_id: jobData.job_id }),
         timezone: getUserTimeZone(),
       };
       delete input.start_time;

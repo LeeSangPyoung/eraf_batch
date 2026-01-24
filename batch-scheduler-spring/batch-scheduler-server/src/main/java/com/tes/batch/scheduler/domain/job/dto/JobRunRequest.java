@@ -1,13 +1,13 @@
 package com.tes.batch.scheduler.domain.job.dto;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
 public class JobRunRequest {
-    @JsonAlias("job_id")
+    @JsonProperty("job_id")
     private String jobId;
 
-    @JsonAlias("user_id")
+    @JsonProperty("user_id")
     private String userId;
 }

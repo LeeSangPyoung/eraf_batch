@@ -36,11 +36,10 @@ spring:
           max-idle: 5
           min-idle: 1
 
-  # Quartz Configuration
+  # Quartz Configuration (RAM-based - jobs loaded from app DB at startup)
   quartz:
-    job-store-type: jdbc
-    jdbc:
-      initialize-schema: never
+    job-store-type: memory
+    auto-startup: true
     properties:
       org:
         quartz:
@@ -48,12 +47,7 @@ spring:
             instanceName: BatchScheduler
             instanceId: AUTO
           jobStore:
-            class: org.springframework.scheduling.quartz.LocalDataSourceJobStore
-            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
-            useProperties: true
-            tablePrefix: QRTZ_
-            isClustered: true
-            clusterCheckinInterval: 10000
+            class: org.quartz.simpl.RAMJobStore
           threadPool:
             class: org.quartz.simpl.SimpleThreadPool
             threadCount: 10

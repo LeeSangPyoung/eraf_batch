@@ -110,10 +110,17 @@ export function formatPhoneNumber(numberString) {
   // Remove any non-digit characters
   const cleaned = numberString.replace(/\D/g, '');
 
-  // Match and format into the desired pattern
-  const formatted = cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+  // Format based on length
+  // 11 digits (mobile): xxx-xxxx-xxxx (3-4-4)
+  // 10 digits (landline/old): xxx-xxx-xxxx (3-3-4)
+  if (cleaned.length === 11) {
+    return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+  } else if (cleaned.length === 10) {
+    return cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+  }
 
-  return formatted;
+  // Return as-is if doesn't match expected lengths
+  return cleaned;
 }
 
 export function capitalizeFirst(str) {

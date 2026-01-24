@@ -1,75 +1,75 @@
 package com.tes.batch.scheduler.domain.job.dto;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class JobRequest {
-    @JsonAlias("job_id")
+    @JsonProperty("job_id")
     private String jobId;
 
-    @JsonAlias("job_name")
+    @JsonProperty("job_name")
     private String jobName;
 
-    @JsonAlias("system_id")
+    @JsonProperty("system_id")
     private String systemId;
 
-    @JsonAlias("group_id")
+    @JsonProperty("group_id")
     private String groupId;
 
-    @JsonAlias("job_type")
+    @JsonProperty("job_type")
     private String jobType;
 
-    @JsonAlias("job_action")
+    @JsonProperty("job_action")
     private String jobAction;
 
-    @JsonAlias("job_body")
+    @JsonProperty("job_body")
     private String jobBody;
 
-    @JsonAlias("job_comments")
+    @JsonProperty("job_comments")
     private String jobComments;
 
-    @JsonAlias("start_date")
+    @JsonProperty("start_date")
     private Long startDate;
 
-    @JsonAlias("end_date")
+    @JsonProperty("end_date")
     private Long endDate;
 
-    @JsonAlias("repeat_interval")
+    @JsonProperty("repeat_interval")
     private String repeatInterval;
 
     private String timezone = "Asia/Seoul";
 
-    @JsonAlias("max_run")
+    @JsonProperty("max_run")
     private Integer maxRun = 0;
 
-    @JsonAlias("max_failure")
+    @JsonProperty("max_failure")
     private Integer maxFailure = 0;
 
-    @JsonAlias("max_run_duration")
+    @JsonProperty("max_run_duration")
     private String maxRunDuration;
 
-    @JsonAlias("retry_delay")
+    @JsonProperty("retry_delay")
     private Integer retryDelay = 0;
 
     private Integer priority = 3;
 
-    @JsonAlias("is_enabled")
+    @JsonProperty("is_enabled")
     private Boolean isEnabled = true;
 
-    @JsonAlias("auto_drop")
+    @JsonProperty("auto_drop")
     private Boolean autoDrop = false;
 
-    @JsonAlias("restart_on_failure")
+    @JsonProperty("restart_on_failure")
     private Boolean restartOnFailure = false;
 
     private Boolean restartable = true;
 
-    @JsonAlias("ignore_result")
+    @JsonProperty("ignore_result")
     private Boolean ignoreResult = false;
 
-    @JsonAlias("run_forever")
+    @JsonProperty("run_forever")
     private Boolean runForever = false;
 }

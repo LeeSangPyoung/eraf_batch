@@ -55,9 +55,9 @@ const JobDetailTab = (props) => {
   } = useModal();
   const { jobFilterMutation } = useFilterData();
 
-  const isDeleted = data.currentState === 'DELETED';
-  const isRunning = data.currentState === 'RUNNING';
-  const isWaiting = data.currentState === 'WAITING';
+  const isDeleted = data.current_state === 'DELETED';
+  const isRunning = data.current_state === 'RUNNING';
+  const isWaiting = data.current_state === 'WAITING';
 
   const handleDelete = async () => {
     setLoading({ loading: true, button: 'delete' });
@@ -65,7 +65,7 @@ const JobDetailTab = (props) => {
     try {
       const response = await api.delete('/job/delete', {
         data: {
-          job_id: data.jobId,
+          job_id: data.job_id,
           user_id: user?.id,
         },
       });
@@ -90,7 +90,7 @@ const JobDetailTab = (props) => {
     setDisable(true);
     try {
       const response = await api.post('/job/manuallyRun', {
-        job_id: data.jobId,
+        job_id: data.job_id,
         user_id: user?.id,
       });
       if (response.data.success) {
@@ -112,7 +112,7 @@ const JobDetailTab = (props) => {
     setDisable(true);
     try {
       const response = await api.post('/job/forceStop', {
-        job_id: data.jobId,
+        job_id: data.job_id,
       });
       if (response.data.success) {
         toast.success('Job stopped successfully');
@@ -133,7 +133,7 @@ const JobDetailTab = (props) => {
     setDisable(true);
     try {
       const response = await api.post('/job/updateJobStatus', {
-        job_id: data.jobId,
+        job_id: data.job_id,
         is_enabled: false,
         last_reg_user_id: user?.id,
       });
@@ -158,7 +158,7 @@ const JobDetailTab = (props) => {
     setDisable(true);
     try {
       const response = await api.post('/job/updateJobStatus', {
-        job_id: data.jobId,
+        job_id: data.job_id,
         is_enabled: true,
         last_reg_user_id: user?.id,
       });
@@ -204,7 +204,7 @@ const JobDetailTab = (props) => {
           />
           <BaseTextField
             disabled
-            value={data.jobName || ''}
+            value={data.job_name || ''}
             content={t('job_name')}
             textStyles="text-grayDark font-bold mb-1"
           />
@@ -233,8 +233,8 @@ const JobDetailTab = (props) => {
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">
-                {data.currentState !== 'COMPLETED' &&
-                  data.currentState !== 'DELETED' && (
+                {data.current_state !== 'COMPLETED' &&
+                  data.current_state !== 'DELETED' && (
                     <IconButton
                       onClick={openModal}
                       color="info"
@@ -274,7 +274,7 @@ const JobDetailTab = (props) => {
           />
           <BaseTextField
             disabled
-            value={data.currentState || ''}
+            value={data.current_state || ''}
             content={t('state')}
             textStyles="text-grayDark font-bold mb-1"
           />
@@ -409,8 +409,8 @@ const JobHistoryTab = (props) => {
     pageSize,
     handleChangePage,
     handleChangeRowsPerPage,
-  } = useJobResult({ jobId: data?.jobId });
-  const { job } = useJobDetailData({ job_id: data?.jobId });
+  } = useJobResult({ jobId: data?.job_id });
+  const { job } = useJobDetailData({ job_id: data?.job_id });
   // @ts-ignore
   const { socket, isConnected, setShouldConnection, joinRoom } =
     useLogSocketIO();
@@ -489,7 +489,7 @@ const JobHistoryTab = (props) => {
                     checked={checked}
                     onChange={() => {
                       handleChange();
-                      joinRoom(data.jobId);
+                      joinRoom(data.job_id);
                     }}
                 />
               }
@@ -687,7 +687,7 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
                       '&to=' +
                       Date.now() +
                       '&timezone=browser&var-job_id=' +
-                      data?.jobId,
+                      data?.job_id,
                   );
                 }}
               >
@@ -707,7 +707,7 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
                 '&to=' +
                 Date.now() +
                 '&timezone=browser&var-job_id=' +
-                data?.jobId +
+                data?.job_id +
                 '&panelId=1&__feature.dashboardSceneSolo'
               }
               // width="100%"

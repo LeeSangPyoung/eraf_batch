@@ -231,8 +231,8 @@ const ScheduleInfoTab = ({ data, form }) => {
                 id="currentState"
                 content="Current State"
                 disabled={true}
-                value={data.currentState || ''}
-                sx={colorIndicator(data.currentState)}
+                value={data.current_state || ''}
+                sx={colorIndicator(data.current_state)}
               />
               <BaseTextField
                 id="lastRunDuration"

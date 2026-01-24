@@ -44,7 +44,7 @@ function JobStatusTable({
   useEffect(() => {
     if (selectedJob && jobsData) {
       const updatedJob = jobsData.find(
-        (job) => job.jobId === selectedJob.jobId,
+        (job) => job.job_id === selectedJob.job_id,
       );
       setSelectedJob(updatedJob || null);
     }
@@ -96,37 +96,37 @@ function JobStatusTable({
           data.map((row) => (
             <TableRow
               className={`hover:bg-grayLight cursor-pointer `}
-              key={row.jobName}
+              key={row.job_name}
               onDoubleClick={() => handleModalOpen(row)}
               style={{
                 backgroundColor:
-                  row.currentState === 'RUNNING' ? '#FCA311' : '',
+                  row.current_state === 'RUNNING' ? '#FCA311' : '',
               }}
             >
               <TableCell style={{ ...styleTableCell }}>{row.system}</TableCell>
               <TableCell style={styleTableCell}>{row.creator}</TableCell>
               <TableCell style={styleTableCell}>{row.group}</TableCell>
-              <TableCell style={{ ...styleTableCell }}>{row.jobName}</TableCell>
+              <TableCell style={{ ...styleTableCell }}>{row.job_name}</TableCell>
               <TableCell
                 style={styleTableCell}
-                sx={colorIndicator(row.enable.toString())}
+                sx={colorIndicator(row.enable?.toString())}
               >
-                <DotStatus value={row.enable.toString()} />
+                <DotStatus value={row.enable?.toString()} />
               </TableCell>
               <TableCell
                 style={styleTableCell}
-                sx={colorIndicator(row.currentState)}
+                sx={colorIndicator(row.current_state)}
               >
-                <DotStatus value={row.currentState} />
+                <DotStatus value={row.current_state} />
                 {/* <CustomChip
-                  label={row.currentState}
-                  sx={colorIndicator(row.currentState)}
+                  label={row.current_state}
+                  sx={colorIndicator(row.current_state)}
                   // @ts-ignore
-                  bgcolor={styleChipBackground(row.currentState)}
+                  bgcolor={styleChipBackground(row.current_state)}
                 /> */}
               </TableCell>
               <TableCell style={styleTableCell}>
-                {row.workflowId !== null ? 'Yes' : 'No'}
+                {row.workflow_id !== null ? 'Yes' : 'No'}
               </TableCell>
               <TableCell style={styleTableCell}>
                 {capitalizeFirst(row.schedule)}

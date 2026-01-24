@@ -329,9 +329,8 @@ public class JobService {
             throw new IllegalArgumentException("Job not found: " + jobId);
         }
 
-        if (!job.getIsEnabled()) {
-            throw new IllegalStateException("Job is disabled");
-        }
+        // Manual execution is allowed even if job is disabled
+        // Only scheduled execution respects the isEnabled flag
 
         // Get server queue name
         String queueName = null;
@@ -367,8 +366,8 @@ public class JobService {
 
         jobRunLogMapper.insert(runLog);
 
-        // Update job state
-        jobMapper.updateState(jobId, "RUNNING", null);
+        // Update job state and lastStartDate
+        jobMapper.updateStateWithLastStart(jobId, "RUNNING", null, now);
 
         // Build and publish job message to Redis
         JobMessage message = JobMessage.builder()
