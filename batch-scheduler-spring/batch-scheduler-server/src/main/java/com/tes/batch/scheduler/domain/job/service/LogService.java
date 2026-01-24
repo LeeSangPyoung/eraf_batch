@@ -22,16 +22,14 @@ public class LogService {
 
     @Transactional(readOnly = true)
     public List<JobRunLogVO> getLogs(LogFilterRequest request) {
-        int offset = request.getPage() * request.getSize();
+        // Frontend uses 1-indexed page_number
+        int page = request.getPage() > 0 ? request.getPage() - 1 : 0;
+        int offset = page * request.getSize();
 
         if (securityUtils.isAdmin()) {
             return logMapper.findByFilters(
                     request.getJobId(),
-                    request.getGroupId(),
-                    request.getSystemId(),
-                    request.getOperation(),
                     request.getStatus(),
-                    request.getTextSearch(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo(),
                     request.getSize(),
@@ -45,10 +43,7 @@ public class LogService {
             return logMapper.findByFiltersAndGroupIds(
                     groupIds,
                     request.getJobId(),
-                    request.getSystemId(),
-                    request.getOperation(),
                     request.getStatus(),
-                    request.getTextSearch(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo(),
                     request.getSize(),
@@ -62,11 +57,7 @@ public class LogService {
         if (securityUtils.isAdmin()) {
             return logMapper.countByFilters(
                     request.getJobId(),
-                    request.getGroupId(),
-                    request.getSystemId(),
-                    request.getOperation(),
                     request.getStatus(),
-                    request.getTextSearch(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo()
             );
@@ -78,10 +69,7 @@ public class LogService {
             return logMapper.countByFiltersAndGroupIds(
                     groupIds,
                     request.getJobId(),
-                    request.getSystemId(),
-                    request.getOperation(),
                     request.getStatus(),
-                    request.getTextSearch(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo()
             );

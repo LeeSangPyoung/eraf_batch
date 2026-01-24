@@ -4,13 +4,21 @@ import com.tes.batch.common.dto.ApiResponse;
 import com.tes.batch.scheduler.domain.job.dto.JobFilterRequest;
 import com.tes.batch.scheduler.domain.job.dto.JobRequest;
 import com.tes.batch.scheduler.domain.job.dto.JobRunRequest;
+import com.tes.batch.scheduler.domain.job.dto.JobStatusRequest;
+import com.tes.batch.scheduler.domain.job.dto.RepeatIntervalSampleRequest;
 import com.tes.batch.scheduler.domain.job.service.JobService;
 import com.tes.batch.scheduler.domain.job.vo.JobRunLogVO;
 import com.tes.batch.scheduler.domain.job.vo.JobVO;
+import com.tes.batch.scheduler.scheduler.RRuleParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -20,6 +28,7 @@ import java.util.List;
 public class JobController {
 
     private final JobService jobService;
+    private final RRuleParser rruleParser;
 
     /**
      * Get jobs with filter
@@ -39,9 +48,9 @@ public class JobController {
 
     /**
      * Get filter options for jobs (used by dropdown selectors)
-     * POST /job/getFilter
+     * GET/POST /job/getFilter
      */
-    @PostMapping("/getFilter")
+    @RequestMapping(value = "/getFilter", method = {RequestMethod.GET, RequestMethod.POST})
     public ApiResponse<List<JobVO>> getFilterOptions(@RequestBody(required = false) JobFilterRequest request) {
         try {
             if (request == null) {
@@ -86,6 +95,8 @@ public class JobController {
      */
     @PostMapping("/create")
     public ApiResponse<JobVO> createJob(@RequestBody JobRequest request) {
+        log.info("Create job request: jobName={}, jobType={}, systemId={}, groupId={}",
+                request.getJobName(), request.getJobType(), request.getSystemId(), request.getGroupId());
         try {
             JobVO job = jobService.createJob(request);
             return ApiResponse.success(job);
@@ -151,6 +162,70 @@ public class JobController {
             return ApiResponse.success(null);
         } catch (Exception e) {
             log.error("Failed to force stop job", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Update job status (enable/disable)
+     * POST /job/updateJobStatus
+     */
+    @PostMapping("/updateJobStatus")
+    public ApiResponse<Void> updateJobStatus(@RequestBody JobStatusRequest request) {
+        try {
+            jobService.updateJobStatus(request.getJobId(), request.getIsEnabled());
+            return ApiResponse.success(null);
+        } catch (Exception e) {
+            log.error("Failed to update job status", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Get sample run times for repeat interval
+     * POST /job/repeatIntervalSample
+     */
+    @PostMapping("/repeatIntervalSample")
+    public ApiResponse<List<String>> getRepeatIntervalSample(@RequestBody RepeatIntervalSampleRequest request) {
+        try {
+            String rrule = request.getRepeatInterval();
+            if (rrule == null || rrule.isEmpty()) {
+                return ApiResponse.success(new ArrayList<>());
+            }
+
+            // Validate RRULE
+            if (!rruleParser.isValidRRule(rrule)) {
+                return ApiResponse.error("Invalid RRULE format");
+            }
+
+            // Parse timezone
+            ZoneId zoneId = ZoneId.of(request.getTimezone() != null ? request.getTimezone() : "Asia/Seoul");
+
+            // Parse start date
+            ZonedDateTime startDateTime;
+            if (request.getStartDate() != null) {
+                startDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(request.getStartDate()), zoneId);
+            } else {
+                startDateTime = ZonedDateTime.now(zoneId);
+            }
+
+            // Get next 12 occurrences
+            List<String> samples = new ArrayList<>();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            ZonedDateTime current = startDateTime.minusSeconds(1); // Start from just before
+
+            for (int i = 0; i < 12; i++) {
+                ZonedDateTime next = rruleParser.getNextOccurrence(rrule, startDateTime, current);
+                if (next == null) {
+                    break;
+                }
+                samples.add(next.format(formatter));
+                current = next;
+            }
+
+            return ApiResponse.success(samples);
+        } catch (Exception e) {
+            log.error("Failed to get repeat interval sample", e);
             return ApiResponse.error(e.getMessage());
         }
     }

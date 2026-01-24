@@ -24,6 +24,8 @@ public interface JobMapper {
 
     List<JobVO> findJobsToExecute(@Param("now") Long now);
 
+    List<JobVO> findEnabledJobsWithSchedule();
+
     List<JobVO> findByFilters(
             @Param("jobId") String jobId,
             @Param("groupId") String groupId,
@@ -78,6 +80,13 @@ public interface JobMapper {
             @Param("jobId") String jobId,
             @Param("currentState") String currentState,
             @Param("nextRunDate") Long nextRunDate
+    );
+
+    int updateStateWithLastStart(
+            @Param("jobId") String jobId,
+            @Param("currentState") String currentState,
+            @Param("nextRunDate") Long nextRunDate,
+            @Param("lastStartDate") Long lastStartDate
     );
 
     int updateRunStats(

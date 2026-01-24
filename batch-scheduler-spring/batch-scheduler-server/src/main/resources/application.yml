@@ -109,3 +109,8 @@ logging:
     com.tes.batch: DEBUG
     org.springframework.security: INFO
     org.mybatis: DEBUG
+  file:
+    name: ./server.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"

@@ -32,7 +32,7 @@
         <!-- Dependency Versions -->
         <jjwt.version>0.12.3</jjwt.version>
         <lib-recur.version>0.16.0</lib-recur.version>
-        <jsch.version>0.1.55</jsch.version>
+        <jsch.version>0.2.21</jsch.version>
         <loki-logback.version>1.5.1</loki-logback.version>
         <flyway.version>9.22.3</flyway.version>
     </properties>
@@ -70,9 +70,9 @@
                 <version>${lib-recur.version}</version>
             </dependency>
 
-            <!-- SSH -->
+            <!-- SSH (mwiede fork - supports OpenSSH key format) -->
             <dependency>
-                <groupId>com.jcraft</groupId>
+                <groupId>com.github.mwiede</groupId>
                 <artifactId>jsch</artifactId>
                 <version>${jsch.version}</version>
             </dependency>

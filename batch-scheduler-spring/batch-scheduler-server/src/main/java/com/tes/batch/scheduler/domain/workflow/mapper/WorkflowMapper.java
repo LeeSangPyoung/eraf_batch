@@ -22,6 +22,10 @@ public interface WorkflowMapper {
 
     List<WorkflowVO> findWorkflowsToExecute(@Param("now") Long now);
 
+    List<WorkflowVO> findEnabledWorkflowsWithSchedule();
+
+    int updateNextRunDate(@Param("id") String id, @Param("nextRunDate") Long nextRunDate);
+
     List<WorkflowVO> findByFilters(
             @Param("workflowName") String workflowName,
             @Param("groupId") String groupId,

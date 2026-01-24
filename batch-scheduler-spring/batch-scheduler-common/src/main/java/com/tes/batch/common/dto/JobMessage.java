@@ -1,5 +1,6 @@
 package com.tes.batch.common.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.tes.batch.common.enums.JobType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -109,6 +110,7 @@ public class JobMessage implements Serializable {
     /**
      * Get max duration as Duration object.
      */
+    @JsonIgnore
     public Duration getMaxDuration() {
         return maxDurationSeconds != null ? Duration.ofSeconds(maxDurationSeconds) : null;
     }

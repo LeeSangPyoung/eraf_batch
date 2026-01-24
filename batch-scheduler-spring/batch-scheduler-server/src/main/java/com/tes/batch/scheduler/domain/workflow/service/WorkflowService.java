@@ -11,8 +11,10 @@ import com.tes.batch.scheduler.domain.workflow.vo.WorkflowPriorityGroupVO;
 import com.tes.batch.scheduler.domain.workflow.vo.WorkflowRunVO;
 import com.tes.batch.scheduler.domain.workflow.vo.WorkflowVO;
 import com.tes.batch.scheduler.scheduler.RRuleParser;
+import com.tes.batch.scheduler.scheduler.SchedulerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,8 @@ public class WorkflowService {
     private final WorkflowRunMapper workflowRunMapper;
     private final JobMapper jobMapper;
     private final RRuleParser rruleParser;
+    @Lazy
+    private final SchedulerService schedulerService;
 
     @Transactional(readOnly = true)
     public ApiResponse<List<WorkflowResponse>> filter(WorkflowFilterRequest request) {
@@ -162,6 +166,12 @@ public class WorkflowService {
             }
         }
 
+        // Schedule with Quartz if has repeat interval
+        if (workflow.getRepeatInterval() != null && !workflow.getRepeatInterval().isEmpty()) {
+            schedulerService.scheduleWorkflowWithRRule(workflow);
+            log.info("Scheduled new workflow with Quartz: {}", workflowId);
+        }
+
         return detail(workflowId);
     }
 
@@ -238,6 +248,15 @@ public class WorkflowService {
             }
         }
 
+        // Update Quartz schedule
+        if (existing.getRepeatInterval() != null && !existing.getRepeatInterval().isEmpty()) {
+            schedulerService.scheduleWorkflowWithRRule(existing);
+            log.info("Rescheduled workflow with Quartz: {}", existing.getId());
+        } else {
+            schedulerService.unscheduleWorkflow(existing.getId());
+            log.info("Unscheduled workflow from Quartz: {}", existing.getId());
+        }
+
         return detail(request.getId());
     }
 
@@ -247,6 +266,9 @@ public class WorkflowService {
         if (existing == null) {
             return ApiResponse.error("Workflow not found: " + workflowId);
         }
+
+        // Unschedule from Quartz first
+        schedulerService.unscheduleWorkflow(workflowId);
 
         // Clear jobs linkage
         List<WorkflowPriorityGroupVO> groups = priorityGroupMapper.findByWorkflowId(workflowId);

@@ -4,10 +4,10 @@ import com.tes.batch.scheduler.domain.job.mapper.JobMapper;
 import com.tes.batch.scheduler.domain.job.vo.JobVO;
 import com.tes.batch.scheduler.domain.workflow.mapper.WorkflowMapper;
 import com.tes.batch.scheduler.domain.workflow.vo.WorkflowVO;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,9 +16,11 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 /**
- * Service for managing job scheduling with Quartz
+ * Service for managing job scheduling with Quartz.
+ * Uses Quartz native scheduling instead of DB polling for efficiency.
  */
 @Slf4j
 @Service
@@ -30,13 +32,82 @@ public class SchedulerService {
     private final WorkflowMapper workflowMapper;
     private final RRuleParser rruleParser;
 
+    private static final String JOB_GROUP = "batch-jobs";
+    private static final String TRIGGER_GROUP = "batch-triggers";
+    private static final String WORKFLOW_GROUP = "batch-workflows";
+    private static final String WORKFLOW_TRIGGER_GROUP = "batch-workflow-triggers";
+
     /**
-     * Schedule a job at a specific time
+     * Initialize scheduler on startup - load all enabled jobs
      */
-    public void scheduleJob(JobVO job, Long nextRunDate) {
+    @PostConstruct
+    public void initializeScheduler() {
+        log.info("Initializing Quartz scheduler, loading active jobs...");
         try {
-            JobKey jobKey = JobKey.jobKey(job.getJobId(), "batch-jobs");
-            TriggerKey triggerKey = TriggerKey.triggerKey(job.getJobId() + "_trigger", "batch-triggers");
+            // Load all enabled jobs with repeat interval
+            List<JobVO> enabledJobs = jobMapper.findEnabledJobsWithSchedule();
+            log.info("Found {} enabled jobs with schedule", enabledJobs.size());
+
+            for (JobVO job : enabledJobs) {
+                try {
+                    scheduleJobWithRRule(job);
+                } catch (Exception e) {
+                    log.error("Failed to schedule job on startup: {}", job.getJobId(), e);
+                }
+            }
+
+            // Load enabled workflows
+            List<WorkflowVO> enabledWorkflows = workflowMapper.findEnabledWorkflowsWithSchedule();
+            log.info("Found {} enabled workflows with schedule", enabledWorkflows.size());
+
+            for (WorkflowVO workflow : enabledWorkflows) {
+                try {
+                    scheduleWorkflowWithRRule(workflow);
+                } catch (Exception e) {
+                    log.error("Failed to schedule workflow on startup: {}", workflow.getId(), e);
+                }
+            }
+
+            log.info("Quartz scheduler initialization complete");
+        } catch (Exception e) {
+            log.error("Failed to initialize scheduler", e);
+        }
+    }
+
+    /**
+     * Schedule a job using RRULE - calculates next run time and schedules with Quartz
+     */
+    public void scheduleJobWithRRule(JobVO job) {
+        if (job.getRepeatInterval() == null || job.getRepeatInterval().isEmpty()) {
+            log.debug("Job {} has no repeat interval, skipping schedule", job.getJobId());
+            return;
+        }
+
+        if (!Boolean.TRUE.equals(job.getIsEnabled())) {
+            log.debug("Job {} is disabled, skipping schedule", job.getJobId());
+            return;
+        }
+
+        Long nextRunDate = calculateNextRunDate(job);
+        if (nextRunDate == null) {
+            log.debug("No next run date for job {}", job.getJobId());
+            return;
+        }
+
+        // Update next_run_date in DB
+        jobMapper.updateState(job.getJobId(), "SCHEDULED", nextRunDate);
+
+        // Schedule with Quartz
+        scheduleJob(job.getJobId(), nextRunDate);
+    }
+
+    /**
+     * Schedule a job at a specific time using Quartz SimpleTrigger
+     */
+    public void scheduleJob(String jobId, Long nextRunDate) {
+        try {
+            JobKey jobKey = JobKey.jobKey(jobId, JOB_GROUP);
+            TriggerKey triggerKey = TriggerKey.triggerKey(jobId + "_trigger", TRIGGER_GROUP);
 
             // Remove existing job if any
             if (scheduler.checkExists(jobKey)) {
@@ -46,8 +117,78 @@ public class SchedulerService {
             // Create job detail
             JobDetail jobDetail = JobBuilder.newJob(BatchJobExecutor.class)
                     .withIdentity(jobKey)
-                    .usingJobData("jobId", job.getJobId())
-                    .storeDurably()
+                    .usingJobData("jobId", jobId)
+                    .storeDurably(false)
+                    .build();
+
+            // Create trigger for specific time
+            Trigger trigger = TriggerBuilder.newTrigger()
+                    .withIdentity(triggerKey)
+                    .startAt(Date.from(Instant.ofEpochMilli(nextRunDate)))
+                    .build();
+
+            scheduler.scheduleJob(jobDetail, trigger);
+            log.info("Scheduled job {} at {}", jobId, Instant.ofEpochMilli(nextRunDate));
+
+        } catch (SchedulerException e) {
+            log.error("Failed to schedule job: {}", jobId, e);
+        }
+    }
+
+    /**
+     * Reschedule a job after execution - called by BatchJobExecutor
+     */
+    public void rescheduleJobAfterExecution(JobVO job) {
+        Long nextRunDate = calculateNextRunDate(job);
+        if (nextRunDate != null) {
+            jobMapper.updateState(job.getJobId(), "SCHEDULED", nextRunDate);
+            scheduleJob(job.getJobId(), nextRunDate);
+            log.info("Rescheduled job {} for next run at {}", job.getJobId(), Instant.ofEpochMilli(nextRunDate));
+        } else {
+            log.info("No more runs scheduled for job {}", job.getJobId());
+        }
+    }
+
+    /**
+     * Schedule a workflow using RRULE
+     */
+    public void scheduleWorkflowWithRRule(WorkflowVO workflow) {
+        if (workflow.getRepeatInterval() == null || workflow.getRepeatInterval().isEmpty()) {
+            log.debug("Workflow {} has no repeat interval, skipping schedule", workflow.getId());
+            return;
+        }
+
+        Long nextRunDate = calculateNextRunDate(workflow);
+        if (nextRunDate == null) {
+            log.debug("No next run date for workflow {}", workflow.getId());
+            return;
+        }
+
+        // Update next_run_date in DB
+        workflowMapper.updateNextRunDate(workflow.getId(), nextRunDate);
+
+        // Schedule with Quartz
+        scheduleWorkflow(workflow.getId(), nextRunDate);
+    }
+
+    /**
+     * Schedule a workflow at a specific time
+     */
+    public void scheduleWorkflow(String workflowId, Long nextRunDate) {
+        try {
+            JobKey jobKey = JobKey.jobKey(workflowId, WORKFLOW_GROUP);
+            TriggerKey triggerKey = TriggerKey.triggerKey(workflowId + "_trigger", WORKFLOW_TRIGGER_GROUP);
+
+            // Remove existing if any
+            if (scheduler.checkExists(jobKey)) {
+                scheduler.deleteJob(jobKey);
+            }
+
+            // Create job detail for workflow
+            JobDetail jobDetail = JobBuilder.newJob(BatchWorkflowExecutor.class)
+                    .withIdentity(jobKey)
+                    .usingJobData("workflowId", workflowId)
+                    .storeDurably(false)
                     .build();
 
             // Create trigger
@@ -57,10 +198,10 @@ public class SchedulerService {
                     .build();
 
             scheduler.scheduleJob(jobDetail, trigger);
-            log.info("Scheduled job: {} at {}", job.getJobId(), Instant.ofEpochMilli(nextRunDate));
+            log.info("Scheduled workflow {} at {}", workflowId, Instant.ofEpochMilli(nextRunDate));
 
         } catch (SchedulerException e) {
-            log.error("Failed to schedule job: {}", job.getJobId(), e);
+            log.error("Failed to schedule workflow: {}", workflowId, e);
         }
     }
 
@@ -69,7 +210,7 @@ public class SchedulerService {
      */
     public void unscheduleJob(String jobId) {
         try {
-            JobKey jobKey = JobKey.jobKey(jobId, "batch-jobs");
+            JobKey jobKey = JobKey.jobKey(jobId, JOB_GROUP);
             if (scheduler.checkExists(jobKey)) {
                 scheduler.deleteJob(jobKey);
                 log.info("Unscheduled job: {}", jobId);
@@ -80,11 +221,26 @@ public class SchedulerService {
     }
 
     /**
+     * Unschedule a workflow
+     */
+    public void unscheduleWorkflow(String workflowId) {
+        try {
+            JobKey jobKey = JobKey.jobKey(workflowId, WORKFLOW_GROUP);
+            if (scheduler.checkExists(jobKey)) {
+                scheduler.deleteJob(jobKey);
+                log.info("Unscheduled workflow: {}", workflowId);
+            }
+        } catch (SchedulerException e) {
+            log.error("Failed to unschedule workflow: {}", workflowId, e);
+        }
+    }
+
+    /**
      * Pause a job
      */
     public void pauseJob(String jobId) {
         try {
-            JobKey jobKey = JobKey.jobKey(jobId, "batch-jobs");
+            JobKey jobKey = JobKey.jobKey(jobId, JOB_GROUP);
             scheduler.pauseJob(jobKey);
             log.info("Paused job: {}", jobId);
         } catch (SchedulerException e) {
@@ -97,7 +253,7 @@ public class SchedulerService {
      */
     public void resumeJob(String jobId) {
         try {
-            JobKey jobKey = JobKey.jobKey(jobId, "batch-jobs");
+            JobKey jobKey = JobKey.jobKey(jobId, JOB_GROUP);
             scheduler.resumeJob(jobKey);
             log.info("Resumed job: {}", jobId);
         } catch (SchedulerException e) {
@@ -106,7 +262,8 @@ public class SchedulerService {
     }
 
     /**
-     * Calculate next run date based on RRULE
+     * Calculate next run date based on RRULE.
+     * RRULE is calculated from Job's Start Date as the base, finding the next occurrence after now.
      */
     public Long calculateNextRunDate(JobVO job) {
         if (job.getRepeatInterval() == null || job.getRepeatInterval().isEmpty()) {
@@ -114,12 +271,10 @@ public class SchedulerService {
         }
 
         try {
-            String timezone = job.getTimezone() != null ? job.getTimezone() : "UTC";
+            String timezone = job.getTimezone() != null ? job.getTimezone() : "Asia/Seoul";
             ZoneId zoneId = ZoneId.of(timezone);
 
-            // Start from now or job start date, whichever is later
             long now = System.currentTimeMillis();
-            long startFrom = job.getStartDate() != null ? Math.max(now, job.getStartDate()) : now;
 
             // Check end date
             if (job.getEndDate() != null && now > job.getEndDate()) {
@@ -131,9 +286,14 @@ public class SchedulerService {
                 return null;
             }
 
-            // Parse RRULE and get next occurrence
-            ZonedDateTime startDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startFrom), zoneId);
-            ZonedDateTime nextRun = rruleParser.getNextOccurrence(job.getRepeatInterval(), startDateTime);
+            // RRULE calculation:
+            // - start: Job's Start Date (base for RRULE pattern)
+            // - after: current time (find next occurrence after now)
+            long startDate = job.getStartDate() != null ? job.getStartDate() : now;
+            ZonedDateTime start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startDate), zoneId);
+            ZonedDateTime after = ZonedDateTime.ofInstant(Instant.ofEpochMilli(now), zoneId);
+
+            ZonedDateTime nextRun = rruleParser.getNextOccurrence(job.getRepeatInterval(), start, after);
 
             if (nextRun != null) {
                 long nextRunMs = nextRun.toInstant().toEpochMilli();
@@ -162,14 +322,16 @@ public class SchedulerService {
         }
 
         try {
-            String timezone = workflow.getTimezone() != null ? workflow.getTimezone() : "UTC";
+            String timezone = workflow.getTimezone() != null ? workflow.getTimezone() : "Asia/Seoul";
             ZoneId zoneId = ZoneId.of(timezone);
 
             long now = System.currentTimeMillis();
-            long startFrom = workflow.getStartDate() != null ? Math.max(now, workflow.getStartDate()) : now;
+            long startDate = workflow.getStartDate() != null ? workflow.getStartDate() : now;
 
-            ZonedDateTime startDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startFrom), zoneId);
-            ZonedDateTime nextRun = rruleParser.getNextOccurrence(workflow.getRepeatInterval(), startDateTime);
+            ZonedDateTime start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(startDate), zoneId);
+            ZonedDateTime after = ZonedDateTime.ofInstant(Instant.ofEpochMilli(now), zoneId);
+
+            ZonedDateTime nextRun = rruleParser.getNextOccurrence(workflow.getRepeatInterval(), start, after);
 
             if (nextRun != null) {
                 return nextRun.toInstant().toEpochMilli();
@@ -180,84 +342,5 @@ public class SchedulerService {
         }
 
         return null;
-    }
-
-    /**
-     * Periodically check for jobs that need to be scheduled
-     * Runs every minute
-     */
-    @Scheduled(fixedRate = 60000)
-    @Transactional
-    public void checkAndScheduleJobs() {
-        long now = System.currentTimeMillis();
-
-        // Find jobs that should be executed
-        List<JobVO> jobsToExecute = jobMapper.findJobsToExecute(now);
-
-        for (JobVO job : jobsToExecute) {
-            try {
-                // Trigger job execution
-                triggerJobExecution(job);
-            } catch (Exception e) {
-                log.error("Failed to trigger job execution: {}", job.getJobId(), e);
-            }
-        }
-
-        // Find workflows that should be executed
-        List<WorkflowVO> workflowsToExecute = workflowMapper.findWorkflowsToExecute(now);
-
-        for (WorkflowVO workflow : workflowsToExecute) {
-            try {
-                // Trigger workflow execution
-                triggerWorkflowExecution(workflow);
-            } catch (Exception e) {
-                log.error("Failed to trigger workflow execution: {}", workflow.getId(), e);
-            }
-        }
-    }
-
-    /**
-     * Trigger immediate job execution
-     */
-    private void triggerJobExecution(JobVO job) {
-        try {
-            JobKey jobKey = JobKey.jobKey(job.getJobId(), "batch-jobs");
-
-            // Create job detail if not exists
-            if (!scheduler.checkExists(jobKey)) {
-                JobDetail jobDetail = JobBuilder.newJob(BatchJobExecutor.class)
-                        .withIdentity(jobKey)
-                        .usingJobData("jobId", job.getJobId())
-                        .storeDurably()
-                        .build();
-                scheduler.addJob(jobDetail, true);
-            }
-
-            // Trigger now
-            scheduler.triggerJob(jobKey);
-            log.info("Triggered job execution: {}", job.getJobId());
-
-        } catch (SchedulerException e) {
-            log.error("Failed to trigger job: {}", job.getJobId(), e);
-        }
-    }
-
-    /**
-     * Trigger workflow execution
-     */
-    private void triggerWorkflowExecution(WorkflowVO workflow) {
-        // TODO: Implement workflow execution in Phase 10
-        log.info("Workflow execution triggered: {}", workflow.getId());
-    }
-
-    /**
-     * Initialize scheduler on startup - reschedule all active jobs
-     */
-    @Transactional
-    public void initializeScheduler() {
-        log.info("Initializing scheduler, loading active jobs...");
-
-        // This would typically load all enabled jobs and schedule them
-        // For now, the periodic check will handle scheduling
     }
 }

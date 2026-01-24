@@ -27,30 +27,42 @@ public class RRuleParser {
      * @return Next occurrence datetime, or null if no more occurrences
      */
     public ZonedDateTime getNextOccurrence(String rrule, ZonedDateTime after) {
+        return getNextOccurrence(rrule, after, after);
+    }
+
+    /**
+     * Get the next occurrence based on start time, finding first occurrence after 'after' time
+     *
+     * @param rrule RRULE string (e.g., "FREQ=DAILY;INTERVAL=1")
+     * @param start The base start time for RRULE calculation (Job's Start Date)
+     * @param after Get occurrences after this time (usually current time)
+     * @return Next occurrence datetime, or null if no more occurrences
+     */
+    public ZonedDateTime getNextOccurrence(String rrule, ZonedDateTime start, ZonedDateTime after) {
         try {
             // Parse the RRULE
             RecurrenceRule rule = new RecurrenceRule(rrule);
 
-            // Convert ZonedDateTime to lib-recur DateTime
-            TimeZone timeZone = TimeZone.getTimeZone(after.getZone());
-            DateTime start = new DateTime(
+            // Convert ZonedDateTime to lib-recur DateTime - use START as the base
+            TimeZone timeZone = TimeZone.getTimeZone(start.getZone());
+            DateTime rruleStart = new DateTime(
                     timeZone,
-                    after.getYear(),
-                    after.getMonthValue() - 1, // 0-based month
-                    after.getDayOfMonth(),
-                    after.getHour(),
-                    after.getMinute(),
-                    after.getSecond()
+                    start.getYear(),
+                    start.getMonthValue() - 1, // 0-based month
+                    start.getDayOfMonth(),
+                    start.getHour(),
+                    start.getMinute(),
+                    start.getSecond()
             );
 
-            // Create iterator
-            RecurrenceRuleIterator iterator = rule.iterator(start);
+            // Create iterator starting from Job's Start Date
+            RecurrenceRuleIterator iterator = rule.iterator(rruleStart);
 
-            // Get next occurrence that is after the given time
+            // Get next occurrence that is after the 'after' time
             long afterMillis = after.toInstant().toEpochMilli();
 
             // Skip occurrences until we find one after the given time
-            int maxIterations = 1000; // Safety limit
+            int maxIterations = 100000; // Safety limit for MINUTELY with large gaps
             int count = 0;
 
             while (iterator.hasNext() && count < maxIterations) {
@@ -61,7 +73,7 @@ public class RRuleParser {
                     // Convert back to ZonedDateTime
                     return ZonedDateTime.ofInstant(
                             java.time.Instant.ofEpochMilli(nextMillis),
-                            after.getZone()
+                            start.getZone()
                     );
                 }
                 count++;

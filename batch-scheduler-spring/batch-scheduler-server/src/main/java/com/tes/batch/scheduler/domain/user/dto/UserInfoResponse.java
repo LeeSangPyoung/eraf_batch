@@ -35,7 +35,7 @@ public class UserInfoResponse {
     private Long frstRegDate;
     @JsonProperty("last_chg_date")
     private Long lastChgDate;
-    @JsonProperty("related_group_ids")
+    @JsonProperty("related_scheduler_group")
     private List<String> relatedGroupIds;
 
     public static UserInfoResponse from(UserVO user) {

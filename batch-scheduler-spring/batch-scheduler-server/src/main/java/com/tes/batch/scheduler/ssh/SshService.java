@@ -205,7 +205,7 @@ public class SshService {
 
             // 3. Generate and upload application.yml
             log.info("Step 3: Uploading application.yml");
-            String agentConfig = generateAgentConfig(queueName, host);
+            String agentConfig = generateAgentConfig(queueName, host, folderPath);
             scpUploadContent(session, agentConfig, folderPath + "/application.yml");
             log.info("application.yml uploaded");
 
@@ -238,7 +238,7 @@ public class SshService {
     /**
      * Generate application.yml for agent
      */
-    private String generateAgentConfig(String queueName, String serverId) {
+    private String generateAgentConfig(String queueName, String serverId, String folderPath) {
         return String.format("""
                 server:
                   port: 8081
@@ -273,8 +273,13 @@ public class SshService {
                     root: INFO
                     com.tes.batch: DEBUG
                   file:
-                    name: /var/log/batch-agent/agent.log
-                """, redisHost, redisPort, queueName, serverId, schedulerUrl);
+                    name: %s/logs/agent.log
+                  logback:
+                    rollingpolicy:
+                      max-file-size: 100MB
+                      max-history: 30
+                      file-name-pattern: %s/logs/backup/agent.%%d{yyyy-MM-dd}.%%i.log
+                """, redisHost, redisPort, queueName, serverId, schedulerUrl, folderPath, folderPath);
     }
 
     /**
@@ -285,8 +290,9 @@ public class SshService {
                 #!/bin/bash
                 cd %s
 
-                # Create log directory
-                mkdir -p /var/log/batch-agent
+                # Create log and backup directories in agent folder
+                mkdir -p %s/logs
+                mkdir -p %s/logs/backup
 
                 # Stop existing process if running
                 if [ -f agent.pid ]; then
@@ -299,10 +305,10 @@ public class SshService {
                 fi
 
                 # Start agent
-                nohup java -jar batch-scheduler-agent.jar --spring.config.location=application.yml > /var/log/batch-agent/agent.log 2>&1 &
+                nohup java -jar batch-scheduler-agent.jar --spring.config.location=application.yml > %s/logs/agent.log 2>&1 &
                 echo $! > agent.pid
                 echo "Agent started with PID: $(cat agent.pid)"
-                """, folderPath);
+                """, folderPath, folderPath, folderPath, folderPath);
     }
 
     /**

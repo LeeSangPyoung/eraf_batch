@@ -85,9 +85,9 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- SSH for Agent Deployment -->
+        <!-- SSH for Agent Deployment (mwiede fork - supports OpenSSH key format) -->
         <dependency>
-            <groupId>com.jcraft</groupId>
+            <groupId>com.github.mwiede</groupId>
             <artifactId>jsch</artifactId>
         </dependency>
 

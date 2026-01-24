@@ -83,7 +83,9 @@ public class JobResultListener implements MessageListener {
             failureCount++;
         }
 
-        jobMapper.updateRunStats(jobId, result.getStartTime(), runCount, failureCount, result.getRetryAttempt());
+        // Don't update last_start_date here - it's already set by SchedulerService when job is triggered
+        // Only update run_count, failure_count, and retry_count
+        jobMapper.updateRunStats(jobId, null, runCount, failureCount, result.getRetryAttempt());
 
         // Update job state (only if not running)
         if (status != TaskStatus.RUNNING) {
@@ -99,7 +101,7 @@ public class JobResultListener implements MessageListener {
                 duration = formatDuration(durationMs);
             }
 
-            // Map status to log status
+            // Map status to log status and operation
             String logStatus = switch (status) {
                 case SUCCESS -> "SUCCESS";
                 case FAILED -> "FAILURE";
@@ -108,16 +110,28 @@ public class JobResultListener implements MessageListener {
                 default -> status.name();
             };
 
+            // Determine operation type based on status
+            String operation = switch (status) {
+                case SUCCESS -> "COMPLETED";
+                case FAILED, TIMEOUT -> "BROKEN";
+                case CANCELLED -> "REVOKED";
+                default -> "RUN";
+            };
+
+            // Parse error code if present
+            Integer errorNo = result.getErrorCode();
+
             // Find and update the log entry
             try {
                 Long logId = Long.parseLong(result.getTaskId());
                 jobRunLogMapper.updateStatus(
                         logId,
                         logStatus,
+                        operation,
                         result.getEndTime(),
                         duration,
-                        null,
                         result.getError(),
+                        errorNo,
                         result.getOutput()
                 );
             } catch (NumberFormatException e) {

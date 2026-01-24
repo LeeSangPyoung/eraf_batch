@@ -1,7 +1,8 @@
 package com.tes.batch.scheduler.domain.job.service;
 
+import com.tes.batch.common.dto.JobMessage;
+import com.tes.batch.common.enums.JobType;
 import com.tes.batch.scheduler.domain.group.mapper.JobGroupMapper;
-import com.tes.batch.scheduler.domain.group.vo.JobGroupVO;
 import com.tes.batch.scheduler.domain.job.dto.JobFilterRequest;
 import com.tes.batch.scheduler.domain.job.dto.JobRequest;
 import com.tes.batch.scheduler.domain.job.mapper.JobMapper;
@@ -10,15 +11,20 @@ import com.tes.batch.scheduler.domain.job.vo.JobRunLogVO;
 import com.tes.batch.scheduler.domain.job.vo.JobVO;
 import com.tes.batch.scheduler.domain.server.mapper.JobServerMapper;
 import com.tes.batch.scheduler.domain.server.vo.JobServerVO;
+import com.tes.batch.scheduler.message.RedisMessagePublisher;
+import com.tes.batch.scheduler.scheduler.SchedulerService;
 import com.tes.batch.scheduler.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -30,13 +36,19 @@ public class JobService {
     private final JobGroupMapper groupMapper;
     private final JobServerMapper serverMapper;
     private final SecurityUtils securityUtils;
+    private final RedisMessagePublisher redisMessagePublisher;
+    @Lazy
+    private final SchedulerService schedulerService;
 
     @Transactional(readOnly = true)
     public List<JobVO> getJobs(JobFilterRequest request) {
-        int offset = request.getPage() * request.getSize();
+        // Frontend uses 1-indexed page_number
+        int page = request.getPage() > 0 ? request.getPage() - 1 : 0;
+        int offset = page * request.getSize();
 
+        List<JobVO> jobs;
         if (securityUtils.isAdmin()) {
-            return jobMapper.findByFilters(
+            jobs = jobMapper.findByFilters(
                     request.getJobId(),
                     request.getGroupId(),
                     request.getSystemId(),
@@ -54,7 +66,7 @@ public class JobService {
             if (groupIds.isEmpty()) {
                 return List.of();
             }
-            return jobMapper.findByFiltersAndGroupIds(
+            jobs = jobMapper.findByFiltersAndGroupIds(
                     groupIds,
                     request.getJobId(),
                     request.getSystemId(),
@@ -65,6 +77,67 @@ public class JobService {
                     offset
             );
         }
+
+        // Set schedule string for each job
+        jobs.forEach(job -> job.setSchedule(getScheduleString(job.getRepeatInterval())));
+
+        return jobs;
+    }
+
+    /**
+     * Parse RRULE and return schedule string like "DAILY(1)", "HOURLY(2)"
+     */
+    private String getScheduleString(String repeatInterval) {
+        if (repeatInterval == null || repeatInterval.isEmpty()) {
+            return null;
+        }
+        try {
+            // Parse RRULE format: FREQ=DAILY;INTERVAL=1 -> "DAILY(1)"
+            Pattern freqPattern = Pattern.compile("FREQ=([A-Z]+)");
+            Pattern intervalPattern = Pattern.compile("INTERVAL=(\\d+)");
+
+            Matcher freqMatcher = freqPattern.matcher(repeatInterval);
+            Matcher intervalMatcher = intervalPattern.matcher(repeatInterval);
+
+            String freq = freqMatcher.find() ? freqMatcher.group(1) : null;
+            String interval = intervalMatcher.find() ? intervalMatcher.group(1) : "1";
+
+            if (freq != null) {
+                return freq + "(" + interval + ")";
+            }
+            return repeatInterval;
+        } catch (Exception e) {
+            log.warn("Failed to parse repeat interval: {}", repeatInterval);
+            return repeatInterval;
+        }
+    }
+
+    /**
+     * Parse maxRunDuration string to seconds.
+     * Formats: "3600" (seconds), "01:00:00" (HH:mm:ss), "PT1H" (ISO-8601)
+     */
+    private Long parseMaxDuration(String maxRunDuration) {
+        if (maxRunDuration == null || maxRunDuration.isEmpty()) {
+            return 3600L; // Default 1 hour
+        }
+        try {
+            // Try parsing as plain seconds
+            return Long.parseLong(maxRunDuration);
+        } catch (NumberFormatException e) {
+            try {
+                // Try parsing as HH:mm:ss
+                String[] parts = maxRunDuration.split(":");
+                if (parts.length == 3) {
+                    long hours = Long.parseLong(parts[0]);
+                    long minutes = Long.parseLong(parts[1]);
+                    long seconds = Long.parseLong(parts[2]);
+                    return hours * 3600 + minutes * 60 + seconds;
+                }
+            } catch (Exception ex) {
+                log.warn("Failed to parse maxRunDuration: {}", maxRunDuration);
+            }
+        }
+        return 3600L; // Default 1 hour
     }
 
     @Transactional(readOnly = true)
@@ -153,7 +226,21 @@ public class JobService {
                 .lastRegUserId(currentUserId)
                 .build();
 
+        // Calculate next run date if repeat interval is set
+        if (job.getRepeatInterval() != null && !job.getRepeatInterval().isEmpty()) {
+            Long nextRunDate = schedulerService.calculateNextRunDate(job);
+            job.setNextRunDate(nextRunDate);
+            log.info("Calculated next_run_date for new job {}: {}", job.getJobId(), nextRunDate);
+        }
+
         jobMapper.insert(job);
+
+        // Schedule with Quartz if enabled and has repeat interval
+        if (Boolean.TRUE.equals(job.getIsEnabled()) && job.getRepeatInterval() != null && !job.getRepeatInterval().isEmpty()) {
+            schedulerService.scheduleJobWithRRule(job);
+            log.info("Scheduled new job with Quartz: {}", job.getJobId());
+        }
+
         return jobMapper.findByIdWithRelations(job.getJobId());
     }
 
@@ -195,7 +282,26 @@ public class JobService {
         existing.setLastChgDate(System.currentTimeMillis());
         existing.setLastRegUserId(securityUtils.getCurrentId());
 
+        // Recalculate next run date if repeat interval changed
+        if (existing.getRepeatInterval() != null && !existing.getRepeatInterval().isEmpty()) {
+            Long nextRunDate = schedulerService.calculateNextRunDate(existing);
+            existing.setNextRunDate(nextRunDate);
+            log.info("Recalculated next_run_date for job {}: {}", existing.getJobId(), nextRunDate);
+        } else {
+            existing.setNextRunDate(null);
+        }
+
         jobMapper.update(existing);
+
+        // Update Quartz schedule
+        if (Boolean.TRUE.equals(existing.getIsEnabled()) && existing.getRepeatInterval() != null && !existing.getRepeatInterval().isEmpty()) {
+            schedulerService.scheduleJobWithRRule(existing);
+            log.info("Rescheduled job with Quartz: {}", existing.getJobId());
+        } else {
+            schedulerService.unscheduleJob(existing.getJobId());
+            log.info("Unscheduled job from Quartz: {}", existing.getJobId());
+        }
+
         return jobMapper.findByIdWithRelations(existing.getJobId());
     }
 
@@ -206,9 +312,14 @@ public class JobService {
             throw new IllegalArgumentException("Job not found: " + jobId);
         }
 
+        // Unschedule from Quartz first
+        schedulerService.unscheduleJob(jobId);
+
         // Delete related logs
         jobRunLogMapper.deleteByJobId(jobId);
         jobMapper.delete(jobId);
+
+        log.info("Deleted job and unscheduled from Quartz: {}", jobId);
     }
 
     @Transactional
@@ -222,33 +333,36 @@ public class JobService {
             throw new IllegalStateException("Job is disabled");
         }
 
-        // Get group and server names
-        String groupName = null;
-        String systemName = null;
-        if (job.getGroupId() != null) {
-            JobGroupVO group = groupMapper.findById(job.getGroupId());
-            if (group != null) groupName = group.getGroupName();
-        }
+        // Get server queue name
+        String queueName = null;
         if (job.getSystemId() != null) {
             JobServerVO server = serverMapper.findById(job.getSystemId());
-            if (server != null) systemName = server.getSystemName();
+            if (server != null) {
+                queueName = server.getQueueName();
+            }
         }
 
-        // Create run log
+        if (queueName == null || queueName.isEmpty()) {
+            throw new IllegalStateException("No queue configured for job's server");
+        }
+
+        // Create run log with all denormalized fields
         long now = System.currentTimeMillis();
+        String taskId = UUID.randomUUID().toString();
         JobRunLogVO runLog = JobRunLogVO.builder()
                 .jobId(jobId)
-                .groupId(job.getGroupId())
-                .systemId(job.getSystemId())
-                .celeryTaskName(UUID.randomUUID().toString())
                 .jobName(job.getJobName())
-                .groupName(groupName)
-                .systemName(systemName)
-                .operation("RUN")
-                .batchType("Manual")
+                .systemId(job.getSystemId())
+                .systemName(job.getSystemName())
+                .groupId(job.getGroupId())
+                .groupName(job.getGroupName())
+                .celeryTaskName(taskId)  // maps to task_id
+                .batchType("Manual")     // manual execution
+                .operation("RUN")        // job is running
                 .status("PENDING")
-                .reqStartDate(now)
-                .retryCount(0)
+                .reqStartDate(now)       // maps to scheduled_time
+                .actualStartDate(now)    // maps to start_time
+                .retryCount(0)           // maps to retry_attempt
                 .build();
 
         jobRunLogMapper.insert(runLog);
@@ -256,7 +370,26 @@ public class JobService {
         // Update job state
         jobMapper.updateState(jobId, "RUNNING", null);
 
-        log.info("Manually triggered job: {} (logId: {})", jobId, runLog.getLogId());
+        // Build and publish job message to Redis
+        JobMessage message = JobMessage.builder()
+                .jobId(jobId)
+                .taskId(String.valueOf(runLog.getLogId()))  // Use logId as taskId for tracking
+                .jobName(job.getJobName())
+                .jobType(JobType.valueOf(job.getJobType()))
+                .jobAction(job.getJobAction())
+                .jobBody(job.getJobBody())
+                .maxDurationSeconds(parseMaxDuration(job.getMaxRunDuration()))
+                .retryCount(job.getMaxFailure() != null ? job.getMaxFailure() : 0)
+                .retryDelay(job.getRetryDelay() != null ? job.getRetryDelay() : 0)
+                .priority(job.getPriority() != null ? job.getPriority() : 3)
+                .queueName(queueName)
+                .scheduledTime(now)
+                .manuallyRun(true)
+                .build();
+
+        redisMessagePublisher.publishJob(queueName, message);
+
+        log.info("Manually triggered job: {} (logId: {}, queue: {})", jobId, runLog.getLogId(), queueName);
         return runLog;
     }
 
@@ -276,14 +409,43 @@ public class JobService {
             jobRunLogMapper.updateStatus(
                     latestLog.getLogId(),
                     "REVOKED",
+                    "REVOKED",
                     System.currentTimeMillis(),
                     null,
-                    null,
                     "Force stopped by user",
+                    null,
                     null
             );
         }
 
         log.info("Force stopped job: {}", jobId);
+    }
+
+    @Transactional
+    public void updateJobStatus(String jobId, Boolean isEnabled) {
+        JobVO job = jobMapper.findById(jobId);
+        if (job == null) {
+            throw new IllegalArgumentException("Job not found: " + jobId);
+        }
+
+        // Update job enabled status and state
+        String newState = isEnabled ? "SCHEDULED" : "DISABLED";
+        job.setIsEnabled(isEnabled);
+        job.setCurrentState(newState);
+        job.setLastChgDate(System.currentTimeMillis());
+        job.setLastRegUserId(securityUtils.getCurrentId());
+
+        jobMapper.update(job);
+
+        // Update Quartz schedule based on enabled status
+        if (isEnabled && job.getRepeatInterval() != null && !job.getRepeatInterval().isEmpty()) {
+            schedulerService.scheduleJobWithRRule(job);
+            log.info("Enabled and scheduled job with Quartz: {}", jobId);
+        } else {
+            schedulerService.unscheduleJob(jobId);
+            log.info("Disabled and unscheduled job from Quartz: {}", jobId);
+        }
+
+        log.info("Updated job status: jobId={}, isEnabled={}, newState={}", jobId, isEnabled, newState);
     }
 }

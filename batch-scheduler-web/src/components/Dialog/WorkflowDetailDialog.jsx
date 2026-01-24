@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import api from '../../services/api';
 import useAuthStore from '../../hook/store/useAuthStore';
 import useGroupsStore from '../../hook/store/useGroupStore';
 import useJobStore from '../../hook/store/useJobStore';
@@ -69,6 +70,7 @@ export const WorkflowDetail = ({
     jobOffset,
     jobSearchTextInput,
     setJobSearchTextInput,
+    setIsWorkflow,
   } = useFilterData();
   const [visibleGroups, setVisibleGroups] = useState([]);
 
@@ -110,6 +112,15 @@ export const WorkflowDetail = ({
     const value = repeatInterval?.slice(prefix.length).trim();
     return value.length > 0;
   }
+
+  useEffect(() => {
+    if (open) {
+      setIsWorkflow(true);
+    }
+    return () => {
+      setIsWorkflow(false);
+    };
+  }, [open, setIsWorkflow]);
 
   useEffect(() => {
     setVisibleGroups((prev) => {
@@ -226,12 +237,28 @@ export const WorkflowDetail = ({
                       option.id === value.id
                     }
                     inputValue={groupSearchTextInput}
-                    onChange={(event, newValue) => {
+                    onChange={async (event, newValue) => {
                       setJobOfGroups([]);
                       setJobOfWorkflow([]);
                       setListIgnoreResults([]);
                       setValue('job_of_workflow', []);
                       setGroup(newValue?.id);
+                      // Directly fetch jobs for the selected group
+                      if (newValue?.id) {
+                        try {
+                          const response = await api.post('/job/getFilter', {
+                            group_id: newValue.id,
+                            page_size: 100,
+                            page_number: 1
+                          });
+                          if (response.data.success) {
+                            setJobOfGroups(response.data.data || []);
+                            setJobs(response.data.data || []);
+                          }
+                        } catch (error) {
+                          console.error('Failed to fetch jobs for group:', error);
+                        }
+                      }
                     }}
                     onInputChange={(event, newValue) => {
                       setGroupSearchTextInput(newValue);

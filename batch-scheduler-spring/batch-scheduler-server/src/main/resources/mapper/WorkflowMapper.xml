@@ -61,13 +61,28 @@
         )
     </select>
 
-    <!-- Find Workflows to Execute -->
+    <!-- Find Workflows to Execute (for polling - kept for compatibility) -->
     <select id="findWorkflowsToExecute" resultMap="WorkflowResultMap">
         SELECT <include refid="BaseColumns"/>
         FROM scheduler_workflow w
         WHERE w.next_run_date IS NOT NULL
           AND w.next_run_date &lt;= #{now}
     </select>
+
+    <!-- Find Enabled Workflows with Schedule (for Quartz initialization) -->
+    <select id="findEnabledWorkflowsWithSchedule" resultMap="WorkflowResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_workflow w
+        WHERE w.repeat_interval IS NOT NULL
+          AND w.repeat_interval != ''
+    </select>
+
+    <!-- Update Next Run Date -->
+    <update id="updateNextRunDate">
+        UPDATE scheduler_workflow
+        SET next_run_date = #{nextRunDate}
+        WHERE id = #{id}
+    </update>
 
     <!-- Find Workflows with Filters -->
     <select id="findByFilters" resultMap="WorkflowResultMap">
