@@ -9,56 +9,83 @@ const BaseTextField = ({
   textStyles,
   className,
   required,
-  height = '50px',
+  height = '36px',
   ...props
 }) => {
   return (
-    <>
-      <Box className={clsx('w-full', className)}>
+    <Box className={clsx('w-full', className)}>
+      {content && (
         <Typography
-          className={clsx(
-            'text-sm font-medium',
-            textStyles ?? 'text-secondaryGray',
-          )}
-        >
-          {content} {required && <span className="text-red-500">*</span>}
-        </Typography>
-        <TextField
-          {...props}
-          className={clsx('w-full', className)}
           sx={{
-            '& .MuiInputBase-root': {
-              height: height,
-              minHeight: '30px',
-              borderRadius: 0,
-              border: 'transparent',
-            },
-            '& .MuiInputBase-input': {
-              height: '30px',
-              padding: '0 8px',
-              fontSize: '0.875rem',
-            },
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 2,
-              border: 'transparent',
+            fontSize: '12px',
+            fontWeight: 500,
+            color: '#1D1D1F',
+            marginBottom: '4px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+            letterSpacing: '-0.01em',
+          }}
+          className={clsx(textStyles)}
+        >
+          {content} {required && <span style={{ color: '#FF3B30' }}>*</span>}
+        </Typography>
+      )}
+      <TextField
+        {...props}
+        className={clsx('w-full')}
+        sx={{
+          '& .MuiInputBase-root': {
+            height: height,
+            minHeight: '36px',
+            borderRadius: '12px',
+            backgroundColor: '#FFFFFF',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+            transition: 'all 300ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+            '&:hover': {
               '& .MuiOutlinedInput-notchedOutline': {
-                border: 'transparent',
+                borderColor: '#86868B',
               },
             },
-            ...sx,
-          }}
-          InputProps={{
-            ...InputProps,
-            className: className,
-            sx: {
-              height: '30px',
-              minHeight: '30px',
-              ...InputProps?.sx,
+            '&.Mui-focused': {
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#0071E3',
+                borderWidth: '2px',
+              },
+              boxShadow: '0 0 0 4px rgba(0, 113, 227, 0.1)',
             },
-          }}
-        />
-      </Box>
-    </>
+          },
+          '& .MuiInputBase-input': {
+            padding: '8px 12px',
+            fontSize: '14px',
+            color: '#1D1D1F',
+            letterSpacing: '-0.01em',
+            '&::placeholder': {
+              color: '#86868B',
+              opacity: 1,
+            },
+          },
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '12px',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#D2D2D7',
+              transition: 'all 300ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+            },
+          },
+          '& .Mui-disabled': {
+            backgroundColor: '#F5F5F7',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#E8E8ED',
+            },
+          },
+          ...sx,
+        }}
+        InputProps={{
+          ...InputProps,
+          sx: {
+            ...InputProps?.sx,
+          },
+        }}
+      />
+    </Box>
   );
 };
 

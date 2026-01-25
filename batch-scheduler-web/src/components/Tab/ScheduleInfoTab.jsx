@@ -12,14 +12,12 @@ import useFilterData from '../../hook/useFilterData';
 import useModal from '../../hook/useModal';
 import {
   colorIndicator,
-  formatDateTime,
   timestampFormat,
 } from '../../utils/helper';
 import BaseSelected from '../CustomInput/BaseSelected';
 import BaseTextArea from '../CustomInput/BaseTextArea';
 import BaseTextField from '../CustomInput/BaseTextField';
 import CustomDateTimePicker from '../CustomInput/CustomDateTimePicker';
-import CustomTimePicker from '../CustomInput/CustomTimePicker';
 import { NumberInput } from '../CustomInput/NumberInput';
 import RHFCheckbox from '../CustomInput/RHFCheckbox';
 import Selected from '../CustomInput/Select';
@@ -50,10 +48,9 @@ const ScheduleInfoTab = ({ data, form }) => {
   const restartOnFailure = watch('restart_on_failure');
   const system = watch('system');
   const group = watch('group');
-  const startDate = watch('start_date');
-  const startTime = watch('start_time');
+  const startDateTime = watch('start_date');
   const repeatInterval = watch('repeat_interval');
-  const endDate = watch('end_date');
+  const endDateTime = watch('end_date');
 
   const {
     isVisible: isOpenDialogJobServer,
@@ -77,12 +74,6 @@ const ScheduleInfoTab = ({ data, form }) => {
     });
   }, [groupFilter]);
 
-  useEffect(() => {
-    if (!endDate) {
-      setValue('end_time', null);
-      clearErrors('end_time');
-    }
-  }, [endDate, setValue]);
 
   const handleGroupScroll = (e) => {
     if (
@@ -102,7 +93,7 @@ const ScheduleInfoTab = ({ data, form }) => {
   }
 
   return (
-    <SimpleBar style={{ height: '60vh', paddingTop: 10, paddingBottom: 15 }}>
+    <SimpleBar style={{ height: '60vh', paddingTop: 6, paddingBottom: 10 }}>
       {isOpenDialogJobServer && (
         <BatchJobServerDialog
           onClose={handleCloseJobServer}
@@ -131,19 +122,23 @@ const ScheduleInfoTab = ({ data, form }) => {
           startDate={
             data && data.nextRunDate && data.nextRunDate !== 1
               ? data.nextRunDate
-              : formatDateTime(startDate, startTime)
+              : startDateTime?.valueOf()
           }
         />
       )}
       {visibleGroups && serverFilter && (
-        <Box className="grid grid-cols-2 gap-4">
-          <Box className="flex flex-col ">
+        <Box className="grid grid-cols-2 gap-2">
+          <Box className="flex flex-col">
             <Typography
-              className={
-                'text-sm font-medium text-secondaryGray leading-normal tracking-normal'
-              }
+              sx={{
+                fontSize: '12px',
+                fontWeight: 500,
+                color: '#1D1D1F',
+                marginBottom: '4px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+              }}
             >
-              System <span className="text-red-500"> *</span>
+              System <span style={{ color: '#FF3B30' }}> *</span>
             </Typography>
             <Box className="flex gap-2">
               <BaseSelected
@@ -157,10 +152,31 @@ const ScheduleInfoTab = ({ data, form }) => {
               <Button
                 disabled={user?.user_type !== 0}
                 onClick={handleClickOpenJobServer}
-                sx={{ fontSize: '23px' }}
                 variant="outlined"
-                size="large"
-                className="h-[45px] min-w-[45px] p-0 rounded-[45px] border border-grayBorder"
+                sx={{
+                  minWidth: '36px',
+                  width: '36px',
+                  height: '36px',
+                  padding: 0,
+                  borderRadius: '10px',
+                  border: '1px solid #E8E8ED',
+                  backgroundColor: '#FFFFFF',
+                  color: '#86868B',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    border: '1px solid #0071E3',
+                    backgroundColor: 'rgba(0, 113, 227, 0.06)',
+                    color: '#0071E3',
+                  },
+                  '&:disabled': {
+                    border: '1px solid #E8E8ED',
+                    backgroundColor: '#F5F5F7',
+                    color: '#C7C7CC',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '18px',
+                  },
+                }}
               >
                 <AddIcon />
               </Button>
@@ -187,9 +203,17 @@ const ScheduleInfoTab = ({ data, form }) => {
               required
             />
           )}
-          <Box className=" flex flex-col ">
-            <Typography className={'text-sm font-medium text-secondaryGray'}>
-              Group <span className="text-red-500"> *</span>
+          <Box className="flex flex-col">
+            <Typography
+              sx={{
+                fontSize: '12px',
+                fontWeight: 500,
+                color: '#1D1D1F',
+                marginBottom: '4px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+              }}
+            >
+              Group <span style={{ color: '#FF3B30' }}> *</span>
             </Typography>
             <Box className="flex gap-2">
               <BaseSelected
@@ -210,10 +234,31 @@ const ScheduleInfoTab = ({ data, form }) => {
               <Button
                 disabled={user?.user_type !== 0}
                 onClick={openModal}
-                sx={{ fontSize: '23px' }}
                 variant="outlined"
-                size="large"
-                className="h-[45px] min-w-[45px] p-0 rounded-[45px]  border border-grayBorder"
+                sx={{
+                  minWidth: '36px',
+                  width: '36px',
+                  height: '36px',
+                  padding: 0,
+                  borderRadius: '10px',
+                  border: '1px solid #E8E8ED',
+                  backgroundColor: '#FFFFFF',
+                  color: '#86868B',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    border: '1px solid #0071E3',
+                    backgroundColor: 'rgba(0, 113, 227, 0.06)',
+                    color: '#0071E3',
+                  },
+                  '&:disabled': {
+                    border: '1px solid #E8E8ED',
+                    backgroundColor: '#F5F5F7',
+                    color: '#C7C7CC',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '18px',
+                  },
+                }}
               >
                 <AddIcon />
               </Button>
@@ -258,28 +303,14 @@ const ScheduleInfoTab = ({ data, form }) => {
             control={control}
             name="start_date"
             required
-            content="Start Date"
-            disablePast
-          />
-          <CustomTimePicker
-            control={control}
-            name="start_time"
-            required
-            content="Start Time"
+            content="Start Date & Time"
             disablePast
           />
           <CustomDateTimePicker
             control={control}
             name="end_date"
-            content="End Date"
+            content="End Date & Time"
             disablePast
-          />
-          <CustomTimePicker
-            control={control}
-            name="end_time"
-            content="End Time"
-            disablePast
-            disabled={!watch('end_date')}
           />
           <TextInput
             control={control}
@@ -289,16 +320,22 @@ const ScheduleInfoTab = ({ data, form }) => {
             className="col-span-2"
             InputProps={{
               endAdornment:
-                startDate && startTime && isValidRepeatInterval() ? (
+                startDateTime && isValidRepeatInterval() ? (
                   <InputAdornment position="end">
                     <IconButton
                       onClick={handleOpenRepeatInterval}
-                      color="info"
-                      sx={{ padding: 0 }}
                       aria-label="info"
-                      className="text-grayDark"
+                      sx={{
+                        padding: '6px',
+                        color: '#86868B',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          color: '#0071E3',
+                          backgroundColor: 'rgba(0, 113, 227, 0.06)',
+                        },
+                      }}
                     >
-                      <InfoIcon />
+                      <InfoIcon sx={{ fontSize: '20px' }} />
                     </IconButton>
                   </InputAdornment>
                 ) : null,
@@ -347,7 +384,7 @@ const ScheduleInfoTab = ({ data, form }) => {
             disabled={!restartOnFailure}
           />
           {/* <NumberInput control={control} name="priority" label="Priority" /> */}
-          <Box className="col-span-2 grid grid-cols-4 gap-4 w-full">
+          <Box className="col-span-2 grid grid-cols-4 gap-2 w-full">
             <RHFCheckbox
               disabled={user?.user_type !== 0}
               label="Enable"
@@ -378,6 +415,8 @@ const ScheduleInfoTab = ({ data, form }) => {
             name="job_comments"
             content="Comment"
             className="col-span-2"
+            minRows={2}
+            maxRows={4}
           />
         </Box>
       )}
