@@ -1,130 +1,21 @@
 @import './styles/styles.scss';
 @import './styles/fonts.css';
 
-/* Toast Styling - Apple Style (Subtle) */
 .Toastify__toast-container {
   width: unset !important;
-  max-width: 360px !important;
-  padding: 0 !important;
+  max-width: 500px !important;
 }
 
-.Toastify__toast {
-  border-radius: 12px !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', sans-serif !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
-  background: rgba(255, 255, 255, 0.95) !important;
-  color: #1D1D1F !important;
-  padding: 14px 16px !important;
-  min-height: unset !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
-  border-left: 4px solid #0071E3 !important;
-}
-
-.Toastify__toast-body {
-  padding: 0 !important;
-  margin: 0 !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  line-height: 1.4 !important;
-}
-
-.Toastify__toast--success {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-left: 4px solid #34C759 !important;
-}
-
-.Toastify__toast--success .Toastify__toast-icon svg {
-  fill: #34C759 !important;
-}
-
-.Toastify__toast--error {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-left: 4px solid #FF3B30 !important;
-}
-
-.Toastify__toast--error .Toastify__toast-icon svg {
-  fill: #FF3B30 !important;
-}
-
-.Toastify__toast--warning {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-left: 4px solid #FF9500 !important;
-}
-
-.Toastify__toast--warning .Toastify__toast-icon svg {
-  fill: #FF9500 !important;
-}
-
-.Toastify__toast--info {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-left: 4px solid #0071E3 !important;
-}
-
-.Toastify__toast--info .Toastify__toast-icon svg {
-  fill: #0071E3 !important;
-}
-
-/* Default toast (no specific type) */
-.Toastify__toast--default {
-  background: rgba(255, 255, 255, 0.95) !important;
-  border-left: 4px solid #86868B !important;
-}
-
-.Toastify__toast--default .Toastify__toast-icon svg {
-  fill: #86868B !important;
-}
-
-.Toastify__close-button {
-  color: #86868B !important;
-  opacity: 0.7 !important;
-  align-self: center !important;
-}
-
-.Toastify__close-button:hover {
-  opacity: 1 !important;
-}
-
-.Toastify__progress-bar {
-  height: 3px !important;
-}
-
-.Toastify__progress-bar--success {
-  background: #34C759 !important;
-}
-
-.Toastify__progress-bar--error {
-  background: #FF3B30 !important;
-}
-
-.Toastify__progress-bar--warning {
-  background: #FF9500 !important;
-}
-
-.Toastify__progress-bar--info {
-  background: #0071E3 !important;
-}
-
-/* Scrollbar - Apple Style */
 .simplebar-scrollbar::before {
-  background-color: rgba(0, 0, 0, 0.2) !important;
-  border-radius: 4px !important;
+  background-color: gray !important;
 }
 
-/* MUI Overrides - Apple Style */
 .MuiTablePagination-actions {
-  .MuiIconButton-root {
-    border-radius: 8px !important;
-    transition: all 300ms ease !important;
-  }
-  .MuiIconButton-root:hover {
-    background-color: rgba(0, 113, 227, 0.08) !important;
-  }
   .MuiIconButton-root.Mui-disabled {
     cursor: not-allowed;
     pointer-events: auto;
     svg {
-      color: #D2D2D7;
+      color: #b0b0b0;
     }
   }
 }
@@ -134,94 +25,19 @@
     cursor: not-allowed;
     pointer-events: auto;
     svg {
-      color: #D2D2D7;
+      color: #b0b0b0;
     }
   }
 }
 
-.Mui-disabled {
-  -webkit-text-fill-color: #86868B !important;
+.Mui-disabled{
+  -webkit-text-fill-color: gray !important;
 }
 
 .p-0-important {
   padding: 0 !important;
 }
 
-/* Running State Animation */
-@keyframes runningPulse {
-  0%, 100% {
-    background-color: rgba(255, 149, 0, 0.04);
-  }
-  50% {
-    background-color: rgba(255, 149, 0, 0.08);
-  }
-}
-
-.running-row {
-  animation: runningPulse 2s ease-in-out infinite;
-}
-
-.running-row td:first-child {
-  border-left: 4px solid #FF9500 !important;
-}
-
-/* Table Cells - Apple Style */
 .MuiTableCell-root {
-  padding: 12px 16px !important;
-  border-bottom: 1px solid #E8E8ED !important;
-  font-size: 14px !important;
-}
-
-.MuiTableHead-root .MuiTableCell-root {
-  background-color: #F5F5F7 !important;
-  color: #86868B !important;
-  font-weight: 600 !important;
-  font-size: 12px !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
-}
-
-/* Dialog - Apple Style */
-.MuiDialog-paper {
-  border-radius: 16px !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16) !important;
-}
-
-.MuiDialogTitle-root {
-  font-weight: 600 !important;
-  font-size: 18px !important;
-  color: #1D1D1F !important;
-}
-
-/* Button - Apple Style Override */
-.MuiButton-root {
-  border-radius: 12px !important;
-  text-transform: none !important;
-  font-weight: 500 !important;
-  transition: all 300ms cubic-bezier(0.25, 0.1, 0.25, 1) !important;
-}
-
-/* TextField - Apple Style Override */
-.MuiOutlinedInput-root {
-  border-radius: 12px !important;
-}
-
-.MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
-  border-color: #86868B !important;
-}
-
-.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: #0071E3 !important;
-  border-width: 2px !important;
-}
-
-/* Select - Apple Style */
-.MuiSelect-select {
-  border-radius: 12px !important;
-}
-
-/* Chip - Apple Style */
-.MuiChip-root {
-  border-radius: 8px !important;
-  font-weight: 500 !important;
+  padding: 8px 12px !important;
 }

@@ -14,25 +14,20 @@ const TextInput = ({
   textStyles,
   required,
   className,
-  height = '36px',
+  height = '50px',
   isBackgroundGray,
   ...props
 }) => {
   return (
     <Box className={clsx('w-full flex flex-col', className)}>
-      {content && (
-        <Typography
-          sx={{
-            fontSize: '12px',
-            fontWeight: 500,
-            color: '#1D1D1F',
-            marginBottom: '4px',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-          }}
-        >
-          {content} {required && <span style={{ color: '#FF3B30' }}> *</span>}
-        </Typography>
-      )}
+      <Typography
+        className={clsx(
+          'text-sm font-medium ',
+          textStyles ?? 'text-secondaryGray',
+        )}
+      >
+        {content} {required && <span className="text-red-500"> *</span>}
+      </Typography>
       <Controller
         control={control}
         name={name}
@@ -48,44 +43,40 @@ const TextInput = ({
             sx={{
               '& .MuiInputBase-root': {
                 height: height,
-                padding: '0 4px',
-                minHeight: '36px',
-                borderRadius: '12px',
-                backgroundColor: isBackgroundGray ? '#F5F5F7' : '#FFFFFF',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                fontSize: '14px',
-                transition: 'all 0.2s ease',
+                padding: '0 6px',
+                minHeight: '30px',
+                borderRadius: 0,
+                backgroundColor: isBackgroundGray ? '#1C1C1C0D' : 'white',
               },
               '& .MuiInputBase-input': {
-                padding: '0 12px',
-                fontSize: '14px',
-                '&::placeholder': {
-                  color: '#86868B',
-                  opacity: 1,
-                },
+                height: '30px',
+                padding: '0 8px',
+                fontSize: '0.875rem',
               },
               '& .MuiOutlinedInput-root': {
-                borderRadius: '12px',
+                borderRadius: 2,
+
                 '& .MuiOutlinedInput-notchedOutline': {
                   border: error
-                    ? '2px solid #FF3B30'
+                    ? '1px solid #d32f2f'
                     : isBackgroundGray
-                    ? '1px solid transparent'
-                    : '1px solid #D2D2D7',
-                  transition: 'border-color 0.2s ease',
+                    ? 'transparent'
+                    : '1px solid #E9EAEB',
                 },
                 '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: error ? '#FF3B30' : '#86868B',
+                  border: error
+                    ? '1px solid #d32f2f'
+                    : isBackgroundGray
+                    ? 'transparent'
+                    : '1px solid #E9EAEB',
                 },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  border: error ? '2px solid #FF3B30' : '2px solid #0071E3',
+                  border: error
+                    ? '1px solid #d32f2f'
+                    : isBackgroundGray
+                    ? 'transparent'
+                    : '1px solid #E9EAEB',
                 },
-              },
-              '& .MuiFormHelperText-root': {
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                fontSize: '12px',
-                marginTop: '6px',
-                marginLeft: '4px',
               },
               ...sx,
             }}

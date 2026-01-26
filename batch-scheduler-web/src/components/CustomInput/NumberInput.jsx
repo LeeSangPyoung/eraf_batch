@@ -3,32 +3,27 @@ import clsx from 'clsx';
 import React from 'react';
 import { Controller } from 'react-hook-form';
 
-export const NumberInput = ({
-  control,
-  name,
+export const NumberInput = ({ 
+  control, 
+  name, 
   content,
   textStyles,
   required,
   className,
-  height = '36px',
+  height = '50px',
   sx,
-  ...props
+  ...props 
 }) => {
   return (
-    <Box className={clsx('w-full flex flex-col gap-1', className)}>
-      {content && (
-        <Typography
-          sx={{
-            fontSize: '13px',
-            fontWeight: 500,
-            color: '#1D1D1F',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-            marginBottom: '4px',
-          }}
-        >
-          {content} {required && <span style={{ color: '#FF3B30' }}> *</span>}
-        </Typography>
-      )}
+    <Box className={clsx('w-full flex flex-col', className)}>
+      <Typography
+        className={clsx(
+          'text-sm font-medium ',
+          textStyles ?? 'text-secondaryGray',
+        )}
+      >
+        {content} {required && <span className="text-red-500"> *</span>}
+      </Typography>
       <Controller
         control={control}
         name={name}
@@ -52,56 +47,28 @@ export const NumberInput = ({
             sx={{
               '& .MuiInputBase-root': {
                 height: height,
-                borderRadius: '10px',
-                backgroundColor: '#FFFFFF',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                transition: 'all 0.2s ease',
+                borderRadius: 0,
+                backgroundColor: 'white',
               },
               '& .MuiInputBase-input': {
-                height: '100%',
-                padding: '0 14px',
-                fontSize: '14px',
-                color: '#1D1D1F',
-                '&::placeholder': {
-                  color: '#86868B',
-                  opacity: 1,
-                },
-                // Hide spinner buttons for cleaner look
-                '&::-webkit-outer-spin-button, &::-webkit-inner-spin-button': {
-                  WebkitAppearance: 'none',
-                  margin: 0,
-                },
-                '&[type=number]': {
-                  MozAppearance: 'textfield',
-                },
+                height: '30px',
+                padding: '0 8px',
+                fontSize: '0.875rem',
               },
               '& .MuiOutlinedInput-root': {
-                borderRadius: '10px',
+                borderRadius: 2,
+
                 '& .MuiOutlinedInput-notchedOutline': {
-                  border: error ? '1.5px solid #FF3B30' : '1px solid #E8E8ED',
-                  transition: 'all 0.2s ease',
+                  border: error ? '1px solid #d32f2f' : '1px solid #E9EAEB',
                 },
                 '&:hover .MuiOutlinedInput-notchedOutline': {
-                  border: error ? '1.5px solid #FF3B30' : '1px solid #86868B',
+                  border: error ? '1px solid #d32f2f' : '1px solid #E9EAEB',
                 },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  border: error ? '1.5px solid #FF3B30' : '2px solid #0071E3',
-                  boxShadow: error ? 'none' : '0 0 0 3px rgba(0, 113, 227, 0.1)',
+                  border: error ? '1px solid #d32f2f' : '1px solid #E9EAEB',
                 },
-                '&.Mui-disabled': {
-                  backgroundColor: '#F5F5F7',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    border: '1px solid #E8E8ED',
-                  },
-                },
-              },
-              '& .MuiFormHelperText-root': {
-                marginLeft: '2px',
-                marginTop: '6px',
-                fontSize: '12px',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                '&.Mui-error': {
-                  color: '#FF3B30',
+                '&.Mui-disabled .MuiOutlinedInput-notchedOutline': {
+                  border: '1px solid #E9EAEB',
                 },
               },
               ...sx,

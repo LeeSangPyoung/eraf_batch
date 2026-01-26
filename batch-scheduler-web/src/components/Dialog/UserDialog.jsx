@@ -43,44 +43,11 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: '20px',
-          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.16)',
-          overflow: 'hidden',
-        },
-      }}
-      BackdropProps={{
-        sx: {
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(4px)',
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '24px',
-          borderBottom: '1px solid #E8E8ED',
-        }}
-      >
-        <Box
-          sx={{
-            fontSize: '20px',
-            fontWeight: 600,
-            color: '#1D1D1F',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-            letterSpacing: '-0.01em',
-          }}
-        >
+    <Dialog open={open} maxWidth="md" fullWidth>
+      <DialogTitle className="flex justify-between">
+        <div className="text-2xl font-bold">
           {data ? 'Update User' : 'Create User'}
-        </Box>
+        </div>
         {data && (
           <div className="flex space-x-2">
             <ButtonWithLoading
@@ -138,13 +105,13 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
           </div>
         )}
       </DialogTitle>
-      <DialogContent sx={{ padding: '24px' }}>
+      <DialogContent>
         <form onSubmit={handleSubmit(onSubmit)}>
           <SimpleBar
             style={{
               maxHeight: '60vh',
-              paddingTop: 16,
-              paddingBottom: 16,
+              paddingTop: 10,
+              paddingBottom: 15,
             }}
           >
             <Box className="grid grid-cols-2 gap-4">
@@ -219,20 +186,11 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
               />
             </Box>
           </SimpleBar>
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '12px',
-              paddingTop: '24px',
-              borderTop: '1px solid #E8E8ED',
-              marginTop: '16px',
-            }}
-          >
-            <BaseButton onClick={handleCancel} theme="secondary">
+          <Box className="flex col-span-2 justify-end ml-auto space-x-2 p-2">
+            <BaseButton onClick={handleCancel} theme="light">
               Cancel
             </BaseButton>
-            <BaseButton theme="primary" type="submit">
+            <BaseButton theme="dark" type="submit">
               Save
             </BaseButton>
           </Box>

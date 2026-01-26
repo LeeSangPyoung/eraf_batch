@@ -7,7 +7,7 @@ import * as Yup from 'yup';
 import api from '../services/api';
 import useAuthStore from './store/useAuthStore';
 import dayjs from 'dayjs';
-import { getUserTimeZone } from '../utils/helper';
+import { formatDateTime, getUserTimeZone } from '../utils/helper';
 
 const mappingWorkflowDTO = (dto) => {
   const assignJobs = Object.values(dto.related_priority_group).flat();
@@ -42,10 +42,11 @@ const useWorkflowForm = (workflowData, onClose, mutate, setJobOfGroups, setJobOf
     start_date: Yup.mixed()
       .test(
         'is-dayjs',
-        'Invalid start date & time',
+        'Invalid start date',
         (value) => dayjs.isDayjs(value) && value.isValid(),
       )
       .required('Required'),
+    start_time: Yup.mixed().required('Required'),
     repeat_interval: Yup.string()
       .required('Required')
       .max(4000, 'Maximum 4000 characters')
@@ -71,6 +72,7 @@ const useWorkflowForm = (workflowData, onClose, mutate, setJobOfGroups, setJobOf
       start_date: workflowData?.start_date
         ? dayjs(workflowData.start_date)
         : null,
+      start_time: workflowData?.start_date ? dayjs(workflowData.start_date) : null,
       repeat_interval: workflowData?.repeat_interval || 'FREQ='
     },
     resolver: yupResolver(validateSchema),
@@ -84,7 +86,7 @@ const useWorkflowForm = (workflowData, onClose, mutate, setJobOfGroups, setJobOf
         workflow_name: data.workflow_name,
         group_id: data.group.id,
         last_reg_user_id: user?.id,
-        start_date: data.start_date.valueOf(),
+        start_date: formatDateTime(data.start_date, data.start_time),
         repeat_interval: data.repeat_interval.trim().toUpperCase(),
         timezone: getUserTimeZone(),
       };
@@ -149,6 +151,7 @@ const useWorkflowForm = (workflowData, onClose, mutate, setJobOfGroups, setJobOf
       setValue('group', { id: data.group_id, name: data.group });
       setValue('job_of_workflow', data.assignJobs);
       setValue('start_date', dayjs(data.start_date));
+      setValue('start_time', dayjs(data.start_date));
       setValue('repeat_interval', data.repeat_interval);
     }
   };

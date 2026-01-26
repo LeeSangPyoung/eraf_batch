@@ -1,12 +1,16 @@
 import {
   Box,
+  Chip,
   Dialog,
   DialogContent,
   DialogTitle,
   IconButton,
+  OutlinedInput,
+  Select,
   Typography,
 } from '@mui/material';
 import React from 'react';
+import SimpleBar from 'simplebar-react';
 import CloseIcon from '@mui/icons-material/Close';
 import useMyInfo from '../../hook/useMyInfo';
 import { UserType } from '../../utils/enum';
@@ -19,34 +23,8 @@ const MyInfo = ({ open, onClose }) => {
   const groups = useGroupsStore((state) => state.groups);
 
   return (
-    <Dialog
-      open={open}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: '16px',
-          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.16)',
-          overflow: 'hidden',
-        },
-      }}
-      BackdropProps={{
-        sx: {
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(4px)',
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          fontSize: '18px',
-          fontWeight: 600,
-          color: '#1D1D1F',
-          padding: '16px 20px',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-          letterSpacing: '-0.01em',
-        }}
-      >
+    <Dialog open={open} maxWidth="sm" fullWidth>
+      <DialogTitle className="text-black font-bold pb-0 text-2xl">
         My Info
       </DialogTitle>
       <IconButton
@@ -54,134 +32,93 @@ const MyInfo = ({ open, onClose }) => {
         onClick={onClose}
         sx={{
           position: 'absolute',
-          right: 12,
-          top: 12,
-          width: '32px',
-          height: '32px',
-          color: '#86868B',
-          transition: 'all 0.2s ease',
-          '&:hover': {
-            backgroundColor: '#F5F5F7',
-            color: '#1D1D1F',
-          },
+          right: 8,
+          top: 8,
+          color: (theme) => theme.palette.grey[500],
         }}
       >
-        <CloseIcon sx={{ fontSize: '20px' }} />
+        <CloseIcon className="text-black" />
       </IconButton>
-      <DialogContent sx={{ padding: '16px 20px' }}>
-        <Box className="grid grid-cols-2 gap-2">
-          {info && (
-            <>
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    color: '#1D1D1F',
-                    marginBottom: '4px',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                  }}
-                >
-                  User ID
-                </Typography>
-                <BaseTextField
-                  disabled
-                  value={info.user_id || ''}
-                  fullWidth
-                />
-              </Box>
+      <DialogContent>
+        <SimpleBar
+          style={{
+            maxHeight: '60vh',
+            paddingTop: 10,
+            paddingBottom: 15,
+          }}
+        >
+          <Box className="grid grid-cols-2 gap-6">
+            {info && (
+              <>
+                {/* Left Column */}
+                <Box className="space-y-4">
+                  <Box>
+                    <Typography className="text-grayDark text-sm mb-2">
+                      User ID
+                    </Typography>
+                    <BaseTextField
+                      disabled
+                      value={info.user_id || ''}
+                      fullWidth
+                    />
+                  </Box>
 
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    color: '#1D1D1F',
-                    marginBottom: '4px',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                  }}
-                >
-                  User Status
-                </Typography>
-                <BaseTextField
-                  disabled
-                  value={info.user_status ? 'ENABLE' : 'DISABLE'}
-                  fullWidth
-                />
-              </Box>
+                  <Box>
+                    <Typography className="text-grayDark text-sm mb-2">
+                      User Type
+                    </Typography>
+                    <BaseTextField disabled value={userType?.label || ''} fullWidth />
+                  </Box>
 
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    color: '#1D1D1F',
-                    marginBottom: '4px',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                  }}
-                >
-                  User Type
-                </Typography>
-                <BaseTextField disabled value={userType?.label || ''} fullWidth />
-              </Box>
-
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    color: '#1D1D1F',
-                    marginBottom: '4px',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                  }}
-                >
-                  Phone
-                </Typography>
-                <BaseTextField disabled value={info.celp_tlno || ''} fullWidth />
-              </Box>
-
-              <Box className="col-span-2">
-                <Typography
-                  sx={{
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    color: '#1D1D1F',
-                    marginBottom: '4px',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                  }}
-                >
-                  Email
-                </Typography>
-                <BaseTextField disabled value={info.email_addr || ''} fullWidth />
-              </Box>
-
-              {info.related_scheduler_group && info.related_scheduler_group.length > 0 && (
-                <Box className="col-span-2">
-                  <Typography
-                    sx={{
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      color: '#1D1D1F',
-                      marginBottom: '4px',
-                      fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                    }}
-                  >
-                    Groups
-                  </Typography>
-                  <BaseTextField
-                    disabled
-                    fullWidth
-                    value={groups
-                      ?.filter((gr) => info.related_scheduler_group.includes(gr.id))
-                      .map((item) => item.name)
-                      .join(', ') || ''
-                    }
-                  />
+                  <Box>
+                    <Typography className="text-grayDark text-sm mb-2">
+                      Email
+                    </Typography>
+                    <BaseTextField disabled value={info.email_addr || ''} fullWidth />
+                  </Box>
                 </Box>
-              )}
-            </>
-          )}
-        </Box>
+
+                {/* Right Column */}
+                <Box className="space-y-4">
+                  <Box>
+                    <Typography className="text-grayDark text-sm mb-2">
+                      User Status
+                    </Typography>
+                    <BaseTextField
+                      disabled
+                      value={info.user_status ? 'ENABLE' : 'DISABLE'}
+                      fullWidth
+                    />
+                  </Box>
+
+                  <Box>
+                    <Typography className="text-grayDark text-sm mb-2">
+                      Phone
+                    </Typography>
+                    <BaseTextField disabled value={info.celp_tlno || ''} fullWidth />
+                  </Box>
+
+                  {info.related_scheduler_group && info.related_scheduler_group.length > 0 && (
+                    <Box>
+                      <Typography className="text-grayDark text-sm mb-2">
+                        Groups
+                      </Typography>
+                      <BaseTextField
+                        disabled
+                        fullWidth
+                        value={groups
+                          ?.filter((gr) => info.related_scheduler_group.includes(gr.id))
+                          .map((item) => item.name)
+                          .join(', ') || ''
+                        }
+                      />
+                    </Box>
+                  )}
+                </Box>
+              </>
+            )}
+          </Box>
+        </SimpleBar>
       </DialogContent>
     </Dialog>
   );

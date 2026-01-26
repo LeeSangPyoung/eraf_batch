@@ -2,8 +2,14 @@ import {
   Box,
   Dialog,
   DialogContent,
+  DialogTitle,
   IconButton,
-  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
@@ -11,17 +17,12 @@ import api from '../../services/api';
 import { formatDate, getUserTimeZone } from '../../utils/helper';
 
 import CloseIcon from '@mui/icons-material/Close';
-import ScheduleIcon from '@mui/icons-material/Schedule';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import BaseTextArea from '../CustomInput/BaseTextArea';
+import { styleHeaderTable } from '../Table/JobResultTable';
 
 function RepeatInterval({ open, onClose, repeatInterval, startDate }) {
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
-
   useEffect(() => {
-    if (!open || !repeatInterval) return;
-
-    setLoading(true);
     try {
       api
         .post('/job/repeatIntervalSample', {
@@ -30,202 +31,77 @@ function RepeatInterval({ open, onClose, repeatInterval, startDate }) {
           timezone: getUserTimeZone(),
         })
         .then((res) => {
-          setRows(res.data.data || []);
-          setLoading(false);
-        })
-        .catch(() => {
-          setLoading(false);
+          const rows = [];
+          for (let i = 0; i < res.data.data.length; i += 3) {
+            rows.push(res.data.data.slice(i, i + 3));
+          }
+          setRows(rows);
         });
     } catch (error) {
       toast.error(error);
-      setLoading(false);
     }
-  }, [repeatInterval, startDate, open]);
+  }, [repeatInterval, startDate]);
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: '20px',
-          boxShadow: '0 24px 80px rgba(0, 0, 0, 0.2)',
-          overflow: 'hidden',
-        }
-      }}
-    >
-      {/* Header */}
-      <Box
+    <Dialog open={open} maxWidth="md" fullWidth>
+      <DialogTitle className="text-2xl font-bold">Repeat Interval</DialogTitle>
+      <IconButton
+        aria-label="close"
+        onClick={onClose}
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '20px 24px',
-          borderBottom: '1px solid #E8E8ED',
+          position: 'absolute',
+          right: 8,
+          top: 8,
+          color: (theme) => theme.palette.grey[500],
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Box
-            sx={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '12px',
-              backgroundColor: 'rgba(0, 113, 227, 0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ScheduleIcon sx={{ color: '#0071E3', fontSize: '22px' }} />
-          </Box>
-          <Typography
-            sx={{
-              fontSize: '18px',
-              fontWeight: 600,
-              color: '#1D1D1F',
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-            }}
-          >
-            Repeat Interval
-          </Typography>
+        <CloseIcon className="text-3xl text-black font-bold" />
+      </IconButton>
+      <DialogContent>
+        <Box className="grid grid-cols-1 mt-4">
+          <BaseTextArea
+            disabled
+            isRawInput
+            value={repeatInterval}
+            content="Repeat Interval"
+            rows={3}
+            className="col-span-2"
+          />
+          {rows.length > 0 && (
+            <TableContainer className="mt-6 bg-white rounded-md border border-white">
+              <Table
+                sx={{
+                  minWidth: 650,
+                }}
+              >
+                <TableHead>
+                  <TableRow className="bg-white  sticky top-[-1px]">
+                    <TableCell style={styleHeaderTable} align="center">
+                      Run Time
+                    </TableCell>
+                    <TableCell style={styleHeaderTable} align="center">
+                      Run Time
+                    </TableCell>
+                    <TableCell style={styleHeaderTable} align="center">
+                      Run Time
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {rows.map((row, index) => (
+                    <TableRow key={index} className="hover:bg-grayLight">
+                      {row.map((cell, cellIndex) => (
+                        <TableCell key={cellIndex} align="center">
+                          {cell}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </Box>
-        <IconButton
-          onClick={onClose}
-          sx={{
-            width: '32px',
-            height: '32px',
-            backgroundColor: '#F5F5F7',
-            borderRadius: '50%',
-            '&:hover': {
-              backgroundColor: '#E8E8ED',
-            },
-          }}
-        >
-          <CloseIcon sx={{ fontSize: '18px', color: '#86868B' }} />
-        </IconButton>
-      </Box>
-
-      <DialogContent sx={{ padding: '24px' }}>
-        {/* RRULE Display */}
-        <Box
-          sx={{
-            backgroundColor: '#F5F5F7',
-            borderRadius: '12px',
-            padding: '16px',
-            marginBottom: '24px',
-          }}
-        >
-          <Typography
-            sx={{
-              fontSize: '12px',
-              fontWeight: 500,
-              color: '#86868B',
-              marginBottom: '8px',
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}
-          >
-            Schedule Rule
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: '14px',
-              fontWeight: 500,
-              color: '#1D1D1F',
-              fontFamily: 'SF Mono, Monaco, "Pretendard", monospace',
-              wordBreak: 'break-all',
-            }}
-          >
-            {repeatInterval || '-'}
-          </Typography>
-        </Box>
-
-        {/* Run Times */}
-        {rows.length > 0 && (
-          <Box>
-            <Typography
-              sx={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#86868B',
-                marginBottom: '12px',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Upcoming Runs ({rows.length})
-            </Typography>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '8px',
-                maxHeight: '300px',
-                overflowY: 'auto',
-                '&::-webkit-scrollbar': {
-                  width: '6px',
-                },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: 'rgba(0,0,0,0.2)',
-                  borderRadius: '3px',
-                },
-              }}
-            >
-              {rows.map((time, index) => (
-                <Box
-                  key={index}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '10px 12px',
-                    backgroundColor: index === 0 ? 'rgba(0, 113, 227, 0.08)' : '#FFFFFF',
-                    border: index === 0 ? '1px solid rgba(0, 113, 227, 0.2)' : '1px solid #E8E8ED',
-                    borderRadius: '10px',
-                    transition: 'all 0.2s ease',
-                    '&:hover': {
-                      backgroundColor: index === 0 ? 'rgba(0, 113, 227, 0.12)' : '#F5F5F7',
-                    },
-                  }}
-                >
-                  <AccessTimeIcon
-                    sx={{
-                      fontSize: '14px',
-                      color: index === 0 ? '#0071E3' : '#86868B',
-                    }}
-                  />
-                  <Typography
-                    sx={{
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      color: index === 0 ? '#0071E3' : '#1D1D1F',
-                      fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {time}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          </Box>
-        )}
-
-        {loading && (
-          <Box sx={{ textAlign: 'center', padding: '40px 0', color: '#86868B' }}>
-            Loading schedule...
-          </Box>
-        )}
-
-        {!loading && rows.length === 0 && (
-          <Box sx={{ textAlign: 'center', padding: '40px 0', color: '#86868B' }}>
-            No scheduled runs
-          </Box>
-        )}
       </DialogContent>
     </Dialog>
   );

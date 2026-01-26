@@ -7,7 +7,7 @@ import { useSWRConfig } from 'swr';
 import * as Yup from 'yup';
 import api from '../services/api';
 import { httpRequestPattern } from '../utils/enum';
-import { getUserTimeZone } from '../utils/helper';
+import { formatDateTime, getUserTimeZone } from '../utils/helper';
 import useAuthStore from './store/useAuthStore';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 
@@ -32,7 +32,7 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
     start_date: Yup.mixed()
       .test(
         'is-dayjs',
-        'Invalid start date & time',
+        'Invalid start date',
         (value) => dayjs.isDayjs(value) && value.isValid(),
       )
       .required('Required'),
@@ -40,18 +40,60 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
       .nullable()
       .test(
         'is-after-start-date',
-        'End date & time must be after start date & time',
+        'End date must be after start date',
         function (value) {
           const { start_date } = this.parent;
           if (!!value) {
             return (
               dayjs.isDayjs(value) &&
               dayjs.isDayjs(start_date) &&
-              value.isAfter(start_date)
+              value.isSameOrAfter(start_date.hour(0).minute(0))
             );
           }
           return true;
         },
+      ),
+    start_time: Yup.mixed().required('Required'),
+    end_time: Yup.mixed()
+      .nullable()
+      .test(
+        'is-after-start-time',
+        'End date must be after start date',
+        function (value) {
+          const { start_date, end_date, start_time } = this.parent;
+          if (!!value && dayjs.isDayjs(value)) {
+            const startHour = start_time.hour();
+            const startMinute = start_time.minute();
+            const endHour = value.hour();
+            const endMinute = value.minute();
+
+            // If start_date and end_date are the same, check hours and minutes
+            if (
+              dayjs.isDayjs(end_date) &&
+              end_date.isSame(start_date.hour(0).minute(0))
+            ) {
+              if (
+                endHour > startHour ||
+                (endHour === startHour && endMinute > startMinute)
+              ) {
+                return true;
+              }
+              return false;
+            }
+          }
+          return true;
+        },
+      )
+      .test(
+        'required-if-end-date-is-set',
+        'End time is required if end date is set',
+        function (value) {
+          const { end_date } = this.parent;
+          if (end_date) {
+            return !!value;
+          }
+          return true;
+        }
       ),
     repeat_interval: Yup.string()
       .required('Required')
@@ -105,6 +147,8 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
           ? dayjs(jobData.startDate)
           : dayjs().second(0).millisecond(0),
         end_date: jobData?.endDate ? dayjs(jobData.endDate) : null,
+        start_time: jobData?.startDate ? dayjs(jobData.startDate) : null,
+        end_time: jobData?.endDate ? dayjs(jobData.endDate) : null,
         repeat_interval: jobData?.repeatInterval || 'FREQ=',
         retry_delay: jobData?.retryDelay || 0,
         max_run_duration: jobData?.maxRunDuration ?? '1:00:00',
@@ -135,14 +179,16 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
       let input = {
         ...data,
         job_body: JSON.parse(data.job_body),
-        start_date: data.start_date.valueOf(),
+        start_date: formatDateTime(data.start_date, data.start_time),
         repeat_interval: data.repeat_interval.trim().toUpperCase(),
         ...(data.end_date && {
-          end_date: data.end_date.valueOf(),
+          end_date: formatDateTime(data.end_date, data.end_time),
         }),
         ...(jobData && { job_id: jobData.job_id }),
         timezone: getUserTimeZone(),
       };
+      delete input.start_time;
+      delete input.end_time;
       if (data.job_type === 'EXECUTABLE') {
         delete input.job_body;
       }

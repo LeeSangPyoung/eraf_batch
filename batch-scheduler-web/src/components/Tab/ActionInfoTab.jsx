@@ -13,7 +13,7 @@ const ActionInfoTab = ({ form }) => {
 
   const watchJobType = watch('job_type');
   return (
-    <div className="grid grid-cols-1 gap-2">
+    <div className="grid grid-cols-1 gap-4">
       <Selected
         control={control}
         name="job_type"
@@ -28,8 +28,6 @@ const ActionInfoTab = ({ form }) => {
         name="job_action"
         content="Job Action"
         required
-        minRows={2}
-        maxRows={4}
       />
 
       {watchJobType === 'REST_API' && (
@@ -37,8 +35,6 @@ const ActionInfoTab = ({ form }) => {
           control={control}
           name="job_body"
           content="Request Body"
-          minRows={2}
-          maxRows={4}
         />
       )}
     </div>

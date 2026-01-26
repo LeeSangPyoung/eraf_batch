@@ -20,11 +20,12 @@ import useFilterData from '../../hook/useFilterData';
 import useModal from '../../hook/useModal';
 import useWorkflowForm, { useDeleteWorkflow } from '../../hook/useWorkflowForm';
 import { workflowStatusOptions } from '../../utils/enum';
-import { timestampFormat } from '../../utils/helper';
+import { formatDateTime, timestampFormat } from '../../utils/helper';
 import BaseButton from '../CustomInput/BaseButton';
 import BaseSelected from '../CustomInput/BaseSelected';
 import BaseTextField from '../CustomInput/BaseTextField';
 import CustomDateTimePicker from '../CustomInput/CustomDateTimePicker';
+import CustomTimePicker from '../CustomInput/CustomTimePicker';
 import TextInput from '../CustomInput/TextInput';
 import RepeatIntervalDialog from '../Dialog/RepeatInterval';
 import WorkFlowNodes from '../ReactFlow/CustomWorkFlow';
@@ -95,7 +96,8 @@ export const WorkflowDetail = ({
     setListIgnoreResults,
   );
 
-  const startDateTime = watch('start_date');
+  const startDate = watch('start_date');
+  const startTime = watch('start_time');
   const repeatInterval = watch('repeat_interval');
   const {
     isVisible: isRepeatIntervalOpen,
@@ -367,12 +369,20 @@ export const WorkflowDetail = ({
             <CustomDateTimePicker
               control={control}
               name="start_date"
-              content="Start Date & Time"
+              content="Start Date"
               disablePast
               disabled={mode === WF_MODE.VIEW}
               isBackgroundGray={mode === WF_MODE.VIEW}
               required
-              className="col-span-2"
+            />
+            <CustomTimePicker
+              control={control}
+              name="start_time"
+              content="Start Time"
+              disablePast
+              disabled={mode === WF_MODE.VIEW}
+              isBackgroundGray={mode === WF_MODE.VIEW}
+              required
             />
             <TextInput
               control={control}
@@ -382,22 +392,16 @@ export const WorkflowDetail = ({
               className="col-span-2"
               InputProps={{
                 endAdornment:
-                  startDateTime && isValidRepeatInterval() ? (
+                  startDate && startTime && isValidRepeatInterval() ? (
                     <InputAdornment position="end">
                       <IconButton
                         onClick={handleOpenRepeatInterval}
+                        color="info"
+                        sx={{ padding: 0 }}
                         aria-label="info"
-                        sx={{
-                          padding: '6px',
-                          color: '#86868B',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            color: '#0071E3',
-                            backgroundColor: 'rgba(0, 113, 227, 0.06)',
-                          },
-                        }}
+                        className='text-grayDark'
                       >
-                        <InfoIcon sx={{ fontSize: '20px' }} />
+                        <InfoIcon />
                       </IconButton>
                     </InputAdornment>
                   ) : null,
@@ -412,7 +416,9 @@ export const WorkflowDetail = ({
               open={isRepeatIntervalOpen}
               onClose={closeRepeatInterval}
               repeatInterval={repeatInterval}
-              startDate={data ? data.start_date : startDateTime?.valueOf()}
+              startDate={
+                data ? data.start_date : formatDateTime(startDate, startTime)
+              }
             />
           )}
 

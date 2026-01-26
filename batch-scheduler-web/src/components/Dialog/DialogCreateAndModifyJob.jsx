@@ -55,34 +55,8 @@ const DialogCreateAndModifyJob = ({ open, onClose, data, mutate }) => {
   };
 
   return (
-    <Dialog
-      open={open}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: '20px',
-          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.16)',
-          overflow: 'hidden',
-        },
-      }}
-      BackdropProps={{
-        sx: {
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(4px)',
-        },
-      }}
-    >
-      <DialogTitle
-        sx={{
-          fontSize: '18px',
-          fontWeight: 600,
-          color: '#1D1D1F',
-          padding: '16px 20px',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-          letterSpacing: '-0.01em',
-        }}
-      >
+    <Dialog open={open} maxWidth="md" fullWidth>
+      <DialogTitle className="text-black text-2xl font-bold">
         {data
           ? 'Modification of Scheduler Job'
           : 'Creation of New Scheduler Job'}
@@ -91,63 +65,49 @@ const DialogCreateAndModifyJob = ({ open, onClose, data, mutate }) => {
         value={tabIndex}
         onChange={handleChange}
         sx={{
-          paddingInline: '20px',
-          borderBottom: '1px solid #E8E8ED',
-          minHeight: '40px',
-          '& .MuiTabs-indicator': {
-            backgroundColor: '#0071E3',
-            height: '2px',
-            borderRadius: '2px 2px 0 0',
-          },
+          paddingInline: '24px',
           '& .MuiTab-root': {
-            color: '#86868B',
-            fontWeight: 500,
-            fontSize: '13px',
+            color: 'rgba(0,0,0,0.4)',
+            fontWeight: 'bold',
             textTransform: 'none',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-            minHeight: '40px',
-            padding: '8px 16px',
-            transition: 'color 0.2s ease',
-            '&:hover': {
-              color: '#1D1D1F',
-            },
           },
           '& .MuiTab-root.Mui-selected': {
-            color: '#0071E3',
-            fontWeight: 600,
+            color: '#000000',
           },
         }}
       >
         <Tab label="Schedule Info" />
         <Tab label="Action Info" />
       </Tabs>
-      <DialogContent sx={{ padding: '16px 20px' }}>
+      <DialogContent>
         <form>
           {tabIndex === 0 && (
             <ScheduleInfoTab data={data ? data : null} form={form} />
           )}
           {tabIndex === 1 && <ActionInfoTab form={form} />}
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              marginTop: '16px',
-              paddingTop: '16px',
-              borderTop: '1px solid #E8E8ED',
-            }}
-          >
-            <BaseButton onClick={handleCancel} theme="secondary">
+          <Box className="flex justify-end ml-auto space-x-2 mt-4">
+            <BaseButton
+              onClick={handleCancel}
+              className="text-black "
+              sx={{
+                backgroundColor: 'white',
+                color: 'black',
+                fontWeight: '600',
+                border: '2px solid #1C1C1C0D',
+                boxShadow: 'none',
+              }}
+            >
               Cancel
             </BaseButton>
-            <BaseButton
+            <ButtonWithLoading
               disabled={user?.user_type !== 0}
               type="submit"
-              theme="primary"
+              loading={form.formState.isSubmitting}
+              className="bg-black text-white"
               onClick={form.handleSubmit(submitFormData)}
             >
-              {form.formState.isSubmitting ? 'Saving...' : 'Save'}
-            </BaseButton>
+              Save
+            </ButtonWithLoading>
             <ConfirmDialog
               widthClassName="w-100"
               openConfirm={isSaveConfirm}
