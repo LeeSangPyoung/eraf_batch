@@ -1,7 +1,6 @@
 import { Box, Typography } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import React from 'react';
-import { scrollbar } from './CustomDateTimePicker';
 
 const BaseDatePicker = ({
   content,
@@ -15,7 +14,15 @@ const BaseDatePicker = ({
 }) => {
   return (
     <Box className={className}>
-      <Typography className="text-secondaryGray text-sm font-medium">
+      <Typography
+        sx={{
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#86868B',
+          marginBottom: '6px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+        }}
+      >
         {content}
       </Typography>
       <DateTimePicker
@@ -25,46 +32,63 @@ const BaseDatePicker = ({
         value={value}
         onChange={onChange}
         slotProps={{
-          ...scrollbar,
-          ...{
-            textField: {
-              size: size,
-              sx: {
-                '& .MuiInputBase-root': {
-                  height: '35px',
-                  backgroundColor: 'white',
+          textField: {
+            size: size,
+            sx: {
+              '& .MuiInputBase-root': {
+                height: '40px',
+                backgroundColor: '#FFFFFF',
+                borderRadius: '10px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                fontSize: '14px',
+                transition: 'all 0.2s ease',
+              },
+              '& .MuiOutlinedInput-root': {
+                '& .MuiOutlinedInput-notchedOutline': {
+                  border: '1px solid #D2D2D7',
+                  borderRadius: '10px',
                 },
-                '& .MuiOutlinedInput-root': {
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    border: '1px solid #E9EAEB',
-                  },
-                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                    border: '1px solid #E9EAEB',
-                  },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                    border: '1px solid #E9EAEB',
-                  },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: '#86868B',
                 },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  border: '2px solid #0071E3',
+                },
+              },
+              '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                color: '#86868B',
+                fontSize: '20px',
               },
             },
           },
           desktopPaper: {
             sx: {
+              borderRadius: '16px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+              border: '1px solid #E8E8ED',
+              marginTop: '8px',
               '& .MuiList-root': {
                 '&::-webkit-scrollbar': {
                   width: '6px',
                 },
                 '&::-webkit-scrollbar-track': {
-                  background: '#1C1C1C0D',
+                  background: '#F5F5F7',
                 },
                 '&::-webkit-scrollbar-thumb': {
-                  background: '#A2A8B3',
-                  border: 'none',
+                  background: '#C7C7CC',
+                  borderRadius: '3px',
                 },
               },
               '& .Mui-selected': {
-                backgroundColor: '#FABB18 !important',
+                backgroundColor: '#0071E3 !important',
                 color: 'white !important',
+              },
+              '& .MuiPickersDay-root': {
+                borderRadius: '8px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 113, 227, 0.08)',
+                },
               },
               '& .MuiPickersLayout-actionBar': {
                 display: 'none',
@@ -73,7 +97,7 @@ const BaseDatePicker = ({
           },
         }}
         sx={{
-          backgroundColor: 'white',
+          backgroundColor: 'transparent',
         }}
         {...props}
       />

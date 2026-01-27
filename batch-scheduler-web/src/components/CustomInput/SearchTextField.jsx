@@ -3,52 +3,65 @@ import React from 'react';
 
 const SearchTextField = ({ sx, InputProps, content, ...props }) => {
   return (
-    <>
-      <Box className='w-full'>
-        <Typography className="text-secondaryGray text-sm font-medium ">
-          {content}
-        </Typography>
-        <TextField
-          {...props}
-          className="w-full"
-          sx={{
-            '& .MuiInputBase-root': {
-              height: '35px',
-              minHeight: '30px',
-              borderRadius: 0,
-              backgroundColor: 'white',
+    <Box sx={{ width: '100%' }}>
+      <Typography
+        sx={{
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#86868B',
+          marginBottom: '6px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+        }}
+      >
+        {content}
+      </Typography>
+      <TextField
+        {...props}
+        className="w-full"
+        sx={{
+          '& .MuiInputBase-root': {
+            height: '40px',
+            minHeight: '40px',
+            borderRadius: '10px',
+            backgroundColor: '#FFFFFF',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+            fontSize: '14px',
+            transition: 'all 0.2s ease',
+          },
+          '& .MuiInputBase-input': {
+            height: '40px',
+            padding: '0 12px',
+            fontSize: '14px',
+            '&::placeholder': {
+              color: '#86868B',
+              opacity: 1,
             },
-            '& .MuiInputBase-input': {
-              height: '30px',
-              padding: '0 8px',
-              fontSize: '0.875rem',
+          },
+          '& .MuiOutlinedInput-root': {
+            borderRadius: '10px',
+            '& .MuiOutlinedInput-notchedOutline': {
+              border: '1px solid #D2D2D7',
+              transition: 'border-color 0.2s ease',
             },
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 2,
-              border: 'transparent',
-              '& .MuiOutlinedInput-notchedOutline': {
-                border: '1px solid #E9EAEB',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                border: '1px solid #E9EAEB',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                border: '1px solid #E9EAEB',
-              },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: '#86868B',
             },
-            ...sx,
-          }}
-          InputProps={{
-            ...InputProps,
-            sx: {
-              height: '35px',
-              minHeight: '30px',
-              ...InputProps?.sx,
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              border: '2px solid #0071E3',
             },
-          }}
-        />
-      </Box>
-    </>
+          },
+          ...sx,
+        }}
+        InputProps={{
+          ...InputProps,
+          sx: {
+            height: '40px',
+            minHeight: '40px',
+            ...InputProps?.sx,
+          },
+        }}
+      />
+    </Box>
   );
 };
 

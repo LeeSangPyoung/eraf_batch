@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  InputAdornment,
   Tab,
   Tabs,
 } from '@mui/material';
@@ -16,7 +15,6 @@ import { useTranslation } from 'react-i18next';
 // @ts-ignore
 import CachedIcon from '@mui/icons-material/Cached';
 import { toast } from 'react-toastify';
-import SimpleBar from 'simplebar-react';
 import useLogSocketIO from '../../hook/socket/useLogsSocket';
 import useAuthStore from '../../hook/store/useAuthStore';
 import useFilterData from '../../hook/useFilterData';
@@ -27,12 +25,10 @@ import api from '../../services/api';
 import { timestampFormat } from '../../utils/helper';
 import BaseButton from '../CustomInput/BaseButton';
 import { BasePagination } from '../CustomInput/BasePagination';
-import BaseTextField from '../CustomInput/BaseTextField';
 import JobResultTable from '../Table/JobResultTable.jsx';
 import { ConfirmDialog } from './ConfirmDialog.jsx';
 import DialogCreateAndModifyJob from './DialogCreateAndModifyJob';
 import RepeatInterval from './RepeatInterval';
-import BaseTextArea from '../CustomInput/BaseTextArea';
 
 const JobDetailTab = (props) => {
   const user = useAuthStore((state) => state.user);
@@ -178,130 +174,153 @@ const JobDetailTab = (props) => {
     }
   };
 
+  // Info Item Component for cleaner display
+  const InfoItem = ({ label, value }) => (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <Box
+        component="span"
+        sx={{
+          fontSize: '12px',
+          fontWeight: 500,
+          color: '#86868B',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+        }}
+      >
+        {label}
+      </Box>
+      <Box
+        component="span"
+        sx={{
+          fontSize: '14px',
+          fontWeight: 500,
+          color: '#1D1D1F',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+          padding: '8px 12px',
+          backgroundColor: '#F5F5F7',
+          borderRadius: '8px',
+          minHeight: '36px',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        {value || '-'}
+      </Box>
+    </Box>
+  );
+
   return (
     <>
-      <Box className="flex flex-col gap-4 mt-4">
-        <Box className="flex gap-8 ">
-          <BaseTextField
-            disabled
-            value={data.system || ''}
-            content={t('system_id')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-          <BaseTextField
-            disabled
-            value={data.creator}
-            content={t('creator')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-        </Box>
-        <Box className="flex gap-8">
-          <BaseTextField
-            disabled
-            value={data.group || ''}
-            content={t('group_name')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-          <BaseTextField
-            disabled
-            value={data.job_name || ''}
-            content={t('job_name')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-        </Box>
-        <Box className="flex gap-8">
-          <BaseTextField
-            disabled
-            value={timestampFormat(data.startDate) || ''}
-            content={t('start_date')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-          <BaseTextField
-            disabled
-            value={timestampFormat(data.endDate) || ''}
-            content={t('end_date')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
+      {/* Info Grid - 3 columns compact layout */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '16px',
+          marginTop: '8px',
+        }}
+      >
+        <InfoItem label={t('system_id')} value={data.system} />
+        <InfoItem label={t('group_name')} value={data.group} />
+        <InfoItem label={t('job_name')} value={data.job_name} />
+
+        <InfoItem label={t('creator')} value={data.creator} />
+        <InfoItem label={t('job_type')} value={data.jobType} />
+        <InfoItem label={t('job_create_date')} value={timestampFormat(data.jobCreateDate)} />
+
+        <InfoItem label={t('start_date')} value={timestampFormat(data.startDate)} />
+        <InfoItem label={t('end_date')} value={timestampFormat(data.endDate)} />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <Box
+            component="span"
+            sx={{
+              fontSize: '12px',
+              fontWeight: 500,
+              color: '#86868B',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+            }}
+          >
+            {t('repeat_interval')}
+          </Box>
+          <Box
+            sx={{
+              fontSize: '14px',
+              fontWeight: 500,
+              color: '#1D1D1F',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+              padding: '8px 12px',
+              backgroundColor: '#F5F5F7',
+              borderRadius: '8px',
+              minHeight: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>{data.repeatInterval || '-'}</span>
+            {data.current_state !== 'COMPLETED' && data.current_state !== 'DELETED' && (
+              <IconButton
+                onClick={openModal}
+                size="small"
+                sx={{
+                  padding: '4px',
+                  color: '#0071E3',
+                  '&:hover': { backgroundColor: 'rgba(0, 113, 227, 0.08)' },
+                }}
+              >
+                <InfoIcon sx={{ fontSize: '18px' }} />
+              </IconButton>
+            )}
+          </Box>
         </Box>
 
-        <BaseTextField
-          disabled
-          value={data.repeatInterval || ''}
-          content={t('repeat_interval')}
-          className="col-span-2"
-          textStyles="text-grayDark font-bold mb-1"
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                {data.current_state !== 'COMPLETED' &&
-                  data.current_state !== 'DELETED' && (
-                    <IconButton
-                      onClick={openModal}
-                      color="info"
-                      sx={{
-                        padding: 0,
-                      }}
-                      aria-label="info"
-                      className="text-grayDark"
-                    >
-                      <InfoIcon />
-                    </IconButton>
-                  )}
-              </InputAdornment>
-            ),
-          }}
-        />
-        <Box className="flex gap-8">
-          <BaseTextField
-            disabled
-            value={timestampFormat(data.lastStartDate) || ''}
-            content={t('last_start_date')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-          <BaseTextField
-            disabled
-            value={timestampFormat(data.nextRunDate) || ''}
-            content={t('next_run_date')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
+        <InfoItem label={t('last_start_date')} value={timestampFormat(data.lastStartDate)} />
+        <InfoItem label={t('next_run_date')} value={timestampFormat(data.nextRunDate)} />
+        <InfoItem label={t('enable')} value={data.enable ? 'True' : 'False'} />
+
+        <InfoItem label={t('state')} value={data.current_state} />
+
+        {/* Comment - spans 2 columns */}
+        <Box sx={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <Box
+            component="span"
+            sx={{
+              fontSize: '12px',
+              fontWeight: 500,
+              color: '#86868B',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+            }}
+          >
+            {t('comment')}
+          </Box>
+          <Box
+            sx={{
+              fontSize: '14px',
+              fontWeight: 400,
+              color: '#1D1D1F',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+              padding: '10px 12px',
+              backgroundColor: '#F5F5F7',
+              borderRadius: '8px',
+              minHeight: '36px',
+              lineHeight: 1.5,
+            }}
+          >
+            {data.comment || '-'}
+          </Box>
         </Box>
-        <Box className="flex gap-8">
-          <BaseTextField
-            disabled
-            value={data.enable}
-            content={t('enable')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-          <BaseTextField
-            disabled
-            value={data.current_state || ''}
-            content={t('state')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-        </Box>
-        <Box className="flex gap-8">
-          <BaseTextField
-            disabled
-            value={data.jobType || ''}
-            content={t('job_type')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-          <BaseTextField
-            disabled
-            value={timestampFormat(data.jobCreateDate) || ''}
-            content={t('job_create_date')}
-            textStyles="text-grayDark font-bold mb-1"
-          />
-        </Box>
-        <BaseTextArea
-          disabled
-          value={data.comment || ''}
-          content={t('comment')}
-          isRawInput
-          textStyles="text-grayDark font-bold "
-        />
       </Box>
-      <Box className="mt-3 flex justify-end space-x-2">
+
+      {/* Action Buttons */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '8px',
+          marginTop: '20px',
+          paddingTop: '16px',
+          borderTop: '1px solid #E8E8ED',
+        }}
+      >
         {data.enable ? (
           <ButtonWithLoading
             onClick={handleDeactivate}
@@ -336,13 +355,8 @@ const JobDetailTab = (props) => {
         <BaseButton
           onClick={handleClickOpenModifyDialog}
           disabled={disable || isRunning || isDeleted || user?.user_type !== 0}
-          sx={{
-            backgroundColor: 'white',
-            color: 'black',
-            fontWeight: '600',
-            border: '2px solid #1C1C1C0D',
-            boxShadow: 'none',
-          }}
+          theme="secondary"
+          size="small"
         >
           {t('modifyJobInformation')}
         </BaseButton>
@@ -354,14 +368,15 @@ const JobDetailTab = (props) => {
             mutate={mutate}
           />
         )}
-        <ButtonWithLoading
+        <BaseButton
           onClick={openDeleteConfirmModal}
           disabled={disable || isRunning || isWaiting || user?.user_type !== 0}
-          loading={loading.loading && loading.button === 'delete'}
-          sx={{ backgroundColor: 'black', color: 'white', fontWeight: '600' }}
+          theme="danger"
+          size="small"
+          endIcon={loading.loading && loading.button === 'delete' ? <CircularProgress size={14} color="inherit" /> : null}
         >
           {t('delete')}
-        </ButtonWithLoading>
+        </BaseButton>
         <ConfirmDialog
           widthClassName="w-100"
           openConfirm={isDeleteConfirm}
@@ -369,13 +384,10 @@ const JobDetailTab = (props) => {
           title="Delete"
           callback={() => handleDelete()}
         >
-          <div className="w-full text-lg">
-            <p>
-              <strong>Do you want to delete the Scheduler Job?</strong>
-            </p>
-          </div>
+          <p>Do you want to delete the Scheduler Job?</p>
         </ConfirmDialog>
       </Box>
+
       {isVisible && (
         <RepeatInterval
           open={isVisible}
@@ -427,158 +439,87 @@ const JobHistoryTab = (props) => {
   //     });
   // }, [logData]);
 
-  return (
+  // Stat Item Component
+  const StatItem = ({ label, value }) => (
     <Box
-      className="grid grid-rows-[min-content_min-content_minmax(0,1fr)]"
-      style={{ maxHeight: '70vh', paddingTop: 10, paddingBottom: 15 }}
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '12px 16px',
+        backgroundColor: '#F5F5F7',
+        borderRadius: '12px',
+        minWidth: '120px',
+      }}
     >
-      {/* <Box p={2} display="flex" justifyContent="flex-end">
-          <Button
-              variant="contained"
-              onClick={() => {
-                navigate('/job-results', {state: {job: data.jobName}});
-              }}
-          >
-            Show more job execution results
-          </Button>
-        </Box> */}
-      <Box className="grid grid-cols-2 gap-4">
-        {job && (
-          <>
-            <BaseTextField
-              id="retryDelay"
-              content="Retry Delay"
-              disabled={true}
-              value={job.retryDelay ?? ''}
-              size="small"
-              textStyles={'text-grayDark'}
-            />
-            <BaseTextField
-              id="runCount"
-              content="Run Count"
-              disabled={true}
-              value={job.runCount ?? ''}
-              size="small"
-              textStyles={'text-grayDark'}
-            />
-            <BaseTextField
-              id="failureCount"
-              content="Failure Count"
-              disabled={true}
-              value={job.failureCount ?? ''}
-              size="small"
-              textStyles={'text-grayDark'}
-            />
-            <BaseTextField
-              id="retryCount"
-              content="Retry Count"
-              disabled={true}
-              value={job.retryCount ?? ''}
-              size="small"
-              textStyles={'text-grayDark'}
-            />
-          </>
-        )}
-      </Box>
-
-      {/* <Box marginTop={3}>
-          <FormControlLabel
-              style={{margin: '1px'}}
-              control={
-                <Switch
-                    checked={checked}
-                    onChange={() => {
-                      handleChange();
-                      joinRoom(data.job_id);
-                    }}
-                />
-              }
-              label="Show Log"
-          />
-          <Box sx={{display: 'flex'}}>
-            <Grow in={checked}>
-              {
-                <Box className="terminal-container">
-                  <Box
-                      marginBottom={1}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        border: '1px solid #333',
-                      }}
-                  >
-                    <h1 className="font-extrabold text-yellow-300">
-                      Log server: {data.system}
-                    </h1>
-                    <div
-                        style={{
-                          color: 'yellow',
-                          display: 'flex',
-                          marginRight: '5px',
-                          alignItems: 'center',
-                        }}
-                    >
-                      Connection status:{' '}
-                      {isConnected ? (
-                          <>
-                            <DotIcon size={10} color="green"/> Connected
-                          </>
-                      ) : (
-                          <>
-                            <DotIcon size={10} color="red"/> Disconnected
-                          </>
-                      )}
-                    </div>
-                  </Box>
-
-                  <SimpleBar
-                      style={{
-                        maxHeight: '30vh',
-                        paddingTop: 2,
-                        paddingBottom: 15,
-                      }}
-                  >
-                    <p>{logData}</p>
-                  </SimpleBar>
-                </Box>
-              }
-            </Grow>
-          </Box>
-        </Box> */}
-      <Box marginTop={2}>
-        <div className="flex justify-end">
-          <BaseButton
-            variant="outlined"
-            startIcon={<CachedIcon style={{ color: 'currentColor' }} />}
-            onClick={refreshData}
-            size="small"
-            sx={{ fontWeight: 'bold', border: '1px solid #A2A8B3' }}
-          >
-            Refresh log
-          </BaseButton>
-        </div>
+      <Box
+        sx={{
+          fontSize: '20px',
+          fontWeight: 600,
+          color: '#1D1D1F',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+        }}
+      >
+        {value ?? 0}
       </Box>
       <Box
-        marginTop={2}
         sx={{
-          position: 'relative',
+          fontSize: '12px',
+          fontWeight: 500,
+          color: '#86868B',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+          marginTop: '4px',
+        }}
+      >
+        {label}
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Stats Row */}
+      {job && (
+        <Box sx={{ display: 'flex', gap: '12px', justifyContent: 'flex-start' }}>
+          <StatItem label="Retry Delay" value={job.retryDelay} />
+          <StatItem label="Run Count" value={job.runCount} />
+          <StatItem label="Failure Count" value={job.failureCount} />
+          <StatItem label="Retry Count" value={job.retryCount} />
+        </Box>
+      )}
+
+      {/* Refresh Button */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <BaseButton
+          startIcon={<CachedIcon style={{ color: 'currentColor' }} />}
+          onClick={refreshData}
+          theme="secondary"
+          size="small"
+        >
+          Refresh
+        </BaseButton>
+      </Box>
+
+      {/* Results Table */}
+      <Box
+        sx={{
+          flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          height: '100%',
+          minHeight: '300px',
+          maxHeight: '400px',
         }}
       >
         <Box sx={{ flex: 1, overflow: 'auto' }}>
-          <SimpleBar style={{ height: '100%', overflow: 'auto' }}>
-            <JobResultTable
-              isShort
-              jobResultData={jobResultData}
-              isLoading={isLoading}
-              isLoadingDefault={isLoadingDefault}
-              setIsLoadingDefault={setIsLoadingDefault}
-            />
-          </SimpleBar>
+          <JobResultTable
+            isShort
+            jobResultData={jobResultData}
+            isLoading={isLoading}
+            isLoadingDefault={isLoadingDefault}
+            setIsLoadingDefault={setIsLoadingDefault}
+          />
         </Box>
-        {total && total > 0 ? (
+        {total && total > 0 && (
           <BasePagination
             count={total}
             page={pageNumber - 1}
@@ -587,7 +528,7 @@ const JobHistoryTab = (props) => {
             onRowsPerPageChange={handleChangeRowsPerPage}
             show
           />
-        ) : null}
+        )}
       </Box>
     </Box>
   );
@@ -611,32 +552,83 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
   };
 
   return (
-    <Dialog open={open} maxWidth="lg" fullWidth>
-      <DialogTitle className="text-2xl font-bold ">Job Detail</DialogTitle>
+    <Dialog
+      open={open}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: '20px',
+          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.16)',
+          overflow: 'hidden',
+        },
+      }}
+      BackdropProps={{
+        sx: {
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(4px)',
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          fontSize: '20px',
+          fontWeight: 600,
+          color: '#1D1D1F',
+          padding: '24px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+          letterSpacing: '-0.01em',
+        }}
+      >
+        Job Detail
+      </DialogTitle>
       <IconButton
         aria-label="close"
         onClick={handleClose}
         sx={{
           position: 'absolute',
-          right: 8,
-          top: 8,
-          color: (theme) => theme.palette.grey[500],
+          right: 16,
+          top: 16,
+          width: '32px',
+          height: '32px',
+          color: '#86868B',
+          backgroundColor: '#F5F5F7',
+          borderRadius: '50%',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            backgroundColor: '#E8E8ED',
+            color: '#1D1D1F',
+          },
         }}
       >
-        <CloseIcon className="text-black text-3xl" />
+        <CloseIcon sx={{ fontSize: '18px' }} />
       </IconButton>
       <Tabs
         value={tabIndex}
         onChange={handleChangeTab}
         sx={{
           paddingInline: '24px',
+          borderBottom: '1px solid #E8E8ED',
+          '& .MuiTabs-indicator': {
+            backgroundColor: '#0071E3',
+            height: '2px',
+            borderRadius: '2px 2px 0 0',
+          },
           '& .MuiTab-root': {
-            color: 'rgba(0,0,0,0.4)',
-            fontWeight: 'bold',
+            color: '#86868B',
+            fontWeight: 500,
+            fontSize: '14px',
             textTransform: 'none',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+            minHeight: '48px',
+            transition: 'color 0.2s ease',
+            '&:hover': {
+              color: '#1D1D1F',
+            },
           },
           '& .MuiTab-root.Mui-selected': {
-            color: '#000000',
+            color: '#0071E3',
+            fontWeight: 600,
           },
         }}
       >
@@ -646,8 +638,8 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
       </Tabs>
       <DialogContent
         sx={{
-          // minHeight: '710.5px',
-          display: 'grid',
+          padding: '20px 24px',
+          overflowY: 'auto',
         }}
       >
         {tabIndex === 0 && (
@@ -655,27 +647,18 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
         )}
         {tabIndex === 1 && <JobHistoryTab data={data} />}
         {tabIndex === 2 && (
-          <div>
-            <div className="flex justify-end">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <BaseButton
-                variant="outlined"
                 onClick={refreshServerLogData}
-                sx={{
-                  fontWeight: 'medium',
-                  border: '1px solid #A2A8B3',
-                  borderRadius: '20px',
-                }}
+                theme="secondary"
+                size="small"
               >
-                Refresh log
+                Refresh
               </BaseButton>
               <BaseButton
-                sx={{
-                  marginLeft: '10px',
-                  fontWeight: 'medium',
-                  border: '1px solid #A2A8B3',
-                  borderRadius: '20px',
-                }}
-                variant="outlined"
+                theme="primary"
+                size="small"
                 onClick={() => {
                   // @ts-ignore
                   window.open(
@@ -693,27 +676,34 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
               >
                 Go To Dashboard
               </BaseButton>
-            </div>
-            <iframe
-              key={r}
-              className="w-full mt-2"
-              src={
-                // @ts-ignore
-                import.meta.env.VITE_SERVER_LOG_URL +
-                '/d-solo/' +
-                import.meta.env.VITE_SERVER_LOG_DASHBOARD_ID +
-                '/worker-logs?orgId=1&from=' +
-                (Date.now() - 24 * 60 * 60 * 1000) +
-                '&to=' +
-                Date.now() +
-                '&timezone=browser&var-job_id=' +
-                data?.job_id +
-                '&panelId=1&__feature.dashboardSceneSolo'
-              }
-              // width="100%"
-              height="600px"
-            />
-          </div>
+            </Box>
+            <Box
+              sx={{
+                borderRadius: '12px',
+                overflow: 'hidden',
+                border: '1px solid #E8E8ED',
+              }}
+            >
+              <iframe
+                key={r}
+                style={{ width: '100%', border: 'none' }}
+                src={
+                  // @ts-ignore
+                  import.meta.env.VITE_SERVER_LOG_URL +
+                  '/d-solo/' +
+                  import.meta.env.VITE_SERVER_LOG_DASHBOARD_ID +
+                  '/worker-logs?orgId=1&from=' +
+                  (Date.now() - 24 * 60 * 60 * 1000) +
+                  '&to=' +
+                  Date.now() +
+                  '&timezone=browser&var-job_id=' +
+                  data?.job_id +
+                  '&panelId=1&__feature.dashboardSceneSolo'
+                }
+                height="450px"
+              />
+            </Box>
+          </Box>
         )}
       </DialogContent>
     </Dialog>
@@ -725,14 +715,9 @@ export default JobStatusDetail;
 export const ButtonWithLoading = ({ loading, children, ...props }) => (
   <BaseButton
     {...props}
-    endIcon={loading ? <CircularProgress size={15} color="inherit" /> : null}
-    sx={{
-      backgroundColor: 'white',
-      color: 'black',
-      fontWeight: '600',
-      border: '2px solid #1C1C1C0D',
-      boxShadow: 'none',
-    }}
+    theme="secondary"
+    size="small"
+    endIcon={loading ? <CircularProgress size={14} color="inherit" /> : null}
   >
     {children}
   </BaseButton>
