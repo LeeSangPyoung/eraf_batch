@@ -25,13 +25,15 @@
         <result property="retryCount" column="retry_attempt"/>
         <result property="workflowRunId" column="workflow_run_id"/>
         <result property="workflowPriority" column="workflow_priority"/>
+        <result property="logDate" column="frst_reg_date"/>
+        <result property="userName" column="user_name"/>
     </resultMap>
 
     <!-- Base Column List -->
     <sql id="BaseColumns">
         log_id, job_id, job_name, system_id, system_name, group_id, group_name,
         task_id, batch_type, operation, status, output, error, error_no, duration,
-        start_time, end_time, scheduled_time, retry_attempt, workflow_run_id, workflow_priority, frst_reg_date
+        start_time, end_time, scheduled_time, retry_attempt, workflow_run_id, workflow_priority, frst_reg_date, user_name
     </sql>
 
     <!-- Find by ID -->
@@ -74,6 +76,15 @@
             <if test="jobId != null and jobId != ''">
                 AND job_id = #{jobId}
             </if>
+            <if test="systemId != null and systemId != ''">
+                AND system_id = #{systemId}
+            </if>
+            <if test="groupId != null and groupId != ''">
+                AND group_id = #{groupId}
+            </if>
+            <if test="operation != null and operation != ''">
+                AND operation = #{operation}
+            </if>
             <if test="status != null and status != ''">
                 AND status = #{status}
             </if>
@@ -96,6 +107,15 @@
             <if test="jobId != null and jobId != ''">
                 AND job_id = #{jobId}
             </if>
+            <if test="systemId != null and systemId != ''">
+                AND system_id = #{systemId}
+            </if>
+            <if test="groupId != null and groupId != ''">
+                AND group_id = #{groupId}
+            </if>
+            <if test="operation != null and operation != ''">
+                AND operation = #{operation}
+            </if>
             <if test="status != null and status != ''">
                 AND status = #{status}
             </if>
@@ -112,7 +132,7 @@
     <select id="findByFiltersAndGroupIds" resultMap="JobRunLogResultMap">
         SELECT rl.log_id, rl.job_id, rl.job_name, rl.system_id, rl.system_name, rl.group_id, rl.group_name,
                rl.task_id, rl.batch_type, rl.operation, rl.status, rl.output, rl.error, rl.error_no, rl.duration,
-               rl.start_time, rl.end_time, rl.scheduled_time, rl.retry_attempt, rl.workflow_run_id, rl.workflow_priority, rl.frst_reg_date
+               rl.start_time, rl.end_time, rl.scheduled_time, rl.retry_attempt, rl.workflow_run_id, rl.workflow_priority, rl.frst_reg_date, rl.user_name
         FROM scheduler_job_run_logs rl
         JOIN scheduler_jobs j ON rl.job_id = j.job_id
         WHERE j.group_id IN
@@ -121,6 +141,12 @@
         </foreach>
         <if test="jobId != null and jobId != ''">
             AND rl.job_id = #{jobId}
+        </if>
+        <if test="systemId != null and systemId != ''">
+            AND rl.system_id = #{systemId}
+        </if>
+        <if test="operation != null and operation != ''">
+            AND rl.operation = #{operation}
         </if>
         <if test="status != null and status != ''">
             AND rl.status = #{status}
@@ -147,6 +173,12 @@
         <if test="jobId != null and jobId != ''">
             AND rl.job_id = #{jobId}
         </if>
+        <if test="systemId != null and systemId != ''">
+            AND rl.system_id = #{systemId}
+        </if>
+        <if test="operation != null and operation != ''">
+            AND rl.operation = #{operation}
+        </if>
         <if test="status != null and status != ''">
             AND rl.status = #{status}
         </if>
@@ -170,11 +202,11 @@
         INSERT INTO scheduler_job_run_logs (
             job_id, job_name, system_id, system_name, group_id, group_name,
             task_id, batch_type, operation, status, output, error, error_no, duration,
-            start_time, end_time, scheduled_time, retry_attempt, workflow_run_id, workflow_priority, frst_reg_date
+            start_time, end_time, scheduled_time, retry_attempt, workflow_run_id, workflow_priority, frst_reg_date, user_name
         ) VALUES (
             #{jobId}, #{jobName}, #{systemId}, #{systemName}, #{groupId}, #{groupName},
             #{celeryTaskName}, #{batchType}, #{operation}, #{status}, #{output}, #{errors}, #{errorNo}, #{runDuration},
-            #{actualStartDate}, #{actualEndDate}, #{reqStartDate}, #{retryCount}, #{workflowRunId}, #{workflowPriority}, #{reqStartDate}
+            #{actualStartDate}, #{actualEndDate}, #{reqStartDate}, #{retryCount}, #{workflowRunId}, #{workflowPriority}, #{reqStartDate}, #{userName}
         )
     </insert>
 
@@ -182,12 +214,13 @@
     <update id="updateStatus">
         UPDATE scheduler_job_run_logs
         SET status = #{status},
-            operation = #{operation},
-            end_time = #{actualEndDate},
-            duration = #{runDuration},
-            error = #{errors},
-            error_no = #{errorNo},
-            output = #{output}
+            operation = #{operation}
+            <if test="actualStartDate != null">, start_time = #{actualStartDate}</if>
+            <if test="actualEndDate != null">, end_time = #{actualEndDate}</if>
+            <if test="runDuration != null">, duration = #{runDuration}</if>
+            <if test="errors != null">, error = #{errors}</if>
+            <if test="errorNo != null">, error_no = #{errorNo}</if>
+            <if test="output != null">, output = #{output}</if>
         WHERE log_id = #{logId}
     </update>
 
@@ -200,5 +233,14 @@
     <delete id="deleteByJobId">
         DELETE FROM scheduler_job_run_logs WHERE job_id = #{jobId}
     </delete>
+
+    <!-- Mark orphaned logs as BROKEN on server startup -->
+    <update id="markOrphanedLogsAsBroken">
+        UPDATE scheduler_job_run_logs
+        SET status = 'BROKEN',
+            operation = 'BROKEN',
+            end_time = #{endDate}
+        WHERE status IN ('RUNNING', 'PENDING')
+    </update>
 
 </mapper>

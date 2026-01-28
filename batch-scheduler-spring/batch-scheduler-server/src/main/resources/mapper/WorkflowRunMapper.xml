@@ -135,4 +135,14 @@
         DELETE FROM scheduler_workflow_run WHERE workflow_id = #{workflowId}
     </delete>
 
+    <!-- Mark orphaned workflow runs as BROKEN on server startup -->
+    <update id="markOrphanedRunsAsBroken">
+        UPDATE scheduler_workflow_run
+        SET status = 'BROKEN',
+            end_date = #{endDate},
+            duration_ms = end_date - start_date,
+            error_message = 'Server shutdown during execution'
+        WHERE status = 'RUNNING'
+    </update>
+
 </mapper>

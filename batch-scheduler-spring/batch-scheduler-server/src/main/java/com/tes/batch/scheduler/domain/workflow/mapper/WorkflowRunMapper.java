@@ -52,4 +52,6 @@ public interface WorkflowRunMapper {
     int delete(@Param("workflowRunId") Long workflowRunId);
 
     int deleteByWorkflowId(@Param("workflowId") String workflowId);
+
+    int markOrphanedRunsAsBroken(@Param("endDate") Long endDate);
 }

@@ -6,6 +6,7 @@ import com.tes.batch.common.enums.TaskStatus;
 import com.tes.batch.scheduler.domain.job.mapper.JobMapper;
 import com.tes.batch.scheduler.domain.job.mapper.JobRunLogMapper;
 import com.tes.batch.scheduler.domain.job.vo.JobVO;
+import com.tes.batch.scheduler.scheduler.SchedulerService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class JobResultListener implements MessageListener {
     private final JobMapper jobMapper;
     private final JobRunLogMapper jobRunLogMapper;
     private final ObjectMapper objectMapper;
+    private final SchedulerService schedulerService;
 
     private static final String RESULT_CHANNEL = "job:result";
 
@@ -83,57 +85,80 @@ public class JobResultListener implements MessageListener {
             failureCount++;
         }
 
-        // Don't update last_start_date here - it's already set by SchedulerService when job is triggered
-        // Only update run_count, failure_count, and retry_count
-        jobMapper.updateRunStats(jobId, null, runCount, failureCount, result.getRetryAttempt());
+        // Update run_count, failure_count, retry_count, and last_start_date
+        Long lastStartDate = (status == TaskStatus.RUNNING) ? System.currentTimeMillis() :
+                           (result.getStartTime() != null ? result.getStartTime() : System.currentTimeMillis());
+        jobMapper.updateRunStats(jobId, lastStartDate, runCount, failureCount, result.getRetryAttempt());
 
-        // Update job state (only if not running)
-        if (status != TaskStatus.RUNNING) {
-            jobMapper.updateState(jobId, newState, job.getNextRunDate());
+        // Check if this is a workflow-managed job
+        boolean isWorkflowJob = job.getWorkflowId() != null && !job.getWorkflowId().isEmpty();
+
+        // Update job state and reschedule
+        if (status == TaskStatus.RUNNING) {
+            // Update state to RUNNING so UI reflects actual execution
+            jobMapper.updateState(jobId, "RUNNING", job.getNextRunDate());
+            log.debug("Job {} is now RUNNING", jobId);
+        } else if (isWorkflowJob) {
+            // Workflow jobs: update state to reflect result, don't reschedule individually
+            // (workflow completion handler will reset to SCHEDULED)
+            String jobState = (status == TaskStatus.SUCCESS) ? "SUCCESS" : "BROKEN";
+            jobMapper.updateState(jobId, jobState, null);
+            log.info("Workflow job {} completed with state {}", jobId, jobState);
+        } else {
+            // Standalone jobs: reschedule for next run
+            schedulerService.rescheduleJobAfterExecution(job);
+            log.info("Standalone job {} completed with status {}, rescheduled", jobId, status);
         }
 
         // Update run log
-        if (result.getTaskId() != null && status != TaskStatus.RUNNING) {
-            // Calculate duration
-            String duration = null;
-            if (result.getStartTime() != null && result.getEndTime() != null) {
-                long durationMs = result.getEndTime() - result.getStartTime();
-                duration = formatDuration(durationMs);
-            }
-
-            // Map status to log status and operation
-            String logStatus = switch (status) {
-                case SUCCESS -> "SUCCESS";
-                case FAILED -> "FAILURE";
-                case TIMEOUT -> "TIMEOUT";
-                case CANCELLED -> "REVOKED";
-                default -> status.name();
-            };
-
-            // Determine operation type based on status
-            String operation = switch (status) {
-                case SUCCESS -> "COMPLETED";
-                case FAILED, TIMEOUT -> "BROKEN";
-                case CANCELLED -> "REVOKED";
-                default -> "RUN";
-            };
-
-            // Parse error code if present
-            Integer errorNo = result.getErrorCode();
-
-            // Find and update the log entry
+        if (result.getTaskId() != null) {
             try {
                 Long logId = Long.parseLong(result.getTaskId());
-                jobRunLogMapper.updateStatus(
-                        logId,
-                        logStatus,
-                        operation,
-                        result.getEndTime(),
-                        duration,
-                        result.getError(),
-                        errorNo,
-                        result.getOutput()
-                );
+
+                if (status == TaskStatus.RUNNING) {
+                    // Update log to RUNNING with actual_start_date so diagram shows real-time status
+                    jobRunLogMapper.updateStatus(
+                            logId, "RUNNING", "RUN",
+                            result.getStartTime(),
+                            null, null, null, null, null
+                    );
+                } else {
+                    // Calculate duration
+                    String duration = null;
+                    if (result.getStartTime() != null && result.getEndTime() != null) {
+                        long durationMs = result.getEndTime() - result.getStartTime();
+                        duration = formatDuration(durationMs);
+                    }
+
+                    // Map status to log status and operation
+                    String logStatus = switch (status) {
+                        case SUCCESS -> "SUCCESS";
+                        case FAILED -> "FAILURE";
+                        case TIMEOUT -> "TIMEOUT";
+                        case CANCELLED -> "REVOKED";
+                        default -> status.name();
+                    };
+
+                    // Determine operation type based on status
+                    String operation = switch (status) {
+                        case SUCCESS -> "COMPLETED";
+                        case FAILED, TIMEOUT -> "BROKEN";
+                        case CANCELLED -> "REVOKED";
+                        default -> "RUN";
+                    };
+
+                    jobRunLogMapper.updateStatus(
+                            logId,
+                            logStatus,
+                            operation,
+                            null,
+                            result.getEndTime(),
+                            duration,
+                            result.getError(),
+                            result.getErrorCode(),
+                            result.getOutput()
+                    );
+                }
             } catch (NumberFormatException e) {
                 log.warn("Invalid task ID format: {}", result.getTaskId());
             }

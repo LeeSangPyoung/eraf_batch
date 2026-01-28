@@ -20,6 +20,9 @@ public interface JobRunLogMapper {
 
     List<JobRunLogVO> findByFilters(
             @Param("jobId") String jobId,
+            @Param("systemId") String systemId,
+            @Param("groupId") String groupId,
+            @Param("operation") String operation,
             @Param("status") String status,
             @Param("reqStartDateFrom") Long reqStartDateFrom,
             @Param("reqStartDateTo") Long reqStartDateTo,
@@ -29,6 +32,9 @@ public interface JobRunLogMapper {
 
     long countByFilters(
             @Param("jobId") String jobId,
+            @Param("systemId") String systemId,
+            @Param("groupId") String groupId,
+            @Param("operation") String operation,
             @Param("status") String status,
             @Param("reqStartDateFrom") Long reqStartDateFrom,
             @Param("reqStartDateTo") Long reqStartDateTo
@@ -37,6 +43,8 @@ public interface JobRunLogMapper {
     List<JobRunLogVO> findByFiltersAndGroupIds(
             @Param("groupIds") Set<String> groupIds,
             @Param("jobId") String jobId,
+            @Param("systemId") String systemId,
+            @Param("operation") String operation,
             @Param("status") String status,
             @Param("reqStartDateFrom") Long reqStartDateFrom,
             @Param("reqStartDateTo") Long reqStartDateTo,
@@ -47,6 +55,8 @@ public interface JobRunLogMapper {
     long countByFiltersAndGroupIds(
             @Param("groupIds") Set<String> groupIds,
             @Param("jobId") String jobId,
+            @Param("systemId") String systemId,
+            @Param("operation") String operation,
             @Param("status") String status,
             @Param("reqStartDateFrom") Long reqStartDateFrom,
             @Param("reqStartDateTo") Long reqStartDateTo
@@ -63,6 +73,7 @@ public interface JobRunLogMapper {
             @Param("logId") Long logId,
             @Param("status") String status,
             @Param("operation") String operation,
+            @Param("actualStartDate") Long actualStartDate,
             @Param("actualEndDate") Long actualEndDate,
             @Param("runDuration") String runDuration,
             @Param("errors") String errors,
@@ -73,4 +84,6 @@ public interface JobRunLogMapper {
     int delete(@Param("logId") Long logId);
 
     int deleteByJobId(@Param("jobId") String jobId);
+
+    int markOrphanedLogsAsBroken(@Param("endDate") Long endDate);
 }
