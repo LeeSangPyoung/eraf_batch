@@ -5,7 +5,7 @@ import {
   DialogTitle,
   IconButton,
 } from '@mui/material';
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 import SimpleBar from 'simplebar-react';
 import CloseIcon from '@mui/icons-material/Close';
@@ -17,10 +17,13 @@ import CustomTablePagination from '../Table/CustomTablePagination';
 import useWorkflowRun from '../../hook/useWorkflowRun';
 import useGroupsStore from '../../hook/store/useGroupStore';
 import BaseTextField from '../CustomInput/BaseTextField';
+import api from '../../services/api';
+import { runningStates } from '../../utils/enum';
 
-function WorkflowRunDetail({ open, onClose, data, search }) {
+function WorkflowRunDetail({ open, onClose, data: initialData, search }) {
   const { t } = useTranslation();
   const group = useGroupsStore((state) => state.group);
+  const [data, setData] = useState(initialData);
   const {
     isLoading,
     isLoadingDefault,
@@ -30,6 +33,31 @@ function WorkflowRunDetail({ open, onClose, data, search }) {
     handleChangePage,
     handleChangeRowsPerPage,
   } = useWorkflowRun({ groupId: group, search });
+
+  // Sync when initialData changes
+  useEffect(() => {
+    setData(initialData);
+  }, [initialData]);
+
+  // Auto-refresh when workflow run is RUNNING
+  const fetchDetail = useCallback(async () => {
+    if (!data?.workflow_run_id) return;
+    try {
+      const res = await api.get(`/workflow/run/detail/${data.workflow_run_id}`);
+      if (res?.data?.data) {
+        setData(res.data.data);
+      }
+    } catch { /* ignore */ }
+  }, [data?.workflow_run_id]);
+
+  useEffect(() => {
+    if (!open || !data?.workflow_run_id) return;
+    const isRunning = runningStates.includes(data?.status);
+    if (!isRunning) return;
+
+    const interval = setInterval(fetchDetail, 3000);
+    return () => clearInterval(interval);
+  }, [open, data?.workflow_run_id, data?.status, fetchDetail]);
 
   return (
     <Dialog open={open} maxWidth="md" fullWidth>
@@ -101,16 +129,16 @@ function WorkflowRunDetail({ open, onClose, data, search }) {
             <Box sx={{ flex: 1, overflow: 'auto' }}>
               <SimpleBar style={{ height: '100%', overflow: 'auto' }}>
                 <WorkflowRunLogsTable
-                  workflowRunLogsData={data.logs}
+                  workflowRunLogsData={data.job_runs || []}
                   isLoading={isLoading}
                   isLoadingDefault={isLoadingDefault}
                   setIsLoadingDefault={setIsLoadingDefault}
                 />
               </SimpleBar>
             </Box>
-            {data.logs.length > 0 ? (
+            {(data.job_runs || []).length > 0 ? (
               <CustomTablePagination
-                count={data.logs.length}
+                count={(data.job_runs || []).length}
                 page={pageNumber - 1}
                 rowsPerPage={pageSize}
                 onPageChange={handleChangePage}

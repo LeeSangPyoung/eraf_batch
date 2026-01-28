@@ -1,46 +1,50 @@
-/* xyflow theme files. Delete these to start from our base */
+/* React Flow - Apple Design Theme */
 
 .react-flow {
-  /* Custom Variables */
-  --xy-theme-selected: black;
-  --xy-theme-hover: #c5c5c5;
-  --xy-theme-edge-hover: black;
-  --xy-theme-color-focus: #e8e8e8;
+  --xy-theme-selected: #0071E3;
+  --xy-theme-hover: #E8E8ED;
+  --xy-theme-edge-hover: #0071E3;
+  --xy-theme-color-focus: rgba(0, 113, 227, 0.15);
 
-  /* Built-in Variables see https://reactflow.dev/learn/customization/theming */
-  --xy-node-border-default: 1px solid #d1d9e0;
-  --xy-node-box-shadow-default: 0px 3.54px 4.55px 0px #00000005,
-    0px 3.54px 4.55px 0px #0000000d, 0px 0.51px 1.01px 0px #0000001a;
-
-  --xy-node-border-radius-default: 3px;
+  --xy-node-border-default: 1px solid #E8E8ED;
+  --xy-node-box-shadow-default: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --xy-node-border-radius-default: 12px;
 
   --xy-handle-background-color-default: #ffffff;
-  --xy-handle-border-color-default: #aaaaaa;
+  --xy-handle-border-color-default: #D1D1D6;
 
-  --xy-edge-label-color-default: #505050;
+  --xy-edge-label-color-default: #86868B;
 }
 
-/* Customizing Default Theming */
+/* Node Styling */
 .react-flow__node {
-  width: 200px;
+  width: auto;
+  min-width: 180px;
+  max-width: 260px;
   height: fit-content;
   box-shadow: var(--xy-node-box-shadow-default);
   border-radius: var(--xy-node-border-radius-default);
-  background-color: var(--xy-node-background-color-default);
+  background-color: #FFFFFF;
   display: flex;
   justify-content: center;
   align-items: first baseline;
-  text-align: center;
-  padding: 10px;
-  font-size: 12px;
+  text-align: left;
+  padding: 0;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif;
   flex-direction: column;
   border: var(--xy-node-border-default);
-  color: var(--xy-node-color, var(--xy-node-color-default));
+  color: #1D1D1F;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.react-flow__node:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .react-flow__node.selectable:focus {
-  box-shadow: 0px 0px 0px 4px var(--xy-theme-color-focus);
-  border-color: #d9d9d9;
+  box-shadow: 0 0 0 3px var(--xy-theme-color-focus);
+  border-color: #0071E3;
 }
 
 .react-flow__node.selectable:focus:active {
@@ -49,32 +53,67 @@
 
 .react-flow__node.selectable:hover,
 .react-flow__node.draggable:hover {
-  border-color: var(--xy-theme-hover);
+  border-color: #D1D1D6;
 }
 
 .react-flow__node.selectable.selected {
-  border-color: var(--xy-theme-selected);
-  box-shadow: var(--xy-node-box-shadow-default);
+  border-color: #0071E3;
+  box-shadow: 0 0 0 3px var(--xy-theme-color-focus);
+}
+
+/* Edge Styling */
+.react-flow__edge-path {
+  stroke: #D1D1D6 !important;
+  stroke-width: 1.5 !important;
 }
 
 .react-flow__edge.selectable:hover .react-flow__edge-path,
 .react-flow__edge.selectable.selected .react-flow__edge-path {
-  stroke: var(--xy-theme-edge-hover);
+  stroke: var(--xy-theme-edge-hover) !important;
 }
 
-.react-flow__node-resizer {
-  border-radius: 0;
-  border: none;
+/* Handle Styling */
+.react-flow__handle {
+  width: 8px !important;
+  height: 8px !important;
+  border: 2px solid #D1D1D6 !important;
+  background: #FFFFFF !important;
+  transition: border-color 0.15s ease;
 }
 
-.react-flow__resize-control.handle {
-  background-color: #ffffff;
-  border-color: #9e86ed;
-  border-radius: 0;
-  width: 5px;
-  height: 5px;
+.react-flow__handle:hover {
+  border-color: #0071E3 !important;
+}
+
+/* Controls */
+.react-flow__controls {
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #E8E8ED !important;
 }
 
 .react-flow__controls-button {
-  color: black !important;
+  color: #1D1D1F !important;
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E8E8ED !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #F5F5F7 !important;
+}
+
+/* MiniMap */
+.react-flow__minimap {
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #E8E8ED !important;
+}
+
+/* Attribution */
+.react-flow__attribution {
+  display: none !important;
 }

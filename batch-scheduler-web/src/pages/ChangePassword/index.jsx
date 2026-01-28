@@ -1,5 +1,5 @@
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Button, Card } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import * as Yup from 'yup';
 import CustomPwInput from '../../components/CustomInput/CustomPwInput';
 import api from '../../services/api';
 import TextInput from '../../components/CustomInput/TextInput';
+import BaseButton from '../../components/CustomInput/BaseButton';
 
 function ChangePassword() {
   const navigate = useNavigate();
@@ -73,40 +74,120 @@ function ChangePassword() {
   };
 
   return (
-    <Box className="flex flex-col min-h-screen bg-white text-black items-center justify-center space-y-8">
-      <h1 className="text-4xl">TES Management System</h1>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <Card className="p-6 min-w-[450px] grid grid-cols-1 gap-4">
-          <h2 className="text-center text-xl">Change password</h2>
-          <Box className="grid grid-cols-2 gap-4">
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F7 100%)',
+        padding: '24px',
+      }}
+    >
+      {/* Logo - Top Left */}
+      <Typography
+        sx={{
+          position: 'fixed',
+          top: '24px',
+          left: '32px',
+          fontSize: '24px',
+          fontWeight: 700,
+          color: '#1D1D1F',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+          letterSpacing: '-0.02em',
+        }}
+      >
+        ERAF
+      </Typography>
+
+      {/* Main Card */}
+      <Box
+        sx={{
+          width: '100%',
+          maxWidth: '480px',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '20px',
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)',
+          padding: '48px 40px',
+        }}
+      >
+        {/* Header */}
+        <Box sx={{ textAlign: 'center', marginBottom: '32px' }}>
+          <Typography
+            sx={{
+              fontSize: '28px',
+              fontWeight: 600,
+              color: '#1D1D1F',
+              marginBottom: '8px',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Change Password
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: '15px',
+              color: '#86868B',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+            }}
+          >
+            Enter your credentials to update your password
+          </Typography>
+        </Box>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <TextInput
               control={control}
               name="user_id"
-              label="User ID"
-              className="col-span-2"
+              content="User ID"
               required
             />
             <CustomPwInput
               control={control}
               name="old_pwd"
-              label="Old password"
+              content="Current Password"
             />
             <CustomPwInput
               control={control}
-              label="New password"
+              content="New Password"
               name="user_pwd"
             />
             <CustomPwInput
               control={control}
-              label="(Re-enter) password"
+              content="Confirm New Password"
               name="confirmPassword"
             />
+
+            {/* Submit Button */}
+            <BaseButton
+              type="submit"
+              theme="primary"
+              size="large"
+              sx={{
+                width: '100%',
+                marginTop: '12px',
+                height: '50px',
+                fontSize: '16px',
+                fontWeight: 600,
+              }}
+            >
+              Update Password
+            </BaseButton>
+
+            {/* Back to Sign In */}
+            <BaseButton
+              theme="ghost"
+              onClick={() => navigate('/sign-in')}
+              sx={{ width: '100%' }}
+            >
+              Back to Sign In
+            </BaseButton>
           </Box>
-          <Button variant="contained" className="text-black" type="submit">
-            Submit
-          </Button>
-        </Card>
-      </form>
+        </form>
+      </Box>
     </Box>
   );
 }

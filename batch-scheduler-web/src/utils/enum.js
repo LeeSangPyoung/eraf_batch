@@ -27,6 +27,8 @@ export const runningStates = [
   'assigned',
 ];
 
+export const standbyStates = ['STANDBY', 'standby', 'PENDING', 'pending', 'WAITING', 'waiting'];
+
 export const completedStates = [
   'COMPLETED',
   'completed',

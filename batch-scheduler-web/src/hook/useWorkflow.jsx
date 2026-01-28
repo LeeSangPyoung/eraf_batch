@@ -66,7 +66,9 @@ export const useWorkflow = () => {
       }
     },
     {
-      revalidateOnFocus: false,
+      revalidateOnFocus: true,
+      refreshInterval: 5000,
+      dedupingInterval: 2000,
     },
   );
 

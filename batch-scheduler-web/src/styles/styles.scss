@@ -2,31 +2,149 @@
 @use "tailwindcss/components";
 @use "tailwindcss/utilities";
 
+/* Apple Style Global Styles */
+:root {
+  --apple-blue: #0071E3;
+  --apple-gray: #86868B;
+  --apple-text: #1D1D1F;
+  --apple-text-secondary: #86868B;
+  --apple-background: #FFFFFF;
+  --apple-background-secondary: #F5F5F7;
+  --apple-border: #D2D2D7;
+  --apple-radius: 12px;
+  --apple-transition: 300ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body, html, #root, .app {
   margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--apple-background-secondary);
+  color: var(--apple-text);
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+/* Apple Style Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Selection */
+::selection {
+  background-color: rgba(0, 113, 227, 0.2);
 }
 
 .header {
   height: 60px;
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--apple-border);
 }
 
 .sidebar {
-  width: 200px;
+  width: 220px;
+  background-color: var(--apple-background);
+  border-right: 1px solid var(--apple-border);
 }
 
 .main-content {
   flex: 1;
+  background-color: var(--apple-background-secondary);
+}
+
+/* Apple Style Cards */
+.apple-card {
+  background-color: var(--apple-background);
+  border-radius: var(--apple-radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* Apple Style Buttons */
+.apple-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--apple-radius);
+  transition: all var(--apple-transition);
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.apple-button-primary {
+  background-color: var(--apple-blue);
+  color: white;
+}
+
+.apple-button-primary:hover {
+  background-color: #0077ED;
+}
+
+.apple-button-secondary {
+  background-color: transparent;
+  color: var(--apple-blue);
+  border: 1px solid var(--apple-border);
+}
+
+.apple-button-secondary:hover {
+  background-color: rgba(0, 113, 227, 0.04);
+}
+
+/* Apple Style Inputs */
+.apple-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  border: 1px solid var(--apple-border);
+  border-radius: var(--apple-radius);
+  background-color: var(--apple-background);
+  transition: all var(--apple-transition);
+  outline: none;
+}
+
+.apple-input:focus {
+  border-color: var(--apple-blue);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+
+.apple-input::placeholder {
+  color: var(--apple-text-secondary);
 }
 
 .terminal-container {
   width: 100%;
-  height: 300px; /* Adjust the height as needed */
-  background-color: #000;
-  color: #0f0;
-  font-family: monospace;
-  padding-top: 10px;
-  padding-left: 10px;
-  overflow: hidden; /* Hide overflow to prevent scrollbars */
-  white-space: pre-wrap; /* Preserve whitespace and wrap text */
-  box-sizing: border-box; /* Include padding in the element's total width and height */
+  height: 300px;
+  background-color: #1D1D1F;
+  color: #34C759;
+  font-family: 'SF Mono', 'SourceCodePro', monospace;
+  padding: 16px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  box-sizing: border-box;
+  border-radius: var(--apple-radius);
 }

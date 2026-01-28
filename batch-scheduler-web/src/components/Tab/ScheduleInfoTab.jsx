@@ -119,11 +119,13 @@ const ScheduleInfoTab = ({ data, form }) => {
           open={isRepeatIntervalOpen}
           onClose={closeRepeatInterval}
           repeatInterval={repeatInterval}
-          startDate={
-            data && data.nextRunDate && data.nextRunDate !== 1
-              ? data.nextRunDate
-              : startDateTime?.valueOf()
-          }
+          startDate={(() => {
+            const now = Date.now();
+            if (data && data.nextRunDate && data.nextRunDate !== 1) {
+              return data.nextRunDate > now ? data.nextRunDate : now;
+            }
+            return startDateTime?.valueOf() || now;
+          })()}
         />
       )}
       {visibleGroups && serverFilter && (

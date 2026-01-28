@@ -78,12 +78,8 @@ const WorkflowTable = ({
                   setMode(WF_MODE.VIEW);
                   handleModalOpen(row);
                 }}
-                className={`hover:bg-grayLight cursor-pointer `}
+                className={`hover:bg-grayLight cursor-pointer ${row.latest_status === 'RUNNING' ? 'running-row' : ''}`}
                 key={row.workflow_id}
-                style={{
-                  backgroundColor:
-                    row.latest_status === 'RUNNING' ? '#FCA311' : '',
-                }}
               >
                 <TableCell style={styleTableCell}>
                   {row.workflow_name}

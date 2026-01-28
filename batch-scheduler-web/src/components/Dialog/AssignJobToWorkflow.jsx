@@ -16,6 +16,7 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Typography,
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
@@ -26,16 +27,6 @@ import BaseSelected from '../CustomInput/BaseSelected';
 import { styleHeaderTable } from '../Table/JobResultTable';
 import { TableWrapper } from '../Table/TableWrapper';
 
-const ITEM_HEIGHT = 48;
-const ITEM_PADDING_TOP = 8;
-const MenuProps = {
-  PaperProps: {
-    style: {
-      maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-      width: 250,
-    },
-  },
-};
 const IGNORE_STATUS_JOB = ['RUNNING', 'SUCCESS', 'COMPLETED', 'BROKEN'];
 
 const JobOfWorkflowTable = ({ className, form, fields, handleFieldChange }) => {
@@ -51,9 +42,6 @@ const JobOfWorkflowTable = ({ className, form, fields, handleFieldChange }) => {
           <TableRow>
             <TableCell style={styleHeaderTable}>{t('job_name')}</TableCell>
             <TableCell style={styleHeaderTable}>{t('priority')}</TableCell>
-            {/* <TableCell style={styleHeaderTable} sx={{width: '50px'}}>
-                Ignore Result
-            </TableCell> */}
             <TableCell style={styleHeaderTable}>{t('delay')}</TableCell>
           </TableRow>
         </TableHead>
@@ -98,28 +86,6 @@ const JobOfWorkflowTable = ({ className, form, fields, handleFieldChange }) => {
                   )}
                 />
               </TableCell>
-              {/* <TableCell sx={{width: '1rem'}} align="center">
-                  <Controller
-                      control={control}
-                      name={`assignJobs.${index}.ignoreResult`}
-                      defaultValue={false}
-                      render={({
-                                 field: {ref, ...field},
-                                 fieldState: {error},
-                               }) => {
-                        return (
-                            <Checkbox
-                                checked={field.value}
-                                inputRef={ref}
-                                {...field}
-                                name={`assignJobs.${index}.ignoreResult`}
-                                color="primary"
-                                size="small"
-                            />
-                        );
-                      }}
-                  />
-                </TableCell> */}
               <TableCell>
                 <Controller
                   control={control}
@@ -292,28 +258,35 @@ const AddJobModal = ({
     baseFormControl.setValue('selectedJobs', selectedJobs);
   }, [selectedJobs, baseFormControl]);
 
-  const [isOpenSelect, setIsOpenSelect] = useState(false);
-  const [autocompleteHeight, setAutocompleteHeight] = useState(0);
-
-  useEffect(() => {
-    if (isOpenSelect) {
-      const timer = setTimeout(() => {
-        const popper = document.querySelector(
-          '[role="presentation"] .MuiAutocomplete-listbox',
-        );
-        if (popper) {
-          const rect = popper.getBoundingClientRect();
-          setAutocompleteHeight(rect.height);
-        }
-      }, 100);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isOpenSelect]);
-
   return (
-    <Dialog open={open} maxWidth="md" fullWidth>
-      <DialogTitle className="text-2xl font-bold">
+    <Dialog
+      open={open}
+      maxWidth="md"
+      fullWidth
+      disableAutoFocus
+      PaperProps={{
+        sx: {
+          borderRadius: '20px',
+          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.16)',
+        },
+      }}
+      BackdropProps={{
+        sx: {
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(4px)',
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          fontSize: '20px',
+          fontWeight: 600,
+          color: '#1D1D1F',
+          padding: '20px 24px 16px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+          letterSpacing: '-0.01em',
+        }}
+      >
         Add Job To Workflow
       </DialogTitle>
       <IconButton
@@ -321,18 +294,22 @@ const AddJobModal = ({
         onClick={onClose}
         sx={{
           position: 'absolute',
-          right: 8,
-          top: 8,
-          color: (theme) => theme.palette.grey[500],
+          right: 16,
+          top: 16,
+          width: '32px',
+          height: '32px',
+          color: '#86868B',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            backgroundColor: '#F5F5F7',
+            color: '#1D1D1F',
+          },
         }}
       >
-        <CloseIcon className="text-2xl text-black" />
+        <CloseIcon sx={{ fontSize: '20px' }} />
       </IconButton>
-      <DialogContent
-        sx={isOpenSelect ? { height: `${autocompleteHeight + 120}px` } : {}}
-      >
-        <Box className="flex">
-          {/* {(jobs.length > 0 || selectedJobs.length > 0) && ( */}
+      <DialogContent sx={{ padding: '0 24px 24px', overflow: 'visible' }}>
+        <Box>
           <FormControl className="w-full">
             <BaseSelected
               control={baseFormControl.control}
@@ -359,10 +336,6 @@ const AddJobModal = ({
                 IGNORE_STATUS_JOB.includes(option.current_state) ||
                 option.workflow_id !== null
               }
-              onOpen={() => {
-                setIsOpenSelect(true);
-              }}
-              onClose={() => setIsOpenSelect(false)}
               ListboxProps={{
                 onScroll: handleJobScroll,
               }}
@@ -385,7 +358,7 @@ const AddJobModal = ({
                           color: '#E9EAEB',
                         },
                         '&.Mui-checked .MuiSvgIcon-root': {
-                          color: '#FABB18',
+                          color: '#0071E3',
                         },
                       }}
                     />
@@ -402,48 +375,75 @@ const AddJobModal = ({
                   fields={fields}
                   handleFieldChange={handleFieldChange}
                 />
-                <div className="mt-2 text-gray">Ignore priority results</div>
-                <div className="grid grid-cols-5">
-                  {Array.from(new Set(Object.values(jobPriorities))).map(
-                    (item) => (
-                      <MenuItem
-                        key={item}
-                        value={item}
-                        sx={{
-                          margin: '0 2px',
-                          borderRadius: '10px !important',
-                          '& .MuiCheckbox-root': {
-                            padding: '0',
-                            paddingRight: '10px',
-                          },
-                          '&.Mui-selected': {
-                            backgroundColor: 'transparent !important',
-                          },
-                        }}
-                      >
-                        <Checkbox
-                          sx={{
-                            '& .MuiSvgIcon-root': {
-                              color: '#E9EAEB',
-                            },
-                            '&.Mui-checked .MuiSvgIcon-root': {
-                              color: '#FABB18',
-                            },
-                          }}
-                          checked={listIgnoreResults.includes(item)}
-                          onChange={() => {
-                            handleChangeIgnoreResult(item);
-                          }}
-                        />
-                        <ListItemText primary={item} />
-                      </MenuItem>
-                    ),
-                  )}
-                </div>
+                {Array.from(new Set(Object.values(jobPriorities))).some(p => p >= 1) && (
+                  <>
+                    <Typography
+                      sx={{
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        color: '#86868B',
+                        marginTop: '12px',
+                        marginBottom: '4px',
+                        fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      Ignore priority results
+                    </Typography>
+                    <div className="grid grid-cols-5">
+                      {Array.from(new Set(Object.values(jobPriorities)))
+                        .filter(p => p >= 1)
+                        .sort((a, b) => a - b)
+                        .map((item) => (
+                          <MenuItem
+                            key={item}
+                            value={item}
+                            sx={{
+                              margin: '0 2px',
+                              borderRadius: '10px !important',
+                              '& .MuiCheckbox-root': {
+                                padding: '0',
+                                paddingRight: '10px',
+                              },
+                              '&.Mui-selected': {
+                                backgroundColor: 'transparent !important',
+                              },
+                            }}
+                          >
+                            <Checkbox
+                              sx={{
+                                '& .MuiSvgIcon-root': {
+                                  color: '#E9EAEB',
+                                },
+                                '&.Mui-checked .MuiSvgIcon-root': {
+                                  color: '#0071E3',
+                                },
+                              }}
+                              checked={listIgnoreResults.includes(item)}
+                              onChange={() => {
+                                handleChangeIgnoreResult(item);
+                              }}
+                            />
+                            <ListItemText primary={item} />
+                          </MenuItem>
+                        ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
-            <Box className="mt-3 flex justify-end space-x-2">
-              <BaseButton theme="light" onClick={onClose} color="error">
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '16px',
+                paddingTop: '16px',
+                borderTop: '1px solid #E8E8ED',
+              }}
+            >
+              <BaseButton theme="light" onClick={onClose}>
                 Cancel
               </BaseButton>
               <BaseButton theme="dark" onClick={handleSubmit(onSubmit)}>
@@ -451,22 +451,6 @@ const AddJobModal = ({
               </BaseButton>
             </Box>
           </FormControl>
-          {/* )}
-          {jobs.length === 0 && selectedJobs.length === 0 && (
-            <Box className="w-full justify-center items-center">
-              <TextField
-                className="w-full"
-                value={'There are no records in the list'}
-                disabled
-                label="Jobs"
-              />
-              <Box className="mt-3 flex justify-end space-x-2">
-                <Button variant="contained" onClick={onClose} color="error">
-                  Cancel
-                </Button>
-              </Box>
-            </Box>
-          )} */}
         </Box>
       </DialogContent>
     </Dialog>

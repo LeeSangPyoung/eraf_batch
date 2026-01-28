@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   ReactFlow,
   useNodesState,
   useEdgesState,
   addEdge,
-  MiniMap,
   Controls,
 } from '@xyflow/react';
 
@@ -12,17 +11,11 @@ import '@xyflow/react/dist/style.css';
 import CustomNode from './CustomNode';
 import './xy-theme.css';
 import { MarkerType } from '@xyflow/react';
-import { AnimatedSVGEdge } from './AnimatedSVGEdge';
 
-const initBgColor = '#f6f8fa';
 const nodeTypes = {
   selectorNode: CustomNode,
 };
-const edgeTypes = {
-  animatedSvg: AnimatedSVGEdge,
-};
 
-const defaultViewport = { x: 20, y: 220, zoom: 1.25};
 const mappingToCustomNode = (jobs) => {
   const nodes = [];
   const jobGroups = {};
@@ -35,14 +28,14 @@ const mappingToCustomNode = (jobs) => {
     jobGroups[job.jobPriority].push(job);
   });
 
-  // Calculate positions
-  Object.keys(jobGroups).forEach((priority, index) => {
+  // Calculate positions with wider spacing for Apple-style nodes
+  Object.keys(jobGroups).sort((a, b) => Number(a) - Number(b)).forEach((priority, index) => {
     const jobList = jobGroups[priority];
     nodes.push({
       id: priority.toString(),
       type: 'selectorNode',
-      data: {jobList},
-      position: { x: index * 250, y: 0 },
+      data: { jobList },
+      position: { x: index * 300, y: 0 },
       sourcePosition: 'right',
     });
   });
@@ -59,8 +52,12 @@ const mappingToEdges = (listNodes) => {
       source: listNodes[i].id,
       target: listNodes[i + 1].id,
       markerEnd: {
-        type: MarkerType.Arrow,
+        type: MarkerType.ArrowClosed,
+        color: '#D2D2D7',
+        width: 16,
+        height: 16,
       },
+      style: { stroke: '#D2D2D7', strokeWidth: 1.5 },
       animated: true,
     });
   }
@@ -70,31 +67,12 @@ const mappingToEdges = (listNodes) => {
 const WorkFlowNodes = ({ jobs }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [bgColor, setBgColor] = useState(initBgColor);
-
-  const onChange = (event) => {
-    setNodes((nds) =>
-      nds.map((node) => {
-        const color = event.target.value;
-
-        setBgColor(color);
-
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            color,
-          },
-        };
-      }),
-    );
-  };
 
   useEffect(() => {
-    const newNodes = mappingToCustomNode(jobs)
+    const newNodes = mappingToCustomNode(jobs);
     setNodes(newNodes);
-    const edges = mappingToEdges(newNodes);
-    setEdges(edges);
+    const newEdges = mappingToEdges(newNodes);
+    setEdges(newEdges);
   }, [jobs]);
 
   const onConnect = useCallback(
@@ -103,6 +81,7 @@ const WorkFlowNodes = ({ jobs }) => {
     },
     [jobs],
   );
+
   return (
     <ReactFlow
       className="min-h-[500px]"
@@ -111,14 +90,14 @@ const WorkFlowNodes = ({ jobs }) => {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
-      style={{ background: bgColor }}
+      style={{ background: '#FAFAFA' }}
       nodeTypes={nodeTypes}
       snapToGrid={true}
       snapGrid={[20, 20]}
-      defaultViewport={defaultViewport}
+      fitView
+      fitViewOptions={{ padding: 0.3 }}
       attributionPosition="bottom-left"
     >
-      <MiniMap />
       <Controls />
     </ReactFlow>
   );

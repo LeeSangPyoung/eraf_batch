@@ -1,4 +1,5 @@
 import { yupResolver } from '@hookform/resolvers/yup';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { useSWRConfig } from 'swr';
@@ -78,6 +79,20 @@ const useUserForm = (userData, onClose) => {
       related_scheduler_group: userData?.related_scheduler_group || [],
     },
   });
+
+  useEffect(() => {
+    reset({
+      user_name: userData?.user_name || '',
+      user_id: userData?.user_id || '',
+      password: '',
+      user_type: userData?.user_type ?? 0,
+      email_addr: userData?.email_addr || '',
+      celp_tlno: userData?.celp_tlno || '',
+      confirmPassword: '',
+      userData: !!userData,
+      related_scheduler_group: userData?.related_scheduler_group || [],
+    });
+  }, [userData, reset]);
 
   const onSubmit = async (data) => {
     try {

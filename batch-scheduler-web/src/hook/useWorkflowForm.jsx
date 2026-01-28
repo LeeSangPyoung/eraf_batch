@@ -10,17 +10,24 @@ import dayjs from 'dayjs';
 import { getUserTimeZone } from '../utils/helper';
 
 const mappingWorkflowDTO = (dto) => {
-  const assignJobs = Object.values(dto.related_priority_group).flat();
+  const assignJobs = (dto.priority_groups || []).flatMap((group) =>
+    (group.jobs || []).map((job) => ({
+      job_id: job.job_id,
+      job_name: job.job_name,
+      jobPriority: group.priority,
+      jobDelay: job.workflow_delay ?? 0,
+    }))
+  );
   return {
-    workflow_id: dto.workflow_detail.workflow_id,
-    workflow_name: dto.workflow_detail.workflow_name,
-    group_id: dto.workflow_detail.group_id,
-    group: dto.workflow_detail.group,
-    latest_status: dto.workflow_detail.latest_status,
-    start_date: dto.workflow_detail.start_date,
-    repeat_interval: dto.workflow_detail.repeat_interval,
-    last_run_date: dto.workflow_detail.last_run_date,
-    next_run_date: dto.workflow_detail.next_run_date,
+    workflow_id: dto.workflow_id,
+    workflow_name: dto.workflow_name,
+    group_id: dto.group_id,
+    group: dto.group,
+    latest_status: dto.latest_status,
+    start_date: dto.start_date,
+    repeat_interval: dto.repeat_interval,
+    last_run_date: dto.last_run_date,
+    next_run_date: dto.next_run_date,
     assignJobs
   };
 };
@@ -79,15 +86,6 @@ const useWorkflowForm = (workflowData, onClose, mutate, setJobOfGroups, setJobOf
   const onSubmit = async (data, listIgnoreResults = []) => {
     try {
       const url = workflowData ? '/workflow/update' : '/workflow/create';
-      let input = {
-        workflow_id: data.workflow_id,
-        workflow_name: data.workflow_name,
-        group_id: data.group.id,
-        last_reg_user_id: user?.id,
-        start_date: data.start_date.valueOf(),
-        repeat_interval: data.repeat_interval.trim().toUpperCase(),
-        timezone: getUserTimeZone(),
-      };
       const jobGroups = {};
       data.job_of_workflow.forEach((job) => {
         const priority = job.jobPriority ?? job.priority;
@@ -96,19 +94,21 @@ const useWorkflowForm = (workflowData, onClose, mutate, setJobOfGroups, setJobOf
         }
         jobGroups[priority].push({
           job_id: job.job_id,
-          delay: job.jobDelay ?? job.delay ?? 0
+          workflow_delay: job.jobDelay ?? job.delay ?? 0
         });
       });
-      input = {
-        ...input,
-        job_settings: {
-          workflow_id: data.workflow_id,
-          list_priority_groups: Object.keys(jobGroups).map((priority) => ({
-            priority: Number(priority),
-            ignore_result: listIgnoreResults.includes(Number(priority)),
-            list_jobs: jobGroups[priority]
-          }))
-        }
+      const input = {
+        workflow_id: data.workflow_id,
+        workflow_name: data.workflow_name,
+        group_id: data.group.id,
+        start_date: data.start_date.valueOf(),
+        repeat_interval: data.repeat_interval.trim().toUpperCase(),
+        timezone: getUserTimeZone(),
+        priority_groups: Object.keys(jobGroups).map((priority) => ({
+          priority: Number(priority),
+          ignore_result: listIgnoreResults.includes(Number(priority)),
+          jobs: jobGroups[priority]
+        }))
       };
       const response = await api.post(url, input);
       if (response.data.success) {
@@ -180,8 +180,7 @@ export const useAssignJobForm = (selectedJobs, callbackSubmit) => {
             .required('Required')
             .min(1, 'Min value of priority is 1')
             .max(20, 'Max value of priority is 20'),
-          jobDelay: Yup.number()
-            .required('Required'),
+          jobDelay: Yup.number(),
           ignoreResult: Yup.boolean(),
         }),
       ),

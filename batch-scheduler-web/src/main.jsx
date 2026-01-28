@@ -19,7 +19,16 @@ root.render(
     <ThemeProvider theme={theme}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <App />
-        <ToastContainer />
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          pauseOnHover
+          draggable={false}
+          theme="light"
+        />
       </LocalizationProvider>
     </ThemeProvider>
   </React.StrictMode>,

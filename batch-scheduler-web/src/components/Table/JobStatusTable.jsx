@@ -95,13 +95,9 @@ function JobStatusTable({
         ) : data && data?.length > 0 ? (
           data.map((row) => (
             <TableRow
-              className={`hover:bg-grayLight cursor-pointer `}
+              className={`hover:bg-grayLight cursor-pointer ${row.current_state === 'RUNNING' ? 'running-row' : ''}`}
               key={row.job_name}
               onDoubleClick={() => handleModalOpen(row)}
-              style={{
-                backgroundColor:
-                  row.current_state === 'RUNNING' ? '#FCA311' : '',
-              }}
             >
               <TableCell style={{ ...styleTableCell }}>{row.system}</TableCell>
               <TableCell style={styleTableCell}>{row.creator}</TableCell>

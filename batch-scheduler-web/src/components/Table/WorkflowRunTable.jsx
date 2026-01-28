@@ -77,7 +77,7 @@ function WorkflowRunTable({
             {data?.map((row) => (
               <TableRow
                 onDoubleClick={() => handleModalOpen(row)}
-                className={`hover:bg-grayLight cursor-pointer `}
+                className={`hover:bg-grayLight cursor-pointer ${row.status === 'RUNNING' ? 'running-row' : ''}`}
                 key={row.workflow_run_id}
               >
                 <TableCell style={styleTableCell}>

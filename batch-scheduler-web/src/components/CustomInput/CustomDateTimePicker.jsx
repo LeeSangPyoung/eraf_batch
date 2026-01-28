@@ -2,6 +2,7 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { Box, Typography } from '@mui/material';
 import React from 'react';
 import { Controller } from 'react-hook-form';
+import dayjs from 'dayjs';
 
 const CustomDateTimePicker = ({
   control,
@@ -35,6 +36,7 @@ const CustomDateTimePicker = ({
           <DateTimePicker
             {...field}
             {...props}
+            referenceDate={dayjs()}
             format="YYYY/MM/DD HH:mm"
             ampm={false}
             label={label}

@@ -30,6 +30,7 @@ import RepeatIntervalDialog from '../Dialog/RepeatInterval';
 import WorkFlowNodes from '../ReactFlow/CustomWorkFlow';
 import AddJobModal from './AssignJobToWorkflow';
 import { ConfirmDialog } from './ConfirmDialog';
+import { runningStates } from '../../utils/enum';
 
 export const WF_MODE = { CREATE: 'CREATE', UPDATE: 'UPDATE', VIEW: 'VIEW' };
 
@@ -149,23 +150,73 @@ export const WorkflowDetail = ({
 
   useEffect(() => {
     updateForm(data);
-    setJobOfWorkflow(
-      data?.assignJobs?.map((job) => ({
-        ...job,
-        name: job.job_name,
-        jobId: job.job_id,
-        jobPriority: job.priority,
-        jobDelay: job.delay,
-        currentState: job.current_state,
-        ignoreResult: job.ignore_result,
-      })) || [],
-    );
+    const mappedJobs = data?.assignJobs?.map((job) => ({
+      ...job,
+      name: job.job_name,
+      jobId: job.job_id,
+      jobPriority: job.jobPriority ?? job.priority,
+      jobDelay: job.jobDelay ?? job.delay ?? 0,
+      currentState: job.current_state,
+      ignoreResult: job.ignore_result,
+    })) || [];
+    setJobOfWorkflow(mappedJobs);
     setListIgnoreResults(
       data?.assignJobs
         ?.filter((job) => job.ignore_result)
-        .map((job) => job.priority) || [],
+        .map((job) => job.jobPriority ?? job.priority) || [],
     );
+
+    // Fetch latest workflow run job statuses for diagram overlay
+    if (data?.workflow_id && data?.latest_status) {
+      fetchWorkflowJobStatuses(data);
+    }
   }, [data]);
+
+  // Real-time polling for diagram when workflow is running
+  useEffect(() => {
+    if (!open || !data?.workflow_id) return;
+
+    const isRunning = runningStates.includes(data?.latest_status);
+    if (!isRunning) return;
+
+    const interval = setInterval(() => {
+      fetchWorkflowJobStatuses(data);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [open, data?.workflow_id, data?.latest_status]);
+
+  const fetchWorkflowJobStatuses = (workflowData) => {
+    const applyJobRunStatus = (jobRuns) => {
+      if (!jobRuns || jobRuns.length === 0) return;
+      const jobRunMap = {};
+      jobRuns.forEach((log) => {
+        jobRunMap[String(log.job_id)] = log.status;
+      });
+      setJobOfWorkflow((prev) =>
+        prev.map((job) => ({
+          ...job,
+          current_state: jobRunMap[String(job.job_id)] || (runningStates.includes(workflowData.latest_status) ? 'WAITING' : undefined),
+        })),
+      );
+    };
+
+    api.post('/workflow/run/filter', {
+      workflow_id: workflowData.workflow_id,
+      page_size: 1,
+      page_number: 1,
+    }).then((res) => {
+      const runs = res.data?.data;
+      if (runs && runs.length > 0) {
+        const runId = runs[0].workflow_run_id;
+        return api.get(`/workflow/run/detail/${runId}`);
+      }
+    }).then((res) => {
+      if (res?.data?.data?.job_runs) {
+        applyJobRunStatus(res.data.data.job_runs);
+      }
+    }).catch(() => { /* ignore errors */ });
+  };
 
   useEffect(() => {
     if (getValues('group')) {
@@ -195,8 +246,35 @@ export const WorkflowDetail = ({
   };
 
   return (
-    <Dialog open={open} maxWidth="lg" fullWidth>
-      <DialogTitle className="text-2xl font-bold">
+    <Dialog
+      open={open}
+      maxWidth="lg"
+      fullWidth
+      disableAutoFocus
+      PaperProps={{
+        sx: {
+          borderRadius: '20px',
+          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.16)',
+          overflow: 'hidden',
+        },
+      }}
+      BackdropProps={{
+        sx: {
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backdropFilter: 'blur(4px)',
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          fontSize: '20px',
+          fontWeight: 600,
+          color: '#1D1D1F',
+          padding: '20px 24px 16px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+          letterSpacing: '-0.01em',
+        }}
+      >
         {dialogTitle(mode)}
       </DialogTitle>
       <IconButton
@@ -204,14 +282,21 @@ export const WorkflowDetail = ({
         onClick={handleCancel}
         sx={{
           position: 'absolute',
-          right: 8,
-          top: 8,
-          color: (theme) => theme.palette.grey[500],
+          right: 16,
+          top: 16,
+          width: '32px',
+          height: '32px',
+          color: '#86868B',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            backgroundColor: '#F5F5F7',
+            color: '#1D1D1F',
+          },
         }}
       >
-        <CloseIcon className="text-2xl text-black" />
+        <CloseIcon sx={{ fontSize: '20px' }} />
       </IconButton>
-      <DialogContent>
+      <DialogContent sx={{ padding: '0 24px 24px' }}>
         <form>
           <Box className="container">
             <Box className={`grid gap-2 mt-4 grid-cols-2`}>
@@ -263,7 +348,6 @@ export const WorkflowDetail = ({
                     }}
                     content="Group"
                     required
-                    height="50px"
                     ListboxProps={{
                       onScroll: handleGroupScroll,
                     }}
@@ -304,16 +388,19 @@ export const WorkflowDetail = ({
               )}
             </Box>
             {mode !== WF_MODE.VIEW && (
-              <Typography
-                className={'text-sm font-medium text-secondaryGray mt-2'}
-              >
-                {t('Job')}
-              </Typography>
-            )}
-
-            <Box className="w-full text-left  mb-3 flex items-center">
-              {mode !== WF_MODE.VIEW && (
-                <>
+              <Box className="mt-2">
+                <Typography
+                  sx={{
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: '#1D1D1F',
+                    marginBottom: '4px',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                  }}
+                >
+                  {t('Job')}
+                </Typography>
+                <Box className="flex items-center gap-2">
                   <TextInput
                     disabled={mode === WF_MODE.VIEW}
                     control={control}
@@ -326,7 +413,8 @@ export const WorkflowDetail = ({
                         : ''
                     }
                   />
-                  <BaseButton
+                  <button
+                    type="button"
                     onClick={() => {
                       if (getValues('group')) {
                         openModal();
@@ -336,14 +424,37 @@ export const WorkflowDetail = ({
                         });
                       }
                     }}
-                    sx={{ fontSize: '23px', marginLeft: '5px' }}
-                    className="h-[45px] min-w-[45px] p-0 rounded-[45px]  border border-grayBorder"
+                    style={{
+                      minWidth: '36px',
+                      width: '36px',
+                      height: '36px',
+                      padding: 0,
+                      borderRadius: '10px',
+                      border: '1px solid #E8E8ED',
+                      backgroundColor: '#FFFFFF',
+                      color: '#86868B',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#0071E3';
+                      e.currentTarget.style.backgroundColor = 'rgba(0, 113, 227, 0.06)';
+                      e.currentTarget.style.color = '#0071E3';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '#E8E8ED';
+                      e.currentTarget.style.backgroundColor = '#FFFFFF';
+                      e.currentTarget.style.color = '#86868B';
+                    }}
                   >
-                    <AddIcon />
-                  </BaseButton>
-                </>
-              )}
-            </Box>
+                    <AddIcon sx={{ fontSize: '18px' }} />
+                  </button>
+                </Box>
+              </Box>
+            )}
           </Box>
 
           {isVisible && (
@@ -372,14 +483,12 @@ export const WorkflowDetail = ({
               disabled={mode === WF_MODE.VIEW}
               isBackgroundGray={mode === WF_MODE.VIEW}
               required
-              className="col-span-2"
             />
             <TextInput
               control={control}
               name="repeat_interval"
               content="Repeat Interval"
               required
-              className="col-span-2"
               InputProps={{
                 endAdornment:
                   startDateTime && isValidRepeatInterval() ? (
@@ -412,7 +521,13 @@ export const WorkflowDetail = ({
               open={isRepeatIntervalOpen}
               onClose={closeRepeatInterval}
               repeatInterval={repeatInterval}
-              startDate={data ? data.start_date : startDateTime?.valueOf()}
+              startDate={(() => {
+                const now = Date.now();
+                if (data && data.start_date) {
+                  return data.start_date > now ? data.start_date : now;
+                }
+                return startDateTime?.valueOf() || now;
+              })()}
             />
           )}
 
@@ -436,14 +551,26 @@ export const WorkflowDetail = ({
           )}
 
           <Box
-            className="mt-4"
+            className="mt-3"
             sx={{
-              minHeight: '50vh',
+              minHeight: '35vh',
+              borderRadius: '12px',
+              border: '1px solid #E8E8ED',
+              overflow: 'hidden',
             }}
           >
             <WorkFlowNodes jobs={jobOfWorkflow} />
           </Box>
-          <Box className="flex col-span-2 justify-end ml-auto space-x-2 mt-2">
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px',
+              marginTop: '16px',
+              paddingTop: '16px',
+              borderTop: '1px solid #E8E8ED',
+            }}
+          >
             <BaseButton onClick={handleCancel} theme="light">
               Cancel
             </BaseButton>

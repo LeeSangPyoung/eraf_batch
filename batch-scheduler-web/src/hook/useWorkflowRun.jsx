@@ -53,8 +53,9 @@ const useWorkflowRun = ({groupId, search} = {groupId: '', search: ''}) => {
       }
     },
     {
-      revalidateOnFocus: false,
-      // refreshInterval: 10000, // Poll every 10 seconds
+      revalidateOnFocus: true,
+      refreshInterval: 5000,
+      dedupingInterval: 2000,
     },
   );
 

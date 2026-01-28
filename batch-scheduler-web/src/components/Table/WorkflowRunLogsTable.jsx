@@ -5,9 +5,10 @@ import TableRow from '@mui/material/TableRow';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDataTransition } from '../../hook/useDataTransition';
-import { colorIndicator, timestampFormat } from '../../utils/helper';
+import { timestampFormat } from '../../utils/helper';
 import { TableWrapper } from './TableWrapper';
 import { CircularProgress } from '@mui/material';
+import DotStatus from '../CustomInput/DotStatus';
 
 export const styleTableCell = { whiteSpace: 'nowrap' };
 export const styleHeaderTable = {
@@ -65,13 +66,10 @@ function WorkflowRunLogsTable({
             {data?.map((row) => (
               <TableRow className="hover:bg-grayLight" key={row.log_id}>
                 <TableCell style={styleTableCell}>{row.job_name}</TableCell>
-                <TableCell
-                  sx={colorIndicator(row.status)}
-                  style={styleTableCell}
-                >
-                  {row.status}
+                <TableCell style={styleTableCell}>
+                  <DotStatus value={row.status} />
                 </TableCell>
-                <TableCell style={styleTableCell}>{row.priority}</TableCell>
+                <TableCell style={styleTableCell}>{row.workflow_priority}</TableCell>
                 <TableCell style={styleTableCell}>
                   {timestampFormat(row.req_start_date)}
                 </TableCell>

@@ -393,11 +393,13 @@ const JobDetailTab = (props) => {
           open={isVisible}
           onClose={closeModal}
           repeatInterval={data.repeatInterval}
-          startDate={
-            data.nextRunDate && data.nextRunDate !== 1
-              ? data.nextRunDate
-              : data.startDate
-          }
+          startDate={(() => {
+            const now = Date.now();
+            if (data.nextRunDate && data.nextRunDate !== 1) {
+              return data.nextRunDate > now ? data.nextRunDate : now;
+            }
+            return data.startDate > now ? data.startDate : now;
+          })()}
         />
       )}
     </>

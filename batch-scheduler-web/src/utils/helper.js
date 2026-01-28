@@ -8,6 +8,7 @@ import {
   currentStateOptions,
   failStates,
   runningStates,
+  standbyStates,
   successStates,
 } from './enum';
 dayjs.extend(utc);
@@ -45,54 +46,63 @@ export function formatDateTime(date, time) {
   return combinedDateTime.valueOf(); // Return the timestamp
 }
 
+// Apple-style status colors
 export function colorIndicator(state) {
   if (failStates.includes(state)) {
-    return { color: '#D92D20' };
+    return { color: '#FF3B30' }; // Apple Red
   }
   if (successStates.includes(state)) {
-    return { color: '#17B26A' };
+    return { color: '#34C759' }; // Apple Green
   }
   if (runningStates.includes(state)) {
-    return { color: '#FFCC00' };
+    return { color: '#FF9500' }; // Apple Orange
+  }
+  if (standbyStates.includes(state)) {
+    return { color: '#8E8E93' }; // Apple System Gray
   }
   if (completedStates.includes(state)) {
-    return { color: '#7DBBFF' };
+    return { color: '#0071E3' }; // Apple Blue
   }
-  return { color: 'rgba(0,0,0,0.4)' };
+  return { color: '#86868B' }; // Apple Gray
 }
 
 export function backgroundIndicator(state) {
   if (failStates.includes(state)) {
-    return '#D92D20';
+    return '#FF3B30'; // Apple Red
   }
   if (successStates.includes(state)) {
-    return '#17B26A';
+    return '#34C759'; // Apple Green
   }
   if (runningStates.includes(state)) {
-    return '#FFCC00';
+    return '#FF9500'; // Apple Orange
+  }
+  if (standbyStates.includes(state)) {
+    return '#8E8E93'; // Apple System Gray
   }
   if (completedStates.includes(state)) {
-    return '#7DBBFF';
+    return '#0071E3'; // Apple Blue
   }
-  return 'rgba(0,0,0,0.4)';
+  return '#86868B'; // Apple Gray
 }
 
 export function colorRowStatus(state) {
   if (state === currentStateOptions[1]) {
-    return { backgroundColor: '#ff9800' };
+    return { backgroundColor: 'rgba(255, 149, 0, 0.08)' }; // Apple Orange tint
   }
 }
 
+// Apple-style chip backgrounds (with transparency)
 export function styleChipBackground(state) {
   if (failStates.includes(state)) {
-    return '#fd625782';
+    return 'rgba(255, 59, 48, 0.12)'; // Apple Red tint
   }
   if (successStates.includes(state)) {
-    return '#53ba58ab';
+    return 'rgba(52, 199, 89, 0.12)'; // Apple Green tint
   }
   if (state === currentStateOptions[1]) {
-    return '#f8ac3c9e';
+    return 'rgba(255, 149, 0, 0.12)'; // Apple Orange tint
   }
+  return 'rgba(134, 134, 139, 0.12)'; // Apple Gray tint
 }
 
 export function stopPropagate(callback) {
