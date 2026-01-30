@@ -38,18 +38,23 @@ public class BatchWorkflowExecutor implements Job {
                 return;
             }
 
+            // Skip if workflow is already RUNNING (prevent concurrent executions)
+            if ("RUNNING".equals(workflow.getLatestStatus())) {
+                log.warn("Workflow {} is already RUNNING, skipping this execution", workflowId);
+                // Reschedule for next run so it doesn't get lost
+                Long nextRunDate = schedulerService.calculateNextRunDate(workflow);
+                if (nextRunDate != null) {
+                    workflowMapper.updateNextRunDate(workflowId, nextRunDate);
+                    schedulerService.scheduleWorkflow(workflowId, nextRunDate);
+                }
+                return;
+            }
+
             // Trigger workflow execution
             workflowExecutionService.executeWorkflow(workflowId);
 
-            // Reschedule for next run
-            Long nextRunDate = schedulerService.calculateNextRunDate(workflow);
-            if (nextRunDate != null) {
-                workflowMapper.updateNextRunDate(workflowId, nextRunDate);
-                schedulerService.scheduleWorkflow(workflowId, nextRunDate);
-                log.info("Rescheduled workflow {} for next run at {}", workflowId, nextRunDate);
-            } else {
-                log.info("No more runs scheduled for workflow {}", workflowId);
-            }
+            // NOTE: Rescheduling is handled in WorkflowExecutionService.handleWorkflowResult()
+            // after the workflow completes, to prevent overlapping executions
 
         } catch (Exception e) {
             log.error("Error executing workflow: {}", workflowId, e);

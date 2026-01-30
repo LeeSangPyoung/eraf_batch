@@ -54,6 +54,21 @@ export const WorkflowDetail = ({
     openModal: openConfirmModal,
     closeModal: closeConfirmModal,
   } = useModal();
+  const {
+    isVisible: isVisibleSaveConfirm,
+    openModal: openSaveConfirm,
+    closeModal: closeSaveConfirm,
+  } = useModal();
+  const {
+    isVisible: isVisibleEditConfirm,
+    openModal: openEditConfirm,
+    closeModal: closeEditConfirm,
+  } = useModal();
+  const {
+    isVisible: isVisibleExecuteConfirm,
+    openModal: openExecuteConfirm,
+    closeModal: closeExecuteConfirm,
+  } = useModal();
   const { t } = useTranslation();
   const { isVisible, openModal, closeModal } = useModal();
   const groupFilter = useGroupsStore((state) => state.groups);
@@ -361,6 +376,7 @@ export const WorkflowDetail = ({
                     required
                     value={data?.group || ' '}
                     fullWidth
+                    isBackgroundGray
                   />
                 )}
               </Box>
@@ -371,6 +387,7 @@ export const WorkflowDetail = ({
                     name="workflow_status"
                     content={'Workflow Status'}
                     value={data?.latest_status || ' '}
+                    isBackgroundGray
                   />
                   <BaseTextField
                     disabled
@@ -383,6 +400,7 @@ export const WorkflowDetail = ({
                             .join(',') || ' '
                         : ''
                     }
+                    isBackgroundGray
                   />
                 </>
               )}
@@ -539,6 +557,7 @@ export const WorkflowDetail = ({
                   data?.last_run_date ? timestampFormat(data.last_run_date) : ''
                 }
                 content={t('last_start_date')}
+                isBackgroundGray
               />
               <BaseTextField
                 disabled
@@ -546,6 +565,7 @@ export const WorkflowDetail = ({
                   data?.next_run_date ? timestampFormat(data.next_run_date) : ''
                 }
                 content={t('next_start_time')}
+                isBackgroundGray
               />
             </Box>
           )}
@@ -553,7 +573,7 @@ export const WorkflowDetail = ({
           <Box
             className="mt-3"
             sx={{
-              minHeight: '35vh',
+              height: '240px',
               borderRadius: '12px',
               border: '1px solid #E8E8ED',
               overflow: 'hidden',
@@ -574,9 +594,10 @@ export const WorkflowDetail = ({
             <BaseButton onClick={handleCancel} theme="light">
               Cancel
             </BaseButton>
+
             {data && user?.user_type === 0 && (
               <>
-                <BaseButton theme="light" onClick={() => openConfirmModal()}>
+                <BaseButton theme="danger" onClick={() => openConfirmModal()}>
                   Delete
                 </BaseButton>
                 <ConfirmDialog
@@ -612,38 +633,114 @@ export const WorkflowDetail = ({
               </>
             )}
 
+            {mode === WF_MODE.VIEW && data && !runningStates.includes(data?.latest_status) && (
+              <>
+                <BaseButton
+                  theme="primary"
+                  onClick={openExecuteConfirm}
+                >
+                  Execution
+                </BaseButton>
+                <ConfirmDialog
+                  widthClassName="w-100"
+                  openConfirm={isVisibleExecuteConfirm}
+                  setCloseConfirm={closeExecuteConfirm}
+                  title="Execute Workflow"
+                  callback={async () => {
+                    try {
+                      await api.post(`/workflow/execute/${data.workflow_id}`);
+                      mutate?.();
+                      globalMutate?.('/workflow/run/filter');
+                    } catch (error) {
+                      console.error('Failed to execute workflow:', error);
+                    }
+                  }}
+                >
+                  <div className="w-full text-lg">
+                    <p>
+                      <strong>Are you sure you want to execute this workflow?</strong>
+                    </p>
+                    <br />
+                    <p>
+                      Workflow Name:{' '}
+                      <span className="text-blue-500">
+                        {data?.workflow_name}
+                      </span>
+                    </p>
+                  </div>
+                </ConfirmDialog>
+              </>
+            )}
+
             {mode === WF_MODE.VIEW &&
               user?.user_type === 0 &&
               data?.latest_status !== workflowStatusOptions[2] && (
-                <BaseButton
-                  theme="dark"
-                  onClick={() => {
-                    setMode(WF_MODE.UPDATE);
-                    setValue('group', {
-                      id: data?.group_id,
-                      name: data?.group,
-                    });
-                    setGroup(data?.group_id);
-                  }}
-                >
-                  Edit
-                </BaseButton>
+                <>
+                  <BaseButton
+                    theme="dark"
+                    onClick={openEditConfirm}
+                  >
+                    Edit
+                  </BaseButton>
+                  <ConfirmDialog
+                    widthClassName="w-100"
+                    openConfirm={isVisibleEditConfirm}
+                    setCloseConfirm={closeEditConfirm}
+                    title="Edit"
+                    callback={() => {
+                      setMode(WF_MODE.UPDATE);
+                      setValue('group', {
+                        id: data?.group_id,
+                        name: data?.group,
+                      });
+                      setGroup(data?.group_id);
+                    }}
+                  >
+                    <div className="w-full text-lg">
+                      <p>
+                        <strong>Are you sure you want to edit this workflow?</strong>
+                      </p>
+                      <br />
+                      <p>
+                        Workflow Name:{' '}
+                        <span className="text-blue-500">
+                          {data?.workflow_name}
+                        </span>
+                      </p>
+                    </div>
+                  </ConfirmDialog>
+                </>
               )}
             {mode !== WF_MODE.VIEW && (
-              <BaseButton
-                theme="dark"
-                disabled={
-                  mode === WF_MODE.UPDATE &&
-                  jobOfWorkflow?.length === 0 &&
-                  (data?.latest_status === 'SUCCESS' ||
-                    data?.latest_status === 'FAILED')
-                }
-                onClick={handleSubmit((data) => {
-                  onSubmit(data, listIgnoreResults);
-                })}
-              >
-                Save
-              </BaseButton>
+              <>
+                <BaseButton
+                  theme="dark"
+                  disabled={
+                    mode === WF_MODE.UPDATE &&
+                    jobOfWorkflow?.length === 0 &&
+                    (data?.latest_status === 'SUCCESS' ||
+                      data?.latest_status === 'FAILED')
+                  }
+                  onClick={openSaveConfirm}
+                >
+                  Save
+                </BaseButton>
+                <ConfirmDialog
+                  widthClassName="w-100"
+                  openConfirm={isVisibleSaveConfirm}
+                  setCloseConfirm={closeSaveConfirm}
+                  title="Save"
+                  callback={handleSubmit((data) => {
+                    onSubmit(data, listIgnoreResults);
+                  })}
+                >
+                  <div className="w-full text-lg">
+                    <p>
+                      <strong>Do you want to save the workflow?</strong>
+                    </p>
+                  </div>
+                </ConfirmDialog>
+              </>
             )}
           </Box>
         </form>

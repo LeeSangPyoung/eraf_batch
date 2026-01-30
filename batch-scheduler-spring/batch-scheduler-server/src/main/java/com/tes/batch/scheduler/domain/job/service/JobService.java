@@ -348,6 +348,7 @@ public class JobService {
         // Create run log with all denormalized fields
         long now = System.currentTimeMillis();
         String taskId = UUID.randomUUID().toString();
+        String currentUserName = securityUtils.getCurrentUserId();
         JobRunLogVO runLog = JobRunLogVO.builder()
                 .jobId(jobId)
                 .jobName(job.getJobName())
@@ -362,6 +363,7 @@ public class JobService {
                 .reqStartDate(now)       // maps to scheduled_time
                 .actualStartDate(now)    // maps to start_time
                 .retryCount(0)           // maps to retry_attempt
+                .userName(currentUserName) // user who manually executed the job
                 .build();
 
         jobRunLogMapper.insert(runLog);
@@ -409,6 +411,7 @@ public class JobService {
                     latestLog.getLogId(),
                     "REVOKED",
                     "REVOKED",
+                    null,
                     System.currentTimeMillis(),
                     null,
                     "Force stopped by user",

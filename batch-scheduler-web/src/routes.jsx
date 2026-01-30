@@ -18,6 +18,7 @@ const LoadingComponent = () => (
   </Box>
 );
 
+const Dashboard = lazy(() => import('./pages/Dashboard/index'));
 const JobStatus = lazy(() => import('./pages/JobStatus/JobStatus'));
 const JobResult = lazy(() => import('./pages/JobResult/JobResult'));
 const Users = lazy(() => import('./pages/Users/index'));
@@ -26,9 +27,15 @@ const ChangePassword = lazy(() => import('./pages/ChangePassword/index'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/index'));
 const Workflow = lazy(() => import('./pages/Workflow/Workflow'));
 const WorkflowRun = lazy(() => import('./pages/WorkflowRun/WorkflowRun'));
+const SystemManagement = lazy(() => import('./pages/SystemManagement/index'));
+const GroupManagement = lazy(() => import('./pages/GroupManagement/index'));
 
 const Routes = () => {
   const routes = useRoutes([
+    {
+      path: '/dashboard',
+      element: <ProtectedRoute element={<Dashboard />} />,
+    },
     {
       path: '/job-status',
       element: <ProtectedRoute element={<JobStatus />} />,
@@ -49,9 +56,17 @@ const Routes = () => {
       path: '/workflow-runs',
       element:  <ProtectedRoute element={<WorkflowRun />} />,
     },
+    {
+      path: '/system-management',
+      element: <ProtectedRoute element={<SystemManagement />} />,
+    },
+    {
+      path: '/group-management',
+      element: <ProtectedRoute element={<GroupManagement />} />,
+    },
     { path: '/sign-in', element: <SignIn /> },
     { path: '/change-password', element: <ChangePassword /> },
-    { path: '/', element: <Navigate to="/job-status" replace /> },
+    { path: '/', element: <Navigate to="/dashboard" replace /> },
     { path: '*', element: <NotFoundPage /> },
   ]);
 

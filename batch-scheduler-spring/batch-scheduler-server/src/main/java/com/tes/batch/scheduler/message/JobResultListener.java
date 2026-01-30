@@ -99,11 +99,15 @@ public class JobResultListener implements MessageListener {
             jobMapper.updateState(jobId, "RUNNING", job.getNextRunDate());
             log.debug("Job {} is now RUNNING", jobId);
         } else if (isWorkflowJob) {
-            // Workflow jobs: update state to reflect result, don't reschedule individually
-            // (workflow completion handler will reset to SCHEDULED)
-            String jobState = (status == TaskStatus.SUCCESS) ? "SUCCESS" : "BROKEN";
-            jobMapper.updateState(jobId, jobState, null);
-            log.info("Workflow job {} completed with state {}", jobId, jobState);
+            // Workflow jobs: update state immediately so UI reflects actual status
+            if (status == TaskStatus.SUCCESS) {
+                // Immediately set to SCHEDULED so UI doesn't show as RUNNING
+                jobMapper.updateState(jobId, "SCHEDULED", null);
+                log.info("Workflow job {} completed successfully, state set to SCHEDULED", jobId);
+            } else {
+                jobMapper.updateState(jobId, "BROKEN", null);
+                log.info("Workflow job {} failed with state BROKEN", jobId);
+            }
         } else {
             // Standalone jobs: reschedule for next run
             schedulerService.rescheduleJobAfterExecution(job);

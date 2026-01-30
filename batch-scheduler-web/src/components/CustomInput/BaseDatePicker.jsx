@@ -1,6 +1,7 @@
 import { Box, Typography } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
-import React from 'react';
+import React, { useCallback } from 'react';
+import dayjs from 'dayjs';
 
 const BaseDatePicker = ({
   content,
@@ -12,6 +13,33 @@ const BaseDatePicker = ({
   className = '',
   ...props
 }) => {
+  // Scroll time picker lists to current time when opened
+  const handleOpen = useCallback(() => {
+    setTimeout(() => {
+      const now = dayjs();
+      const currentHour = now.hour();
+      const currentMinute = now.minute();
+
+      // Find and scroll hour list
+      const hourList = document.querySelector('.MuiMultiSectionDigitalClockSection-root:first-child');
+      if (hourList) {
+        const hourItem = hourList.querySelector(`[aria-label="${currentHour} hours"]`);
+        if (hourItem) {
+          hourItem.scrollIntoView({ block: 'center', behavior: 'auto' });
+        }
+      }
+
+      // Find and scroll minute list
+      const minuteList = document.querySelector('.MuiMultiSectionDigitalClockSection-root:last-child');
+      if (minuteList) {
+        const minuteItem = minuteList.querySelector(`[aria-label="${currentMinute} minutes"]`);
+        if (minuteItem) {
+          minuteItem.scrollIntoView({ block: 'center', behavior: 'auto' });
+        }
+      }
+    }, 100);
+  }, []);
+
   return (
     <Box className={className}>
       <Typography
@@ -31,6 +59,8 @@ const BaseDatePicker = ({
         format={format}
         value={value}
         onChange={onChange}
+        referenceDate={dayjs()}
+        onOpen={handleOpen}
         slotProps={{
           textField: {
             size: size,

@@ -169,7 +169,10 @@ public class SshService {
     /**
      * Deploy Java Agent to remote server
      */
-    public void deployWorker(String hostIpAddr, String sshUser, String folderPath, String queueName) throws Exception {
+    public void deployWorker(String hostIpAddr, String sshUser, String folderPath, String queueName, Integer agentPort) throws Exception {
+        if (agentPort == null || agentPort < 1024) {
+            agentPort = 8081 + (Math.abs(queueName.hashCode()) % 919);
+        }
         String[] userHost = parseUserHost(hostIpAddr, sshUser);
         String username = userHost[0];
         String host = userHost[1];
@@ -205,7 +208,7 @@ public class SshService {
 
             // 3. Generate and upload application.yml
             log.info("Step 3: Uploading application.yml");
-            String agentConfig = generateAgentConfig(queueName, host, folderPath);
+            String agentConfig = generateAgentConfig(queueName, host, folderPath, agentPort);
             scpUploadContent(session, agentConfig, folderPath + "/application.yml");
             log.info("application.yml uploaded");
 
@@ -238,10 +241,10 @@ public class SshService {
     /**
      * Generate application.yml for agent
      */
-    private String generateAgentConfig(String queueName, String serverId, String folderPath) {
+    private String generateAgentConfig(String queueName, String serverId, String folderPath, int port) {
         return String.format("""
                 server:
-                  port: 8081
+                  port: %d
 
                 spring:
                   application:
@@ -279,7 +282,7 @@ public class SshService {
                       max-file-size: 100MB
                       max-history: 30
                       file-name-pattern: %s/logs/backup/agent.%%d{yyyy-MM-dd}.%%i.log
-                """, redisHost, redisPort, queueName, serverId, schedulerUrl, folderPath, folderPath);
+                """, port, redisHost, redisPort, queueName, serverId, schedulerUrl, folderPath, folderPath);
     }
 
     /**
@@ -289,6 +292,11 @@ public class SshService {
         return String.format("""
                 #!/bin/bash
                 cd %s
+
+                # Load Java environment
+                if [ -f /etc/profile.d/java.sh ]; then
+                    source /etc/profile.d/java.sh
+                fi
 
                 # Create log and backup directories in agent folder
                 mkdir -p %s/logs
@@ -388,14 +396,14 @@ public class SshService {
     }
 
     /**
-     * Restart agent on remote server
+     * Start agent on remote server
      */
-    public void restartWorker(String hostIpAddr, String sshUser, String folderPath) throws Exception {
+    public void startWorker(String hostIpAddr, String sshUser, String folderPath) throws Exception {
         String[] userHost = parseUserHost(hostIpAddr, sshUser);
         String username = userHost[0];
         String host = userHost[1];
 
-        log.info("Restarting agent at {}@{}:{}", username, host, folderPath);
+        log.info("Starting agent at {}@{}:{}", username, host, folderPath);
 
         Session session = createSession(host, username);
         try {
@@ -404,8 +412,48 @@ public class SshService {
             String startScript = folderPath + "/start-agent.sh";
             SshResult result = executeCommand(session, startScript);
             if (!result.success()) {
-                log.warn("Agent restart returned non-zero: {}", result.error());
+                log.warn("Agent start returned non-zero: {}", result.error());
             }
+
+        } finally {
+            session.disconnect();
+        }
+    }
+
+    /**
+     * Restart agent on remote server (alias for startWorker)
+     */
+    public void restartWorker(String hostIpAddr, String sshUser, String folderPath) throws Exception {
+        startWorker(hostIpAddr, sshUser, folderPath);
+    }
+
+    /**
+     * Sync config and restart agent (lightweight operation for heartbeat recovery)
+     */
+    public void syncConfigAndRestart(String hostIpAddr, String sshUser, String folderPath, String queueName, Integer agentPort) throws Exception {
+        String[] userHost = parseUserHost(hostIpAddr, sshUser);
+        String username = userHost[0];
+        String host = userHost[1];
+
+        if (agentPort == null || agentPort < 1024) {
+            agentPort = 8081 + (Math.abs(queueName.hashCode()) % 919);
+        }
+
+        log.info("Syncing config and restarting agent at {}@{}:{} (port: {})", username, host, folderPath, agentPort);
+
+        Session session = createSession(host, username);
+        try {
+            session.connect();
+
+            // 1. Upload application.yml with correct queueName and port
+            String agentConfig = generateAgentConfig(queueName, host, folderPath, agentPort);
+            scpUploadContent(session, agentConfig, folderPath + "/application.yml");
+            log.info("Config synced for queue: {}", queueName);
+
+            // 2. Restart agent
+            String startScript = folderPath + "/start-agent.sh";
+            SshResult result = executeCommand(session, startScript);
+            log.info("Agent restart result: {}", result.success() ? "success" : result.error());
 
         } finally {
             session.disconnect();

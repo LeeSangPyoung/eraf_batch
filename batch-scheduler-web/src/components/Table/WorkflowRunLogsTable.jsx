@@ -25,6 +25,7 @@ function WorkflowRunLogsTable({
   isLoading,
   isLoadingDefault,
   setIsLoadingDefault,
+  onRowDoubleClick,
 }) {
   const { t } = useTranslation();
 
@@ -64,7 +65,11 @@ function WorkflowRunLogsTable({
         ) : data && data.length > 0 ? (
           <>
             {data?.map((row) => (
-              <TableRow className="hover:bg-grayLight" key={row.log_id}>
+              <TableRow
+                className="hover:bg-grayLight cursor-pointer"
+                key={row.log_id}
+                onDoubleClick={() => onRowDoubleClick?.(row)}
+              >
                 <TableCell style={styleTableCell}>{row.job_name}</TableCell>
                 <TableCell style={styleTableCell}>
                   <DotStatus value={row.status} />

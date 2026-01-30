@@ -4,6 +4,8 @@ import com.tes.batch.scheduler.domain.group.dto.GroupFilterRequest;
 import com.tes.batch.scheduler.domain.group.dto.GroupRequest;
 import com.tes.batch.scheduler.domain.group.mapper.JobGroupMapper;
 import com.tes.batch.scheduler.domain.group.vo.JobGroupVO;
+import com.tes.batch.scheduler.domain.job.mapper.JobMapper;
+import com.tes.batch.scheduler.domain.user.mapper.UserMapper;
 import com.tes.batch.scheduler.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,8 @@ import java.util.UUID;
 public class GroupService {
 
     private final JobGroupMapper groupMapper;
+    private final JobMapper jobMapper;
+    private final UserMapper userMapper;
     private final SecurityUtils securityUtils;
 
     @Transactional(readOnly = true)
@@ -123,6 +127,19 @@ public class GroupService {
         if (existing == null) {
             throw new IllegalArgumentException("Group not found: " + groupId);
         }
+
+        // Check for related jobs
+        long jobCount = jobMapper.countByGroupId(groupId);
+        if (jobCount > 0) {
+            throw new IllegalArgumentException("Cannot delete group: " + jobCount + " job(s) are associated with this group");
+        }
+
+        // Check for related users
+        long userCount = userMapper.countUsersByGroupId(groupId);
+        if (userCount > 0) {
+            throw new IllegalArgumentException("Cannot delete group: " + userCount + " user(s) are associated with this group");
+        }
+
         groupMapper.delete(groupId);
     }
 }

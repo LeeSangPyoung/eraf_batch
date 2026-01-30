@@ -97,18 +97,49 @@ public class ServerController {
     }
 
     /**
-     * Restart server workers
-     * POST /server/restart
+     * Stop server worker
+     * POST /server/stop
      */
-    @PostMapping("/restart")
-    public ApiResponse<Void> restartServer(@RequestBody Map<String, Object> request) {
+    @PostMapping("/stop")
+    public ApiResponse<Void> stopServer(@RequestBody Map<String, Object> request) {
         try {
             String systemName = (String) request.get("system_name");
-            Boolean redeploy = (Boolean) request.getOrDefault("redeploy", false);
-            serverService.restartServer(systemName, redeploy);
+            serverService.stopServer(systemName);
             return ApiResponse.success(null);
         } catch (Exception e) {
-            log.error("Failed to restart server", e);
+            log.error("Failed to stop server", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Start server worker
+     * POST /server/start
+     */
+    @PostMapping("/start")
+    public ApiResponse<Void> startServer(@RequestBody Map<String, Object> request) {
+        try {
+            String systemName = (String) request.get("system_name");
+            serverService.startServer(systemName);
+            return ApiResponse.success(null);
+        } catch (Exception e) {
+            log.error("Failed to start server", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Redeploy server worker
+     * POST /server/redeploy
+     */
+    @PostMapping("/redeploy")
+    public ApiResponse<Void> redeployServer(@RequestBody Map<String, Object> request) {
+        try {
+            String systemName = (String) request.get("system_name");
+            serverService.redeployServer(systemName);
+            return ApiResponse.success(null);
+        } catch (Exception e) {
+            log.error("Failed to redeploy server", e);
             return ApiResponse.error(e.getMessage());
         }
     }

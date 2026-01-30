@@ -1,5 +1,7 @@
 package com.tes.batch.scheduler.domain.workflow.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.tes.batch.scheduler.domain.job.vo.JobRunLogVO;
 import com.tes.batch.scheduler.domain.workflow.vo.WorkflowRunVO;
 import lombok.Builder;
 import lombok.Data;
@@ -9,27 +11,27 @@ import java.util.List;
 @Data
 @Builder
 public class WorkflowRunResponse {
+    @JsonProperty("workflow_run_id")
     private String id;
-    private String workflowId;
-    private String workflowName;
-    private String status;
-    private Long startTime;
-    private Long endTime;
-    private String error;
-    private List<JobRunDetail> jobRuns;
 
-    @Data
-    @Builder
-    public static class JobRunDetail {
-        private String jobId;
-        private String jobName;
-        private Integer priority;
-        private String status;
-        private Long startTime;
-        private Long endTime;
-        private String output;
-        private String error;
-    }
+    @JsonProperty("workflow_id")
+    private String workflowId;
+
+    @JsonProperty("workflow_name")
+    private String workflowName;
+
+    private String status;
+
+    @JsonProperty("start_date")
+    private Long startTime;
+
+    @JsonProperty("end_date")
+    private Long endTime;
+
+    private String error;
+
+    @JsonProperty("job_runs")
+    private List<JobRunLogVO> jobRuns;
 
     public static WorkflowRunResponse from(WorkflowRunVO vo) {
         return WorkflowRunResponse.builder()

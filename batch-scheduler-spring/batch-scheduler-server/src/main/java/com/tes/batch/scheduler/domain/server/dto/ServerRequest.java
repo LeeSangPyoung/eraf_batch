@@ -23,6 +23,8 @@ public class ServerRequest {
     private String secondaryFolderPath;
     @JsonAlias("ssh_user")
     private String sshUser;
+    @JsonAlias("agent_port")
+    private Integer agentPort;
     @JsonAlias("frst_reg_user_id")
     private String frstRegUserId;
     @JsonAlias("last_reg_user_id")

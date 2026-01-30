@@ -38,5 +38,10 @@ public interface JobServerMapper {
             @Param("agentStatus") String agentStatus
     );
 
+    int updateHealthStatus(
+            @Param("systemId") String systemId,
+            @Param("isHealthy") Boolean isHealthy
+    );
+
     int delete(@Param("systemId") String systemId);
 }

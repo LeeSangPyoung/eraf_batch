@@ -243,4 +243,15 @@
         WHERE status IN ('RUNNING', 'PENDING')
     </update>
 
+    <!-- Mark RUNNING jobs as BROKEN when agent goes offline -->
+    <update id="markRunningJobsAsBrokenBySystemId">
+        UPDATE scheduler_job_run_logs
+        SET status = 'BROKEN',
+            operation = 'BROKEN',
+            end_time = #{endDate},
+            error = #{errors}
+        WHERE system_id = #{systemId}
+          AND status IN ('RUNNING', 'PENDING')
+    </update>
+
 </mapper>

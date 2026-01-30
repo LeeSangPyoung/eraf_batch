@@ -109,4 +109,13 @@ public interface JobMapper {
     );
 
     int clearWorkflowInfo(@Param("priorityGroupId") String priorityGroupId);
+
+    int resetRunningJobs();
+
+    long countByGroupId(@Param("groupId") String groupId);
+
+    /**
+     * Reset RUNNING/WAITING jobs to SCHEDULED for a specific system
+     */
+    int resetStuckJobsBySystemId(@Param("systemId") String systemId);
 }

@@ -31,7 +31,7 @@ public class UserService {
     /**
      * User login
      */
-    @Transactional
+    @Transactional(noRollbackFor = {IllegalArgumentException.class, IllegalStateException.class})
     public LoginResponse login(LoginRequest request) {
         UserVO user = userMapper.findByUserId(request.getUserId());
 
@@ -275,5 +275,41 @@ public class UserService {
         userMapper.deleteUserGroups(id);
         // Delete user
         userMapper.delete(id);
+    }
+
+    /**
+     * Reset user password to default 'eraf'
+     */
+    @Transactional
+    public void resetPassword(String id) {
+        UserVO existing = userMapper.findById(id);
+        if (existing == null) {
+            throw new IllegalArgumentException("User not found: " + id);
+        }
+
+        long now = System.currentTimeMillis();
+        String defaultPassword = "eraf";
+        userMapper.updatePassword(id, passwordEncoder.encode(defaultPassword), now);
+        // Reset login fail count as well
+        userMapper.resetLoginFailCount(id);
+        log.info("Password reset for user: {} ({})", existing.getUserId(), id);
+    }
+
+    /**
+     * Update user status (lock/unlock)
+     */
+    @Transactional
+    public void updateUserStatus(String id, Boolean status) {
+        UserVO existing = userMapper.findById(id);
+        if (existing == null) {
+            throw new IllegalArgumentException("User not found: " + id);
+        }
+
+        userMapper.updateUserStatus(id, status);
+        // If unlocking, reset login fail count
+        if (Boolean.TRUE.equals(status)) {
+            userMapper.resetLoginFailCount(id);
+        }
+        log.info("User status updated: {} ({}) -> {}", existing.getUserId(), id, status ? "ENABLED" : "DISABLED");
     }
 }

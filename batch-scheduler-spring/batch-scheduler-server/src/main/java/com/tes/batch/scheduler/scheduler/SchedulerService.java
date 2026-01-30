@@ -3,6 +3,8 @@ package com.tes.batch.scheduler.scheduler;
 import com.tes.batch.scheduler.domain.job.mapper.JobMapper;
 import com.tes.batch.scheduler.domain.job.vo.JobVO;
 import com.tes.batch.scheduler.domain.workflow.mapper.WorkflowMapper;
+import com.tes.batch.scheduler.domain.workflow.mapper.WorkflowRunMapper;
+import com.tes.batch.scheduler.domain.workflow.vo.WorkflowRunVO;
 import com.tes.batch.scheduler.domain.workflow.vo.WorkflowVO;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class SchedulerService {
     private final Scheduler scheduler;
     private final JobMapper jobMapper;
     private final WorkflowMapper workflowMapper;
+    private final WorkflowRunMapper workflowRunMapper;
     private final RRuleParser rruleParser;
 
     private static final String JOB_GROUP = "batch-jobs";
@@ -44,6 +47,12 @@ public class SchedulerService {
     public void initializeScheduler() {
         log.info("Initializing Quartz scheduler, loading active jobs...");
         try {
+            // Clean up stuck RUNNING jobs from previous server shutdown
+            int resetCount = jobMapper.resetRunningJobs();
+            if (resetCount > 0) {
+                log.info("Reset {} stuck RUNNING jobs to BROKEN", resetCount);
+            }
+
             // Load all enabled jobs with repeat interval
             List<JobVO> enabledJobs = jobMapper.findEnabledJobsWithSchedule();
             log.info("Found {} enabled jobs with schedule", enabledJobs.size());
@@ -55,6 +64,9 @@ public class SchedulerService {
                     log.error("Failed to schedule job on startup: {}", job.getJobId(), e);
                 }
             }
+
+            // Clean up stuck workflow runs from previous server shutdown
+            cleanupStuckWorkflowRuns();
 
             // Load enabled workflows
             List<WorkflowVO> enabledWorkflows = workflowMapper.findEnabledWorkflowsWithSchedule();
@@ -75,6 +87,34 @@ public class SchedulerService {
     }
 
     /**
+     * Mark all RUNNING workflow runs as FAILED on startup (stuck from previous shutdown)
+     */
+    private void cleanupStuckWorkflowRuns() {
+        try {
+            List<WorkflowRunVO> stuckRuns = workflowRunMapper.findRunningWorkflows();
+            long now = System.currentTimeMillis();
+            for (WorkflowRunVO run : stuckRuns) {
+                workflowRunMapper.updateStatus(
+                        run.getWorkflowRunId(),
+                        "FAILED",
+                        now,
+                        run.getStartDate() != null ? now - run.getStartDate() : null,
+                        "Server restarted while workflow was running"
+                );
+                if (run.getWorkflowId() != null) {
+                    workflowMapper.updateStatus(run.getWorkflowId(), "FAILED", now, null);
+                }
+                log.info("Cleaned up stuck workflow run: {}", run.getWorkflowRunId());
+            }
+            if (!stuckRuns.isEmpty()) {
+                log.info("Cleaned up {} stuck workflow runs", stuckRuns.size());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to cleanup stuck workflow runs", e);
+        }
+    }
+
+    /**
      * Schedule a job using RRULE - calculates next run time and schedules with Quartz
      */
     public void scheduleJobWithRRule(JobVO job) {
@@ -85,6 +125,12 @@ public class SchedulerService {
 
         if (!Boolean.TRUE.equals(job.getIsEnabled())) {
             log.debug("Job {} is disabled, skipping schedule", job.getJobId());
+            return;
+        }
+
+        // Skip jobs that belong to a workflow - they are managed by the workflow scheduler
+        if (job.getWorkflowId() != null && !job.getWorkflowId().isEmpty()) {
+            log.debug("Job {} belongs to workflow {}, skipping individual schedule", job.getJobId(), job.getWorkflowId());
             return;
         }
 

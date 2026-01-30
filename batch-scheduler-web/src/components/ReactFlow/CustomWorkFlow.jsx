@@ -1,10 +1,12 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import {
   ReactFlow,
   useNodesState,
   useEdgesState,
   addEdge,
   Controls,
+  useReactFlow,
+  ReactFlowProvider,
 } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
@@ -20,22 +22,21 @@ const mappingToCustomNode = (jobs) => {
   const nodes = [];
   const jobGroups = {};
 
-  // Group jobs by jobPriority
   jobs.forEach((job) => {
-    if (!jobGroups[job.jobPriority]) {
-      jobGroups[job.jobPriority] = [];
+    const priority = job.jobPriority || job.priority || 1;
+    if (!jobGroups[priority]) {
+      jobGroups[priority] = [];
     }
-    jobGroups[job.jobPriority].push(job);
+    jobGroups[priority].push(job);
   });
 
-  // Calculate positions with wider spacing for Apple-style nodes
   Object.keys(jobGroups).sort((a, b) => Number(a) - Number(b)).forEach((priority, index) => {
     const jobList = jobGroups[priority];
     nodes.push({
       id: priority.toString(),
       type: 'selectorNode',
       data: { jobList },
-      position: { x: index * 300, y: 0 },
+      position: { x: index * 160, y: 0 },
       sourcePosition: 'right',
     });
   });
@@ -64,42 +65,74 @@ const mappingToEdges = (listNodes) => {
   return edges;
 };
 
-const WorkFlowNodes = ({ jobs }) => {
+const WorkFlowNodesInner = ({ jobs }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const { fitView } = useReactFlow();
+  const initialized = useRef(false);
 
   useEffect(() => {
     const newNodes = mappingToCustomNode(jobs);
     setNodes(newNodes);
     const newEdges = mappingToEdges(newNodes);
     setEdges(newEdges);
-  }, [jobs]);
+
+    if (newNodes.length > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.3, duration: 200 });
+      }, 100);
+    }
+  }, [jobs, setNodes, setEdges, fitView]);
 
   const onConnect = useCallback(
     (params) => {
       setEdges((eds) => addEdge({ ...params, animated: true }, eds));
     },
-    [jobs],
+    [setEdges],
   );
+
+  const onInit = useCallback(() => {
+    if (!initialized.current && nodes.length > 0) {
+      fitView({ padding: 0.3, duration: 200 });
+      initialized.current = true;
+    }
+  }, [fitView, nodes.length]);
 
   return (
     <ReactFlow
-      className="min-h-[500px]"
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
-      style={{ background: '#FAFAFA' }}
+      onInit={onInit}
+      style={{ background: '#FAFAFA', width: '100%', height: '100%' }}
       nodeTypes={nodeTypes}
-      snapToGrid={true}
-      snapGrid={[20, 20]}
       fitView
       fitViewOptions={{ padding: 0.3 }}
-      attributionPosition="bottom-left"
+      minZoom={0.3}
+      maxZoom={2}
+      proOptions={{ hideAttribution: true }}
     >
-      <Controls />
+      <Controls
+        showInteractive={false}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
+        }}
+      />
     </ReactFlow>
+  );
+};
+
+const WorkFlowNodes = ({ jobs }) => {
+  return (
+    <div style={{ width: '100%', height: '100%' }}>
+      <ReactFlowProvider>
+        <WorkFlowNodesInner jobs={jobs} />
+      </ReactFlowProvider>
+    </div>
   );
 };
 

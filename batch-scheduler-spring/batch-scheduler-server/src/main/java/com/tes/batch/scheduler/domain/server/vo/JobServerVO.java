@@ -59,6 +59,22 @@ public class JobServerVO {
     private String agentStatus = "UNKNOWN";
 
     /**
+     * Actual heartbeat health status from Redis.
+     * true = heartbeat received, false = no heartbeat
+     */
+    @Builder.Default
+    @JsonProperty("is_healthy")
+    private Boolean isHealthy = false;
+
+    /**
+     * Agent HTTP port for health endpoint.
+     * Each agent on the same host should use a different port.
+     */
+    @Builder.Default
+    @JsonProperty("agent_port")
+    private Integer agentPort = 8081;
+
+    /**
      * First registration date (epoch ms)
      */
     @JsonProperty("frst_reg_date")
@@ -81,4 +97,16 @@ public class JobServerVO {
      */
     @JsonProperty("last_reg_user_id")
     private String lastRegUserId;
+
+    /**
+     * Creator user name (joined from users table)
+     */
+    @JsonProperty("creator")
+    private String creator;
+
+    /**
+     * Last modifier user name (joined from users table)
+     */
+    @JsonProperty("last_modifier")
+    private String lastModifier;
 }

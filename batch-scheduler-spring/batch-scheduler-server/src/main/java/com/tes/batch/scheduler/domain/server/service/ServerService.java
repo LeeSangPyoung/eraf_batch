@@ -1,5 +1,7 @@
 package com.tes.batch.scheduler.domain.server.service;
 
+import com.tes.batch.scheduler.domain.job.mapper.JobMapper;
+import com.tes.batch.scheduler.domain.job.mapper.JobRunLogMapper;
 import com.tes.batch.scheduler.domain.server.dto.ServerFilterRequest;
 import com.tes.batch.scheduler.domain.server.dto.ServerRequest;
 import com.tes.batch.scheduler.domain.server.mapper.JobServerMapper;
@@ -20,6 +22,8 @@ import java.util.UUID;
 public class ServerService {
 
     private final JobServerMapper serverMapper;
+    private final JobRunLogMapper jobRunLogMapper;
+    private final JobMapper jobMapper;
     private final SecurityUtils securityUtils;
     private final SshService sshService;
 
@@ -64,6 +68,12 @@ public class ServerService {
             hostIpAddr = parts[1];
         }
 
+        // Calculate agent port: use provided value or generate from queueName
+        Integer agentPort = request.getAgentPort();
+        if (agentPort == null || agentPort < 1024) {
+            agentPort = 8081 + (Math.abs(queueName.hashCode()) % 919);
+        }
+
         JobServerVO server = JobServerVO.builder()
                 .systemId(systemId)
                 .systemName(request.getSystemName())
@@ -75,6 +85,7 @@ public class ServerService {
                 .folderPath(request.getFolderPath())
                 .secondaryFolderPath(request.getSecondaryFolderPath())
                 .sshUser(sshUser)
+                .agentPort(agentPort)
                 .agentStatus("UNKNOWN")
                 .frstRegDate(now)
                 .lastChgDate(now)
@@ -86,7 +97,7 @@ public class ServerService {
         try {
             if (hostIpAddr != null && request.getFolderPath() != null) {
                 log.info("Starting agent deployment to {}@{}", sshUser, hostIpAddr);
-                sshService.deployWorker(hostIpAddr, sshUser, request.getFolderPath(), queueName);
+                sshService.deployWorker(hostIpAddr, sshUser, request.getFolderPath(), queueName, agentPort);
                 server.setAgentStatus("ONLINE");
                 log.info("Agent deployment completed successfully");
             } else {
@@ -103,7 +114,7 @@ public class ServerService {
             String secondaryFolder = request.getSecondaryFolderPath();
             if (secondaryHost != null && !secondaryHost.isEmpty() &&
                 secondaryFolder != null && !secondaryFolder.isEmpty()) {
-                sshService.deployWorker(secondaryHost, sshUser, secondaryFolder, queueName);
+                sshService.deployWorker(secondaryHost, sshUser, secondaryFolder, queueName, agentPort);
             }
         } catch (Exception e) {
             log.error("Failed to deploy worker to secondary host: {}", e.getMessage());
@@ -134,6 +145,9 @@ public class ServerService {
         existing.setFolderPath(request.getFolderPath());
         existing.setSecondaryFolderPath(request.getSecondaryFolderPath());
         existing.setSshUser(request.getSshUser());
+        if (request.getAgentPort() != null && request.getAgentPort() >= 1024) {
+            existing.setAgentPort(request.getAgentPort());
+        }
         existing.setLastChgDate(System.currentTimeMillis());
         existing.setLastRegUserId(securityUtils.getCurrentId());
 
@@ -177,40 +191,87 @@ public class ServerService {
     }
 
     /**
-     * Restart workers (stop and start)
+     * Stop worker - just stops the agent, doesn't change job states
      */
-    public void restartServer(String systemName, boolean redeploy) {
-        List<JobServerVO> servers;
-        if (systemName != null && !systemName.isEmpty()) {
-            JobServerVO server = serverMapper.findBySystemName(systemName);
-            if (server == null) {
-                throw new IllegalArgumentException("Server not found: " + systemName);
-            }
-            servers = List.of(server);
-        } else {
-            servers = serverMapper.findAll();
+    public void stopServer(String systemName) {
+        JobServerVO server = serverMapper.findBySystemName(systemName);
+        if (server == null) {
+            throw new IllegalArgumentException("Server not found: " + systemName);
         }
 
-        for (JobServerVO server : servers) {
-            try {
-                // Stop worker
-                if (server.getHostIpAddr() != null && server.getFolderPath() != null) {
-                    sshService.stopWorker(server.getHostIpAddr(), server.getSshUser(), server.getFolderPath());
-
-                    if (redeploy) {
-                        // Redeploy: copy files and start
-                        sshService.deployWorker(server.getHostIpAddr(), server.getSshUser(),
-                                server.getFolderPath(), server.getQueueName());
-                    } else {
-                        // Just restart
-                        sshService.restartWorker(server.getHostIpAddr(), server.getSshUser(), server.getFolderPath());
-                    }
-                    serverMapper.updateAgentStatus(server.getSystemId(), "ONLINE");
-                }
-            } catch (Exception e) {
-                log.error("Failed to restart worker for {}: {}", server.getSystemName(), e.getMessage());
+        try {
+            if (server.getHostIpAddr() != null && server.getFolderPath() != null) {
+                sshService.stopWorker(server.getHostIpAddr(), server.getSshUser(), server.getFolderPath());
                 serverMapper.updateAgentStatus(server.getSystemId(), "OFFLINE");
+                log.info("Stopped worker for {}", systemName);
             }
+        } catch (Exception e) {
+            log.error("Failed to stop worker for {}: {}", systemName, e.getMessage());
+            throw new RuntimeException("Failed to stop worker: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Start worker - starts the agent and resets stuck jobs to SCHEDULED
+     */
+    @Transactional
+    public void startServer(String systemName) {
+        JobServerVO server = serverMapper.findBySystemName(systemName);
+        if (server == null) {
+            throw new IllegalArgumentException("Server not found: " + systemName);
+        }
+
+        try {
+            if (server.getHostIpAddr() != null && server.getFolderPath() != null) {
+                sshService.startWorker(server.getHostIpAddr(), server.getSshUser(), server.getFolderPath());
+                serverMapper.updateAgentStatus(server.getSystemId(), "ONLINE");
+
+                // Reset RUNNING/WAITING jobs to SCHEDULED so they can be picked up again
+                int resetCount = jobMapper.resetStuckJobsBySystemId(server.getSystemId());
+                if (resetCount > 0) {
+                    log.info("Reset {} stuck job(s) to SCHEDULED after agent start: {}", resetCount, systemName);
+                }
+
+                log.info("Started worker for {}", systemName);
+            }
+        } catch (Exception e) {
+            log.error("Failed to start worker for {}: {}", systemName, e.getMessage());
+            serverMapper.updateAgentStatus(server.getSystemId(), "OFFLINE");
+            throw new RuntimeException("Failed to start worker: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Redeploy worker (stop, deploy, start) - also resets stuck jobs like start
+     */
+    @Transactional
+    public void redeployServer(String systemName) {
+        JobServerVO server = serverMapper.findBySystemName(systemName);
+        if (server == null) {
+            throw new IllegalArgumentException("Server not found: " + systemName);
+        }
+
+        try {
+            if (server.getHostIpAddr() != null && server.getFolderPath() != null) {
+                // Stop first
+                sshService.stopWorker(server.getHostIpAddr(), server.getSshUser(), server.getFolderPath());
+                // Deploy and start
+                sshService.deployWorker(server.getHostIpAddr(), server.getSshUser(),
+                        server.getFolderPath(), server.getQueueName(), server.getAgentPort());
+                serverMapper.updateAgentStatus(server.getSystemId(), "ONLINE");
+
+                // Reset RUNNING/WAITING/BROKEN jobs to SCHEDULED so they can be picked up again
+                int resetCount = jobMapper.resetStuckJobsBySystemId(server.getSystemId());
+                if (resetCount > 0) {
+                    log.info("Reset {} stuck job(s) to SCHEDULED after agent redeploy: {}", resetCount, systemName);
+                }
+
+                log.info("Redeployed worker for {}", systemName);
+            }
+        } catch (Exception e) {
+            log.error("Failed to redeploy worker for {}: {}", systemName, e.getMessage());
+            serverMapper.updateAgentStatus(server.getSystemId(), "OFFLINE");
+            throw new RuntimeException("Failed to redeploy worker: " + e.getMessage());
         }
     }
 }

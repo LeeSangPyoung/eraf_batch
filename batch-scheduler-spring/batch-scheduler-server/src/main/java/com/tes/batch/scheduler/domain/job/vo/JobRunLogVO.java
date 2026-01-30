@@ -129,4 +129,16 @@ public class JobRunLogVO {
      */
     @JsonProperty("workflow_priority")
     private Integer workflowPriority;
+
+    /**
+     * Log date (first registration date)
+     */
+    @JsonProperty("log_date")
+    private Long logDate;
+
+    /**
+     * User name who executed the job
+     */
+    @JsonProperty("user_name")
+    private String userName;
 }

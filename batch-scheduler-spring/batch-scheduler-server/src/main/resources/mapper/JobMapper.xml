@@ -402,4 +402,26 @@
         WHERE priority_group_id = #{priorityGroupId}
     </update>
 
+    <!-- Reset stuck RUNNING/WAITING jobs to BROKEN on server startup -->
+    <update id="resetRunningJobs">
+        UPDATE scheduler_jobs
+        SET current_state = 'BROKEN'
+        WHERE current_state IN ('RUNNING', 'WAITING')
+    </update>
+
+    <!-- Count Jobs by Group ID -->
+    <select id="countByGroupId" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_jobs
+        WHERE group_id = #{groupId}
+    </select>
+
+    <!-- Reset stuck RUNNING/WAITING/BROKEN jobs to SCHEDULED for a specific system -->
+    <update id="resetStuckJobsBySystemId">
+        UPDATE scheduler_jobs
+        SET current_state = 'SCHEDULED'
+        WHERE system_id = #{systemId}
+          AND current_state IN ('RUNNING', 'WAITING', 'BROKEN')
+    </update>
+
 </mapper>

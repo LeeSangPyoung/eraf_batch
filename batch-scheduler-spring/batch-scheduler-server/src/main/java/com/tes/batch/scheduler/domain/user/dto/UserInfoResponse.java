@@ -27,6 +27,8 @@ public class UserInfoResponse {
     private String celpTlno;
     @JsonProperty("email_addr")
     private String emailAddr;
+    @JsonProperty("lgin_fail_ncnt")
+    private Integer loginFailCount;
     @JsonProperty("last_pwd_chg_date")
     private Long lastPwdChgDate;
     @JsonProperty("last_login_time")
@@ -47,6 +49,7 @@ public class UserInfoResponse {
                 .userStatus(user.getUserStatus())
                 .celpTlno(user.getCelpTlno())
                 .emailAddr(user.getEmailAddr())
+                .loginFailCount(user.getLoginFailCount())
                 .lastPwdChgDate(user.getLastPwdChgDate())
                 .lastLoginTime(user.getLastLoginTime())
                 .frstRegDate(user.getFrstRegDate())

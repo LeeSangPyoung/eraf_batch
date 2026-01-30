@@ -2,6 +2,8 @@ package com.tes.batch.scheduler.domain.workflow.service;
 
 import com.tes.batch.common.dto.ApiResponse;
 import com.tes.batch.scheduler.domain.job.mapper.JobMapper;
+import com.tes.batch.scheduler.domain.job.mapper.JobRunLogMapper;
+import com.tes.batch.scheduler.domain.job.vo.JobRunLogVO;
 import com.tes.batch.scheduler.domain.job.vo.JobVO;
 import com.tes.batch.scheduler.domain.workflow.dto.*;
 import com.tes.batch.scheduler.domain.workflow.mapper.WorkflowMapper;
@@ -31,6 +33,7 @@ public class WorkflowService {
     private final WorkflowPriorityGroupMapper priorityGroupMapper;
     private final WorkflowRunMapper workflowRunMapper;
     private final JobMapper jobMapper;
+    private final JobRunLogMapper jobRunLogMapper;
     private final RRuleParser rruleParser;
     @Lazy
     private final SchedulerService schedulerService;
@@ -64,7 +67,7 @@ public class WorkflowService {
 
     @Transactional(readOnly = true)
     public ApiResponse<WorkflowResponse> detail(String workflowId) {
-        WorkflowVO workflow = workflowMapper.findById(workflowId);
+        WorkflowVO workflow = workflowMapper.findByIdWithRelations(workflowId);
         if (workflow == null) {
             return ApiResponse.error("Workflow not found: " + workflowId);
         }
@@ -324,9 +327,40 @@ public class WorkflowService {
 
         WorkflowRunResponse response = WorkflowRunResponse.from(run);
 
-        // TODO: Get job run details from job_run_log table
-        // This would require joining with job_run_log where workflow_run_id matches
+        // Get job run details from job_run_log table
+        List<JobRunLogVO> jobRunLogs = jobRunLogMapper.findByWorkflowRunId(Long.parseLong(runId));
+        response.setJobRuns(jobRunLogs);
 
         return ApiResponse.success(response);
+    }
+
+    /**
+     * Clean up stuck workflow runs that have been RUNNING for too long
+     */
+    @Transactional
+    public ApiResponse<Integer> cleanupStuckRuns(long timeoutMs) {
+        List<WorkflowRunVO> runningRuns = workflowRunMapper.findRunningWorkflows();
+        long now = System.currentTimeMillis();
+        int cleaned = 0;
+
+        for (WorkflowRunVO run : runningRuns) {
+            if (run.getStartDate() != null && (now - run.getStartDate()) > timeoutMs) {
+                workflowRunMapper.updateStatus(
+                        run.getWorkflowRunId(),
+                        "FAILED",
+                        now,
+                        now - run.getStartDate(),
+                        "Timed out - stuck in RUNNING state"
+                );
+                // Also reset the workflow status
+                if (run.getWorkflowId() != null) {
+                    workflowMapper.updateStatus(run.getWorkflowId(), "FAILED", now, null);
+                }
+                cleaned++;
+                log.info("Cleaned up stuck workflow run: {} (started: {})", run.getWorkflowRunId(), run.getStartDate());
+            }
+        }
+
+        return ApiResponse.success(cleaned);
     }
 }

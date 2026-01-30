@@ -16,6 +16,7 @@ const languages = {
 const Header = () => {
   const { i18n } = useTranslation();
   const logout = useAuthStore((state) => state.logout);
+  const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
 
   return (
@@ -74,7 +75,62 @@ const Header = () => {
       </Box>
 
       {/* Right side controls */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {/* User Info */}
+        {user && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 12px',
+              backgroundColor: '#F5F5F7',
+              borderRadius: '10px',
+            }}
+          >
+            <Box
+              sx={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                backgroundColor: '#0071E3',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                fontSize: '12px',
+                fontWeight: 600,
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+              }}
+            >
+              {user.user_id?.charAt(0)?.toUpperCase() || 'U'}
+            </Box>
+            <Box>
+              <Box
+                sx={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#1D1D1F',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                  lineHeight: 1.2,
+                }}
+              >
+                {user.user_id}
+              </Box>
+              <Box
+                sx={{
+                  fontSize: '11px',
+                  color: '#86868B',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                  lineHeight: 1.2,
+                }}
+              >
+                {user.user_type === 0 ? 'Admin' : 'User'}
+              </Box>
+            </Box>
+          </Box>
+        )}
+
         {/* Language Selector */}
         <Select
           onChange={(e) => i18n.changeLanguage(e.target.value)}

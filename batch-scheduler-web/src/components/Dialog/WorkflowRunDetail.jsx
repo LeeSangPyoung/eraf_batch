@@ -19,11 +19,15 @@ import useGroupsStore from '../../hook/store/useGroupStore';
 import BaseTextField from '../CustomInput/BaseTextField';
 import api from '../../services/api';
 import { runningStates } from '../../utils/enum';
+import useModal from '../../hook/useModal';
+import JobResultsDetail from './JobResultsDetail';
 
 function WorkflowRunDetail({ open, onClose, data: initialData, search }) {
   const { t } = useTranslation();
   const group = useGroupsStore((state) => state.group);
   const [data, setData] = useState(initialData);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const { isVisible: isJobDetailOpen, openModal: openJobDetail, closeModal: closeJobDetail } = useModal();
   const {
     isLoading,
     isLoadingDefault,
@@ -33,6 +37,11 @@ function WorkflowRunDetail({ open, onClose, data: initialData, search }) {
     handleChangePage,
     handleChangeRowsPerPage,
   } = useWorkflowRun({ groupId: group, search });
+
+  const handleRowDoubleClick = (row) => {
+    setSelectedJob(row);
+    openJobDetail();
+  };
 
   // Sync when initialData changes
   useEffect(() => {
@@ -133,6 +142,7 @@ function WorkflowRunDetail({ open, onClose, data: initialData, search }) {
                   isLoading={isLoading}
                   isLoadingDefault={isLoadingDefault}
                   setIsLoadingDefault={setIsLoadingDefault}
+                  onRowDoubleClick={handleRowDoubleClick}
                 />
               </SimpleBar>
             </Box>
@@ -149,6 +159,13 @@ function WorkflowRunDetail({ open, onClose, data: initialData, search }) {
           </Box>
         </SimpleBar>
       </DialogContent>
+      {isJobDetailOpen && selectedJob && (
+        <JobResultsDetail
+          open={isJobDetailOpen}
+          onClose={closeJobDetail}
+          data={selectedJob}
+        />
+      )}
     </Dialog>
   );
 }

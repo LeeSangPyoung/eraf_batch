@@ -29,6 +29,11 @@ const useServerForm = (serverData, onClose, mutateSystem, jobForm) => {
     system_comments: Yup.string().max(4000, 'Maximum 4000 characters'),
     folder_path: Yup.string().required('Required'),
     secondary_folder_path: Yup.string(),
+    agent_port: Yup.number()
+      .nullable()
+      .transform((value, originalValue) => (originalValue === '' ? null : value))
+      .min(1024, 'Port must be >= 1024')
+      .max(65535, 'Port must be <= 65535'),
   });
 
   const { handleSubmit, control, watch, reset, formState } = useForm({
@@ -45,6 +50,7 @@ const useServerForm = (serverData, onClose, mutateSystem, jobForm) => {
       system_comments: serverData?.system_comments || '',
       folder_path: serverData?.folder_path || '',
       secondary_folder_path: serverData?.secondary_folder_path || '',
+      agent_port: serverData?.agent_port || '',
     },
   });
 
@@ -54,12 +60,12 @@ const useServerForm = (serverData, onClose, mutateSystem, jobForm) => {
       let input = {
         ...data,
         ...(serverData && { system_id: serverData.id }),
-        // ...(serverData && {
-        //   last_reg_user_id: user?.id,
-        // }),
-        // ...(!data && {
-        //   frst_reg_user_id: user?.id,
-        // }),
+        ...(serverData && {
+          last_reg_user_id: user?.id,
+        }),
+        ...(!serverData && {
+          frst_reg_user_id: user?.id,
+        }),
       };
       const response = await api.post(endpoint, input);
       if (response.data.success) {

@@ -16,49 +16,45 @@
   --xy-edge-label-color-default: #86868B;
 }
 
-/* Node Styling */
+/* Node Styling - Custom nodes use their own styling */
 .react-flow__node {
   width: auto;
-  min-width: 180px;
-  max-width: 260px;
   height: fit-content;
-  box-shadow: var(--xy-node-box-shadow-default);
-  border-radius: var(--xy-node-border-radius-default);
-  background-color: #FFFFFF;
+  box-shadow: none;
+  border-radius: 0;
+  background-color: transparent;
   display: flex;
   justify-content: center;
-  align-items: first baseline;
+  align-items: center;
   text-align: left;
   padding: 0;
   font-size: 13px;
   font-family: -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif;
   flex-direction: column;
-  border: var(--xy-node-border-default);
+  border: none;
   color: #1D1D1F;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .react-flow__node:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
 }
 
 .react-flow__node.selectable:focus {
-  box-shadow: 0 0 0 3px var(--xy-theme-color-focus);
-  border-color: #0071E3;
+  box-shadow: none;
 }
 
 .react-flow__node.selectable:focus:active {
-  box-shadow: var(--xy-node-box-shadow-default);
+  box-shadow: none;
 }
 
 .react-flow__node.selectable:hover,
 .react-flow__node.draggable:hover {
-  border-color: #D1D1D6;
+  border-color: transparent;
 }
 
 .react-flow__node.selectable.selected {
-  border-color: #0071E3;
-  box-shadow: 0 0 0 3px var(--xy-theme-color-focus);
+  border-color: transparent;
+  box-shadow: none;
 }
 
 /* Edge Styling */
@@ -85,24 +81,34 @@
   border-color: #0071E3 !important;
 }
 
-/* Controls */
+/* Controls - Compact size */
 .react-flow__controls {
-  border-radius: 10px !important;
+  border-radius: 6px !important;
   overflow: hidden !important;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08) !important;
   border: 1px solid #E8E8ED !important;
+  top: 50% !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
 }
 
 .react-flow__controls-button {
-  color: #1D1D1F !important;
+  color: #86868B !important;
   background: #FFFFFF !important;
   border-bottom: 1px solid #E8E8ED !important;
-  width: 32px !important;
-  height: 32px !important;
+  width: 22px !important;
+  height: 22px !important;
+  padding: 4px !important;
 }
 
 .react-flow__controls-button:hover {
   background: #F5F5F7 !important;
+  color: #1D1D1F !important;
+}
+
+.react-flow__controls-button svg {
+  width: 12px !important;
+  height: 12px !important;
 }
 
 /* MiniMap */

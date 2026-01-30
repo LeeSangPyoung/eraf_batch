@@ -3,6 +3,7 @@ package com.tes.batch.scheduler.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -11,6 +12,9 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+import java.util.concurrent.Executors;
+
+@Slf4j
 @Configuration
 public class RedisConfig {
 
@@ -39,6 +43,19 @@ public class RedisConfig {
             RedisConnectionFactory connectionFactory) {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
+
+        // Use a dedicated thread pool for subscription tasks
+        container.setSubscriptionExecutor(Executors.newFixedThreadPool(2));
+        container.setTaskExecutor(Executors.newFixedThreadPool(4));
+
+        // Enable automatic reconnection on subscription failure
+        container.setRecoveryInterval(5000L); // Retry every 5 seconds on connection loss
+
+        // Error handler for subscription errors
+        container.setErrorHandler(t -> {
+            log.error("Redis subscription error occurred, will attempt recovery: {}", t.getMessage(), t);
+        });
+
         // Listeners will register themselves via @PostConstruct
         return container;
     }

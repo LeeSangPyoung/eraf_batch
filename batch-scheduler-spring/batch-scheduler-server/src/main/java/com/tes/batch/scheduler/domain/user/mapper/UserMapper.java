@@ -138,4 +138,19 @@ public interface UserMapper {
      * Find related group IDs for a user
      */
     List<String> findRelatedGroupIds(@Param("userId") String internalUserId);
+
+    /**
+     * Count users related to a group
+     */
+    long countUsersByGroupId(@Param("groupId") String groupId);
+
+    /**
+     * Reset login fail count to 0
+     */
+    int resetLoginFailCount(@Param("id") String id);
+
+    /**
+     * Update user status (alias for updateStatus)
+     */
+    int updateUserStatus(@Param("id") String id, @Param("userStatus") Boolean userStatus);
 }

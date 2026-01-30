@@ -10,6 +10,8 @@ import com.tes.batch.scheduler.domain.job.vo.JobRunLogVO;
 import com.tes.batch.scheduler.domain.job.vo.JobVO;
 import com.tes.batch.scheduler.domain.server.mapper.JobServerMapper;
 import com.tes.batch.scheduler.domain.server.vo.JobServerVO;
+import com.tes.batch.scheduler.domain.user.mapper.UserMapper;
+import com.tes.batch.scheduler.domain.user.vo.UserVO;
 import com.tes.batch.scheduler.message.RedisMessagePublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.Job;
@@ -40,6 +42,9 @@ public class BatchJobExecutor implements Job {
     private JobServerMapper serverMapper;
 
     @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
     private SchedulerService schedulerService;
 
     @Autowired
@@ -59,6 +64,12 @@ public class BatchJobExecutor implements Job {
 
             if (!job.getIsEnabled()) {
                 log.info("Job is disabled, skipping: {}", jobId);
+                return;
+            }
+
+            // Skip jobs that belong to a workflow - they are executed via workflow scheduler
+            if (job.getWorkflowId() != null && !job.getWorkflowId().isEmpty()) {
+                log.info("Job {} belongs to workflow, skipping individual execution", jobId);
                 return;
             }
 
@@ -83,6 +94,15 @@ public class BatchJobExecutor implements Job {
                 group = groupMapper.findById(job.getGroupId());
             }
 
+            // Get job creator's user ID for logging
+            String creatorUserId = null;
+            if (job.getFrstRegUserId() != null) {
+                UserVO creator = userMapper.findById(job.getFrstRegUserId());
+                if (creator != null) {
+                    creatorUserId = creator.getUserId();
+                }
+            }
+
             // Create run log (matching actual DB schema)
             long now = System.currentTimeMillis();
             String taskId = UUID.randomUUID().toString();
@@ -100,6 +120,7 @@ public class BatchJobExecutor implements Job {
                     .reqStartDate(now)       // maps to scheduled_time
                     .actualStartDate(now)    // maps to start_time
                     .retryCount(0)           // maps to retry_attempt
+                    .userName(creatorUserId) // job creator
                     .build();
 
             jobRunLogMapper.insert(runLog);
@@ -126,10 +147,10 @@ public class BatchJobExecutor implements Job {
 
             redisMessagePublisher.publishJob(queueName, message);
 
-            // Reschedule for next run using Quartz native scheduling
-            schedulerService.rescheduleJobAfterExecution(job);
+            // NOTE: Do NOT reschedule here - state must stay RUNNING until job completes
+            // Rescheduling happens in JobResultListener when result is received from agent
 
-            log.info("Job sent to agent: {} (logId: {}, queue: {})", jobId, runLog.getLogId(), queueName);
+            log.info("Job sent to agent: {} (logId: {}, queue: {}), state=RUNNING", jobId, runLog.getLogId(), queueName);
 
         } catch (Exception e) {
             log.error("Error executing job: {}", jobId, e);

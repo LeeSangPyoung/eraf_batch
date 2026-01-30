@@ -3,6 +3,7 @@ package com.tes.batch.scheduler.domain.workflow.controller;
 import com.tes.batch.common.dto.ApiResponse;
 import com.tes.batch.scheduler.domain.workflow.dto.*;
 import com.tes.batch.scheduler.domain.workflow.service.WorkflowService;
+import com.tes.batch.scheduler.workflow.WorkflowExecutionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ import java.util.Map;
 public class WorkflowController {
 
     private final WorkflowService workflowService;
+    private final WorkflowExecutionService workflowExecutionService;
 
     @PostMapping("/filter")
     public ApiResponse<List<WorkflowResponse>> filter(@RequestBody WorkflowFilterRequest request) {
@@ -73,5 +75,29 @@ public class WorkflowController {
     @GetMapping("/run/detail/{runId}")
     public ApiResponse<WorkflowRunResponse> runDetail(@PathVariable String runId) {
         return workflowService.runDetail(runId);
+    }
+
+    /**
+     * Clean up stuck workflow runs (RUNNING for more than specified timeout)
+     * Default timeout: 10 minutes
+     */
+    @PostMapping("/run/cleanup")
+    public ApiResponse<Integer> cleanupStuckRuns(
+            @RequestParam(value = "timeout_minutes", defaultValue = "10") int timeoutMinutes) {
+        long timeoutMs = timeoutMinutes * 60 * 1000L;
+        return workflowService.cleanupStuckRuns(timeoutMs);
+    }
+
+    /**
+     * Manual workflow execution
+     */
+    @PostMapping("/execute/{workflowId}")
+    public ApiResponse<Long> executeWorkflow(@PathVariable String workflowId) {
+        try {
+            Long runId = workflowExecutionService.executeWorkflow(workflowId);
+            return ApiResponse.success(runId);
+        } catch (Exception e) {
+            return ApiResponse.error("Failed to execute workflow: " + e.getMessage());
+        }
     }
 }

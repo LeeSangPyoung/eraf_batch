@@ -215,4 +215,26 @@
         WHERE user_id = #{userId}
     </select>
 
+    <!-- Count Users by Group ID -->
+    <select id="countUsersByGroupId" resultType="long">
+        SELECT COUNT(*)
+        FROM scheduler_related_group_user
+        WHERE group_id = #{groupId}
+    </select>
+
+    <!-- Reset Login Fail Count -->
+    <update id="resetLoginFailCount">
+        UPDATE scheduler_users
+        SET login_fail_count = 0
+        WHERE id = #{id}
+    </update>
+
+    <!-- Update User Status (alias for updateStatus) -->
+    <update id="updateUserStatus">
+        UPDATE scheduler_users
+        SET user_status = #{userStatus},
+            last_chg_date = EXTRACT(EPOCH FROM NOW()) * 1000
+        WHERE id = #{id}
+    </update>
+
 </mapper>

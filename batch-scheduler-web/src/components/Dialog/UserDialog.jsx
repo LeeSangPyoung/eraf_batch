@@ -36,6 +36,26 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
     openModal: openDeleteConfirmModal,
     closeModal: closeDeleteConfirmModal,
   } = useModal();
+  const {
+    isVisible: isResetPwConfirm,
+    openModal: openResetPwConfirmModal,
+    closeModal: closeResetPwConfirmModal,
+  } = useModal();
+  const {
+    isVisible: isLockConfirm,
+    openModal: openLockConfirmModal,
+    closeModal: closeLockConfirmModal,
+  } = useModal();
+  const {
+    isVisible: isUnlockConfirm,
+    openModal: openUnlockConfirmModal,
+    closeModal: closeUnlockConfirmModal,
+  } = useModal();
+  const {
+    isVisible: isSaveConfirm,
+    openModal: openSaveConfirmModal,
+    closeModal: closeSaveConfirmModal,
+  } = useModal();
 
   const handleCancel = () => {
     reset();
@@ -86,42 +106,82 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
             <ButtonWithLoading
               loading={loading.loading && loading.button === 'reset'}
               disabled={disable}
-              className="bg-[#1C1C1C0D] font-semibold"
-              onClick={resetPw}
+              onClick={openResetPwConfirmModal}
             >
               Reset password
             </ButtonWithLoading>
+            <ConfirmDialog
+              widthClassName="w-100"
+              openConfirm={isResetPwConfirm}
+              setCloseConfirm={closeResetPwConfirmModal}
+              title="Reset Password"
+              callback={resetPw}
+            >
+              <div className="w-full text-lg">
+                <p>
+                  <strong>Do you want to reset the password?</strong>
+                </p>
+              </div>
+            </ConfirmDialog>
             {data?.user_status ? (
-              <ButtonWithLoading
-                loading={loading.loading && loading.button === 'lock'}
-                disabled={disable}
-                className="bg-[#1C1C1C0D] font-semibold"
-                onClick={lockAcc}
-              >
-                Lock account
-              </ButtonWithLoading>
+              <>
+                <ButtonWithLoading
+                  loading={loading.loading && loading.button === 'lock'}
+                  disabled={disable}
+                  onClick={openLockConfirmModal}
+                >
+                  Lock account
+                </ButtonWithLoading>
+                <ConfirmDialog
+                  widthClassName="w-100"
+                  openConfirm={isLockConfirm}
+                  setCloseConfirm={closeLockConfirmModal}
+                  title="Lock Account"
+                  callback={lockAcc}
+                >
+                  <div className="w-full text-lg">
+                    <p>
+                      <strong>Do you want to lock this account?</strong>
+                    </p>
+                  </div>
+                </ConfirmDialog>
+              </>
             ) : (
-              <ButtonWithLoading
-                loading={loading.loading && loading.button === 'unlock'}
-                disabled={disable}
-                className="bg-[#1C1C1C0D] font-semibold"
-                onClick={unlockAcc}
-              >
-                Unlock account
-              </ButtonWithLoading>
+              <>
+                <ButtonWithLoading
+                  loading={loading.loading && loading.button === 'unlock'}
+                  disabled={disable}
+                  onClick={openUnlockConfirmModal}
+                >
+                  Unlock account
+                </ButtonWithLoading>
+                <ConfirmDialog
+                  widthClassName="w-100"
+                  openConfirm={isUnlockConfirm}
+                  setCloseConfirm={closeUnlockConfirmModal}
+                  title="Unlock Account"
+                  callback={unlockAcc}
+                >
+                  <div className="w-full text-lg">
+                    <p>
+                      <strong>Do you want to unlock this account?</strong>
+                    </p>
+                  </div>
+                </ConfirmDialog>
+              </>
             )}
-            <ButtonWithLoading
+            <BaseButton
               onClick={openDeleteConfirmModal}
               disabled={
                 disable ||
                 user?.user_type !== 0 ||
                 data?.user_id === user?.user_id
               }
-              loading={loading.loading && loading.button === 'delete'}
-              className="bg-[#1C1C1C0D] font-semibold"
+              theme="danger"
+              size="small"
             >
               {t('delete')}
-            </ButtonWithLoading>
+            </BaseButton>
             <ConfirmDialog
               widthClassName="w-100"
               openConfirm={isDeleteConfirm}
@@ -232,9 +292,22 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
             <BaseButton onClick={handleCancel} theme="secondary">
               Cancel
             </BaseButton>
-            <BaseButton theme="primary" type="submit">
+            <BaseButton theme="primary" onClick={openSaveConfirmModal}>
               Save
             </BaseButton>
+            <ConfirmDialog
+              widthClassName="w-100"
+              openConfirm={isSaveConfirm}
+              setCloseConfirm={closeSaveConfirmModal}
+              title="Save"
+              callback={handleSubmit(onSubmit)}
+            >
+              <div className="w-full text-lg">
+                <p>
+                  <strong>Do you want to save the changes?</strong>
+                </p>
+              </div>
+            </ConfirmDialog>
           </Box>
         </form>
       </DialogContent>

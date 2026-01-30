@@ -86,4 +86,13 @@ public interface JobRunLogMapper {
     int deleteByJobId(@Param("jobId") String jobId);
 
     int markOrphanedLogsAsBroken(@Param("endDate") Long endDate);
+
+    /**
+     * Mark all RUNNING jobs for a specific server as BROKEN when agent goes offline
+     */
+    int markRunningJobsAsBrokenBySystemId(
+            @Param("systemId") String systemId,
+            @Param("endDate") Long endDate,
+            @Param("errors") String errors
+    );
 }

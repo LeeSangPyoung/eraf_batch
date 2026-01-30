@@ -10,6 +10,7 @@ const BaseTextField = ({
   className,
   required,
   height = '36px',
+  isBackgroundGray,
   ...props
 }) => {
   return (
@@ -66,14 +67,14 @@ const BaseTextField = ({
           '& .MuiOutlinedInput-root': {
             borderRadius: '12px',
             '& .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#D2D2D7',
+              borderColor: isBackgroundGray ? 'transparent' : '#D2D2D7',
               transition: 'all 300ms cubic-bezier(0.25, 0.1, 0.25, 1)',
             },
           },
           '& .Mui-disabled': {
             backgroundColor: '#F5F5F7',
             '& .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#E8E8ED',
+              borderColor: isBackgroundGray ? 'transparent' : '#D2D2D7',
             },
           },
           ...sx,

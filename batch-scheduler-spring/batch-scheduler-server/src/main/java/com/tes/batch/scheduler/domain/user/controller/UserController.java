@@ -180,4 +180,62 @@ public class UserController {
             return ApiResponse.error(e.getMessage());
         }
     }
+
+    /**
+     * Delete user (POST for frontend compatibility)
+     * DELETE /user/delete
+     */
+    @DeleteMapping("/delete")
+    public ApiResponse<Void> deleteUserPost(@RequestBody java.util.Map<String, String> request) {
+        try {
+            String id = request.get("id");
+            userService.deleteUser(id);
+            return ApiResponse.success(null);
+        } catch (IllegalArgumentException e) {
+            log.warn("Failed to delete user: {}", e.getMessage());
+            return ApiResponse.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to delete user", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Reset user password to default 'eraf'
+     * POST /user/reset
+     */
+    @PostMapping("/reset")
+    public ApiResponse<Void> resetPassword(@RequestBody java.util.Map<String, String> request) {
+        try {
+            String targetUserId = request.get("target_user_id");
+            userService.resetPassword(targetUserId);
+            return ApiResponse.success(null);
+        } catch (IllegalArgumentException e) {
+            log.warn("Failed to reset password: {}", e.getMessage());
+            return ApiResponse.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to reset password", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
+     * Lock/Unlock user account
+     * POST /user/lock
+     */
+    @PostMapping("/lock")
+    public ApiResponse<Void> lockAccount(@RequestBody java.util.Map<String, Object> request) {
+        try {
+            String targetUserId = (String) request.get("target_user_id");
+            Boolean userStatus = (Boolean) request.get("user_status");
+            userService.updateUserStatus(targetUserId, userStatus);
+            return ApiResponse.success(null);
+        } catch (IllegalArgumentException e) {
+            log.warn("Failed to lock/unlock account: {}", e.getMessage());
+            return ApiResponse.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("Failed to lock/unlock account", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
 }

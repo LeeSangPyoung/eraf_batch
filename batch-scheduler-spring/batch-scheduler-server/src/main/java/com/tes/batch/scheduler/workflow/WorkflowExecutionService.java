@@ -3,10 +3,16 @@ package com.tes.batch.scheduler.workflow;
 import com.tes.batch.common.dto.JobMessage;
 import com.tes.batch.common.dto.WorkflowMessage;
 import com.tes.batch.common.enums.JobType;
+import com.tes.batch.scheduler.domain.group.mapper.JobGroupMapper;
+import com.tes.batch.scheduler.domain.group.vo.JobGroupVO;
 import com.tes.batch.scheduler.domain.job.mapper.JobMapper;
+import com.tes.batch.scheduler.domain.job.mapper.JobRunLogMapper;
+import com.tes.batch.scheduler.domain.job.vo.JobRunLogVO;
 import com.tes.batch.scheduler.domain.job.vo.JobVO;
 import com.tes.batch.scheduler.domain.server.mapper.JobServerMapper;
 import com.tes.batch.scheduler.domain.server.vo.JobServerVO;
+import com.tes.batch.scheduler.domain.user.mapper.UserMapper;
+import com.tes.batch.scheduler.domain.user.vo.UserVO;
 import com.tes.batch.scheduler.domain.workflow.mapper.WorkflowMapper;
 import com.tes.batch.scheduler.domain.workflow.mapper.WorkflowPriorityGroupMapper;
 import com.tes.batch.scheduler.domain.workflow.mapper.WorkflowRunMapper;
@@ -15,6 +21,7 @@ import com.tes.batch.scheduler.domain.workflow.vo.WorkflowRunVO;
 import com.tes.batch.scheduler.domain.workflow.vo.WorkflowVO;
 import com.tes.batch.scheduler.message.RedisMessagePublisher;
 import com.tes.batch.scheduler.scheduler.RRuleParser;
+import com.tes.batch.scheduler.scheduler.SchedulerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,9 +44,13 @@ public class WorkflowExecutionService {
     private final WorkflowPriorityGroupMapper priorityGroupMapper;
     private final WorkflowRunMapper workflowRunMapper;
     private final JobMapper jobMapper;
+    private final JobRunLogMapper jobRunLogMapper;
+    private final JobGroupMapper groupMapper;
     private final JobServerMapper serverMapper;
+    private final UserMapper userMapper;
     private final RedisMessagePublisher messagePublisher;
     private final RRuleParser rruleParser;
+    private final SchedulerService schedulerService;
 
     /**
      * Execute a workflow by ID
@@ -99,6 +110,15 @@ public class WorkflowExecutionService {
 
         message.setQueueName(targetQueue);
 
+        // Update all workflow jobs state to WAITING (queued for workflow execution)
+        // Actual RUNNING state is set when agent reports each job starting
+        for (WorkflowPriorityGroupVO pg : priorityGroups) {
+            List<JobVO> jobs = jobMapper.findByPriorityGroupId(pg.getId());
+            for (JobVO job : jobs) {
+                jobMapper.updateState(job.getJobId(), "WAITING", null);
+            }
+        }
+
         // Publish workflow message to agent
         messagePublisher.publishWorkflow(targetQueue, message);
 
@@ -112,6 +132,7 @@ public class WorkflowExecutionService {
     private WorkflowMessage buildWorkflowMessage(WorkflowVO workflow, Long workflowRunId,
                                                    List<WorkflowPriorityGroupVO> priorityGroups) {
         List<WorkflowMessage.PriorityGroup> pgMessages = new ArrayList<>();
+        long now = System.currentTimeMillis();
 
         // Sort by priority
         priorityGroups.sort(Comparator.comparing(WorkflowPriorityGroupVO::getPriority));
@@ -121,8 +142,45 @@ public class WorkflowExecutionService {
             List<JobMessage> jobMessages = new ArrayList<>();
 
             for (JobVO job : jobs) {
+                // Get group/server info for denormalization
+                JobGroupVO group = job.getGroupId() != null ? groupMapper.findById(job.getGroupId()) : null;
+                JobServerVO server = job.getSystemId() != null ? serverMapper.findById(job.getSystemId()) : null;
+
+                // Get job creator's user ID for logging
+                String creatorUserId = null;
+                if (job.getFrstRegUserId() != null) {
+                    UserVO creator = userMapper.findById(job.getFrstRegUserId());
+                    if (creator != null) {
+                        creatorUserId = creator.getUserId();
+                    }
+                }
+
+                // Create job run log entry with workflow_run_id
+                JobRunLogVO runLog = JobRunLogVO.builder()
+                        .jobId(job.getJobId())
+                        .jobName(job.getJobName())
+                        .systemId(job.getSystemId())
+                        .systemName(server != null ? server.getSystemName() : null)
+                        .groupId(job.getGroupId())
+                        .groupName(group != null ? group.getGroupName() : null)
+                        .batchType("Auto")
+                        .operation("RUN")
+                        .status("PENDING")
+                        .reqStartDate(now)
+                        .retryCount(0)
+                        .workflowRunId(workflowRunId)
+                        .workflowPriority(pg.getPriority())
+                        .userName(creatorUserId)
+                        .build();
+
+                jobRunLogMapper.insert(runLog);
+                log.info("Created workflow job run log: logId={}, jobId={}, workflowRunId={}, priority={}",
+                        runLog.getLogId(), job.getJobId(), workflowRunId, pg.getPriority());
+
+                // Set taskId to logId so agent sends it back for status updates
                 JobMessage jobMessage = JobMessage.builder()
                         .jobId(job.getJobId())
+                        .taskId(String.valueOf(runLog.getLogId()))
                         .jobName(job.getJobName())
                         .jobType(JobType.valueOf(job.getJobType()))
                         .jobAction(job.getJobAction())
@@ -181,8 +239,13 @@ public class WorkflowExecutionService {
                                       String errorMessage, Long startTime, Long endTime, Long durationMs) {
         log.info("Handling workflow result: {} (runId: {}) - {}", workflowId, workflowRunId, status);
 
+        // Use server time for end_date to avoid clock drift between server and agent
+        long now = System.currentTimeMillis();
+        WorkflowRunVO run = workflowRunMapper.findById(workflowRunId);
+        Long actualDuration = (run != null && run.getStartDate() != null) ? now - run.getStartDate() : durationMs;
+
         // Update workflow run
-        workflowRunMapper.updateStatus(workflowRunId, status, endTime, durationMs, errorMessage);
+        workflowRunMapper.updateStatus(workflowRunId, status, now, actualDuration, errorMessage);
 
         // Update workflow
         WorkflowVO workflow = workflowMapper.findById(workflowId);
@@ -202,7 +265,25 @@ public class WorkflowExecutionService {
                 }
             }
 
-            workflowMapper.updateStatus(workflowId, status, endTime, nextRunDate);
+            workflowMapper.updateStatus(workflowId, status, now, nextRunDate);
+
+            // Reset all workflow jobs to SCHEDULED after workflow completes
+            List<WorkflowPriorityGroupVO> priorityGroups = priorityGroupMapper.findByWorkflowId(workflowId);
+            for (WorkflowPriorityGroupVO pg : priorityGroups) {
+                List<JobVO> jobs = jobMapper.findByPriorityGroupId(pg.getId());
+                for (JobVO job : jobs) {
+                    jobMapper.updateState(job.getJobId(), "SCHEDULED", null);
+                }
+            }
+            log.info("Workflow {} completed with status {}, reset {} job(s) to SCHEDULED",
+                    workflowId, status, priorityGroups.stream().mapToInt(pg -> jobMapper.findByPriorityGroupId(pg.getId()).size()).sum());
+
+            // Schedule next run with Quartz (moved here from BatchWorkflowExecutor
+            // so rescheduling happens AFTER completion, preventing overlapping executions)
+            if (nextRunDate != null) {
+                schedulerService.scheduleWorkflow(workflowId, nextRunDate);
+                log.info("Rescheduled workflow {} for next run after completion", workflowId);
+            }
         }
     }
 

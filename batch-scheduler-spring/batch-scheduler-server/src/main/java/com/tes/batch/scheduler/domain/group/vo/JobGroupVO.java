@@ -43,4 +43,28 @@ public class JobGroupVO {
      */
     @JsonProperty("last_reg_user_id")
     private String lastRegUserId;
+
+    /**
+     * Creator user name (joined from users table)
+     */
+    @JsonProperty("creator")
+    private String creator;
+
+    /**
+     * Last modifier user name (joined from users table)
+     */
+    @JsonProperty("last_modifier")
+    private String lastModifier;
+
+    /**
+     * Count of jobs in this group
+     */
+    @JsonProperty("job_count")
+    private Integer jobCount;
+
+    /**
+     * Count of users assigned to this group
+     */
+    @JsonProperty("user_count")
+    private Integer userCount;
 }

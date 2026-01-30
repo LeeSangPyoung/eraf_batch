@@ -1,6 +1,5 @@
 import BadgeOutlined from '@mui/icons-material/BadgeOutlined';
 import { Box, Typography } from '@mui/material';
-import clsx from 'clsx';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
@@ -8,7 +7,11 @@ import useAuthStore from '../../hook/store/useAuthStore';
 import useModal from '../../hook/useModal';
 import MyInfo from '../Dialog/MyInfo';
 
-const links = [
+// Dashboard
+const dashboardLink = { to: '/dashboard', text: 'dashboard-label', icon: '/icons/dashboard.svg' };
+
+// Section 1: Job & Workflow
+const jobLinks = [
   { to: '/job-status', text: 'job-status-label', icon: '/icons/Vector.svg' },
   {
     to: '/job-results',
@@ -20,6 +23,20 @@ const links = [
     to: '/workflow-runs',
     text: 'workflow-run-label',
     icon: '/icons/LineSegments.svg',
+  },
+];
+
+// Section 2: Management
+const managementLinks = [
+  {
+    to: '/system-management',
+    text: 'system-management-label',
+    icon: '/icons/ComputerTower.svg',
+  },
+  {
+    to: '/group-management',
+    text: 'group-management-label',
+    icon: '/icons/Folder.svg',
   },
 ];
 
@@ -68,7 +85,7 @@ const SideBar = () => {
         height: '100%',
       }}
     >
-      <Box>
+      <Box sx={{ flex: 1 }}>
         {/* Section Label */}
         <Typography
           sx={{
@@ -87,7 +104,97 @@ const SideBar = () => {
 
         {/* Navigation Links */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {links.map((link) => (
+          {/* Dashboard */}
+          <Link
+            to={dashboardLink.to}
+            style={{
+              ...linkStyles.base,
+              ...(isActive(dashboardLink.to) ? linkStyles.active : {}),
+            }}
+          >
+            <Box
+              sx={{
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: isActive(dashboardLink.to) ? 1 : 0.7,
+              }}
+            >
+              <img
+                src={dashboardLink.icon}
+                alt=""
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  filter: isActive(dashboardLink.to)
+                    ? 'invert(27%) sepia(95%) saturate(1790%) hue-rotate(199deg) brightness(97%) contrast(101%)'
+                    : 'none',
+                }}
+              />
+            </Box>
+            <span>{t(dashboardLink.text)}</span>
+          </Link>
+
+          {/* Divider */}
+          <Box
+            sx={{
+              height: '1px',
+              backgroundColor: '#E8E8ED',
+              margin: '8px 16px',
+              opacity: 0.6,
+            }}
+          />
+
+          {/* Section 1: Job & Workflow */}
+          {jobLinks.map((link) => (
+            <Link
+              key={link.text}
+              to={link.to}
+              style={{
+                ...linkStyles.base,
+                ...(isActive(link.to) ? linkStyles.active : {}),
+              }}
+            >
+              <Box
+                sx={{
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: isActive(link.to) ? 1 : 0.7,
+                }}
+              >
+                <img
+                  src={link.icon}
+                  alt=""
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    filter: isActive(link.to)
+                      ? 'invert(27%) sepia(95%) saturate(1790%) hue-rotate(199deg) brightness(97%) contrast(101%)'
+                      : 'none',
+                  }}
+                />
+              </Box>
+              <span>{t(link.text)}</span>
+            </Link>
+          ))}
+
+          {/* Divider */}
+          <Box
+            sx={{
+              height: '1px',
+              backgroundColor: '#E8E8ED',
+              margin: '8px 16px',
+              opacity: 0.6,
+            }}
+          />
+
+          {/* Section 2: Management */}
+          {managementLinks.map((link) => (
             <Link
               key={link.text}
               to={link.to}
@@ -159,10 +266,20 @@ const SideBar = () => {
         </nav>
       </Box>
 
-      {/* My Info Button - Bottom */}
-      <Box
-        onClick={openModal}
-        sx={{
+      {/* My Info Section - Bottom */}
+      <Box sx={{ marginTop: 'auto' }}>
+        {/* Divider */}
+        <Box
+          sx={{
+            height: '1px',
+            backgroundColor: '#E8E8ED',
+            margin: '0 16px 12px 16px',
+            opacity: 0.6,
+          }}
+        />
+        <Box
+          onClick={openModal}
+          sx={{
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
@@ -208,6 +325,7 @@ const SideBar = () => {
           >
             {user?.user_id || 'Account'}
           </Typography>
+        </Box>
         </Box>
       </Box>
 

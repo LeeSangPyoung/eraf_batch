@@ -78,11 +78,11 @@ function JobStatusTable({
           <TableCell style={styleHeaderTable}>{t('wf_registered')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('schedule')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('last_start_date')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('last_result')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('duration')}</TableCell>
           <TableCell style={styleHeaderTable}>Run count</TableCell>
           <TableCell style={styleHeaderTable}>Failure count</TableCell>
           <TableCell style={styleHeaderTable}>Retry count</TableCell>
-          <TableCell style={styleHeaderTable}>{t('last_result')}</TableCell>
         </TableRow>
       </TableHead>
       <TableBody style={{ maxHeight: '100%', overflowY: 'auto' }}>
@@ -130,18 +130,16 @@ function JobStatusTable({
               <TableCell style={styleTableCell}>
                 {timestampFormat(row.lastStartDate)}
               </TableCell>
-              <TableCell style={styleTableCell}>{row.duration}</TableCell>
-              <TableCell style={styleTableCell}>{row.runCount}</TableCell>
-              <TableCell style={styleTableCell}>{row.failureCount}</TableCell>
-              <TableCell style={styleTableCell}>{row.retryCount}</TableCell>
               <TableCell
-                style={{
-                  ...styleTableCell,
-                }}
+                style={styleTableCell}
                 sx={colorIndicator(row.lastResult)}
               >
                 <DotStatus value={row.lastResult} />
               </TableCell>
+              <TableCell style={styleTableCell}>{row.duration}</TableCell>
+              <TableCell style={styleTableCell}>{row.runCount}</TableCell>
+              <TableCell style={styleTableCell}>{row.failureCount}</TableCell>
+              <TableCell style={styleTableCell}>{row.retryCount}</TableCell>
             </TableRow>
           ))
         ) : (

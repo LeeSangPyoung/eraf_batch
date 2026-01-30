@@ -29,6 +29,9 @@ public class LogService {
         if (securityUtils.isAdmin()) {
             return logMapper.findByFilters(
                     request.getJobId(),
+                    request.getSystemId(),
+                    request.getGroupId(),
+                    request.getOperation(),
                     request.getStatus(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo(),
@@ -43,6 +46,8 @@ public class LogService {
             return logMapper.findByFiltersAndGroupIds(
                     groupIds,
                     request.getJobId(),
+                    request.getSystemId(),
+                    request.getOperation(),
                     request.getStatus(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo(),
@@ -57,6 +62,9 @@ public class LogService {
         if (securityUtils.isAdmin()) {
             return logMapper.countByFilters(
                     request.getJobId(),
+                    request.getSystemId(),
+                    request.getGroupId(),
+                    request.getOperation(),
                     request.getStatus(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo()
@@ -69,6 +77,8 @@ public class LogService {
             return logMapper.countByFiltersAndGroupIds(
                     groupIds,
                     request.getJobId(),
+                    request.getSystemId(),
+                    request.getOperation(),
                     request.getStatus(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo()
