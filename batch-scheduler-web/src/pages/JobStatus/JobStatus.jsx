@@ -2,6 +2,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import { Box } from '@mui/material';
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import BaseButton from '../../components/CustomInput/BaseButton';
 import DialogCreateAndModifyJob from '../../components/Dialog/DialogCreateAndModifyJob';
 import CustomTablePagination from '../../components/Table/CustomTablePagination';
@@ -11,7 +12,7 @@ import useAuthStore from '../../hook/store/useAuthStore';
 import useJobData from '../../hook/useJobData';
 import useModal from '../../hook/useModal';
 const JobStatus = () => {
-  // const { t } = useLanguageContext();
+  const { t } = useTranslation();
   const { isVisible, openModal, closeModal } = useModal();
   const {
     total,
@@ -71,7 +72,7 @@ const JobStatus = () => {
             border: '1px solid #1C1C1C1A',
           }}
         >
-          Search
+          {t('search')}
         </BaseButton>
         <BaseButton
           className="bg-black text-white rounded-lg"
@@ -79,7 +80,7 @@ const JobStatus = () => {
           onClick={openModal}
           startIcon={<AddIcon />}
         >
-          Create Job
+          {t('createJob')}
         </BaseButton>
       </Box>
 

@@ -14,7 +14,7 @@ const languages = {
 };
 
 const Header = () => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
@@ -125,7 +125,7 @@ const Header = () => {
                   lineHeight: 1.2,
                 }}
               >
-                {user.user_type === 0 ? 'Admin' : 'User'}
+                {user.user_type === 0 ? t('admin') : t('user')}
               </Box>
             </Box>
           </Box>
@@ -228,7 +228,7 @@ const Header = () => {
             },
           }}
         >
-          Logout
+          {t('logout')}
         </BaseButton>
       </Box>
     </header>

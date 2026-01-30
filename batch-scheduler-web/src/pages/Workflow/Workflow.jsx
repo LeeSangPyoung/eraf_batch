@@ -2,6 +2,7 @@ import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import SearchIcon from '@mui/icons-material/Search';
 import { Box, Button } from '@mui/material';
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   WF_MODE,
   WorkflowDetail,
@@ -20,6 +21,7 @@ import BaseButton from '../../components/CustomInput/BaseButton';
 import { AddOutlined } from '@mui/icons-material';
 
 const Workflow = () => {
+  const { t } = useTranslation();
   const {
     total,
     mutate,
@@ -80,7 +82,7 @@ const Workflow = () => {
           onClick={handleFetchData}
           startIcon={<SearchIcon />}
         >
-          Search
+          {t('search')}
         </BaseButton>
         {user?.user_type === 0 && (
           <BaseButton
@@ -99,7 +101,7 @@ const Workflow = () => {
               marginLeft: '10px',
             }}
           >
-            Create Workflow
+            {t('createWorkflow')}
           </BaseButton>
         )}
 

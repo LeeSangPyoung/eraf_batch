@@ -1,17 +1,48 @@
 import { yupResolver } from '@hookform/resolvers/yup';
 import dayjs from 'dayjs';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { useSWRConfig } from 'swr';
 import * as Yup from 'yup';
 import api from '../services/api';
-import { httpRequestPattern } from '../utils/enum';
 import { getUserTimeZone } from '../utils/helper';
 import useAuthStore from './store/useAuthStore';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 
 dayjs.extend(isSameOrAfter);
+
+// Helper function to parse existing job_action with method prefix
+const parseJobAction = (jobAction) => {
+  if (!jobAction) return { method: 'GET', url: '' };
+
+  const methodPrefixes = ['GET:', 'POST:', 'PUT:', 'DELETE:', 'PATCH:'];
+  for (const prefix of methodPrefixes) {
+    if (jobAction.startsWith(prefix)) {
+      return {
+        method: prefix.replace(':', ''),
+        url: jobAction.substring(prefix.length).trim(),
+      };
+    }
+  }
+  // Default to GET if no prefix found
+  return { method: 'GET', url: jobAction };
+};
+
+// Helper function to parse existing job_headers from JSON string
+const parseJobHeaders = (jobHeaders) => {
+  if (!jobHeaders) return [];
+  try {
+    const parsed = typeof jobHeaders === 'string' ? JSON.parse(jobHeaders) : jobHeaders;
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    // Convert object to array of {key, value}
+    return Object.entries(parsed).map(([key, value]) => ({ key, value }));
+  } catch {
+    return [];
+  }
+};
 const useJobForm = (jobData, onClose, mutate, resetTab) => {
 
   const user = useAuthStore((state) => state.user);
@@ -69,24 +100,41 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
     restart_on_failure: Yup.boolean(),
     restartable: Yup.boolean(),
     job_type: Yup.string(),
+    http_method: Yup.string().when('job_type', {
+      is: 'REST_API',
+      then: (schema) => schema.required('HTTP method is required'),
+      otherwise: (schema) => schema.nullable(),
+    }),
     job_action: Yup.string().when('job_type', {
       is: 'REST_API',
       then: (schema) =>
         schema
           .max(4000, 'Maximum 4000 characters')
-          .matches(httpRequestPattern, 'Invalid HTTP request format')
-          .required(),
+          .matches(/^https?:\/\/.+/, 'Please enter a valid URL (http:// or https://)')
+          .required('URL is required'),
       otherwise: (schema) =>
         schema.max(4000, 'Maximum 4000 characters').required(),
     }),
-    job_body: Yup.string().test('is-json', 'Invalid JSON', (value) => {
-      try {
-        JSON.parse(value);
-        return true;
-      } catch {
-        return false;
-      }
+    job_body: Yup.string().when('job_type', {
+      is: 'REST_API',
+      then: (schema) =>
+        schema.test('is-json', 'Invalid JSON', (value) => {
+          if (!value || value.trim() === '') return true;
+          try {
+            JSON.parse(value);
+            return true;
+          } catch {
+            return false;
+          }
+        }),
+      otherwise: (schema) => schema.nullable(),
     }),
+    job_headers: Yup.array().of(
+      Yup.object().shape({
+        key: Yup.string(),
+        value: Yup.string(),
+      })
+    ),
   });
 
   const { handleSubmit, control, watch, reset, formState, clearErrors, setValue, trigger } =
@@ -99,6 +147,8 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
         frst_reg_user_id: jobData?.frstRegUserId || user?.id,
         last_reg_user_id: user?.id,
         system: jobData ? { id: jobData.system_id, name: jobData.system } : null,
+        secondary_system: jobData?.secondary_system_id ? { id: jobData.secondary_system_id, name: jobData.secondary_system } : null,
+        tertiary_system: jobData?.tertiary_system_id ? { id: jobData.tertiary_system_id, name: jobData.tertiary_system } : null,
         group: jobData ? { id: jobData.group_id, name: jobData.group } : null,
         job_name: jobData?.job_name || '',
         start_date: jobData?.startDate
@@ -117,24 +167,71 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
         restartable: jobData?.restartable ?? false,
         job_comments: jobData?.comment || '',
         job_type: jobData?.jobType || 'REST_API',
-        job_action: jobData?.jobAction || '',
-        job_body: jobData?.jobBody || '{}',
+        // REST_API fields - only populate if job is REST_API type
+        http_method: jobData?.jobType === 'REST_API'
+          ? parseJobAction(jobData?.jobAction).method
+          : 'GET',
+        // EXECUTABLE uses job_action directly, REST_API parses URL from it
+        // When switching types, these should be cleared (handled in useEffect)
+        job_action: jobData?.jobType === 'REST_API'
+          ? parseJobAction(jobData?.jobAction).url
+          : jobData?.jobType === 'EXECUTABLE'
+            ? (jobData?.jobAction || '')
+            : '', // For new jobs, start empty
+        job_body: jobData?.jobType === 'REST_API' ? (jobData?.jobBody || '{}') : '{}',
+        job_headers: jobData?.jobType === 'REST_API' ? parseJobHeaders(jobData?.jobHeaders) : [],
       },
     });
 
   const jobType = watch('job_type');
+  const prevJobTypeRef = useRef(jobData?.jobType || 'REST_API');
 
+  // When job_type changes, clear the action fields (they should not share values)
   useEffect(() => {
     clearErrors('job_action');
-  }, [jobType, clearErrors]);
+
+    // Only reset when user actually changes the job_type (not on initial load)
+    if (prevJobTypeRef.current !== jobType) {
+      // Clear fields when switching types
+      setValue('job_action', '');
+
+      if (jobType === 'REST_API') {
+        // Switching to REST_API - reset REST_API specific fields
+        setValue('http_method', 'GET');
+        setValue('job_body', '{}');
+        setValue('job_headers', []);
+      }
+
+      prevJobTypeRef.current = jobType;
+    }
+  }, [jobType, clearErrors, setValue]);
 
   const onSubmit = async (data) => {
     //   handle form submission
     try {
       let url = jobData ? '/job/update' : '/job/create';
+
+      // For REST_API, combine http_method with job_action
+      let finalJobAction = data.job_action;
+      if (data.job_type === 'REST_API') {
+        finalJobAction = `${data.http_method}:${data.job_action}`;
+      }
+
+      // Convert job_headers array to JSON string (filter empty entries)
+      const filteredHeaders = (data.job_headers || []).filter(
+        (h) => h.key && h.key.trim() !== ''
+      );
+      const jobHeadersJson = filteredHeaders.length > 0
+        ? JSON.stringify(filteredHeaders)
+        : null;
+
       let input = {
         ...data,
-        job_body: JSON.parse(data.job_body),
+        job_action: finalJobAction,
+        job_body: data.job_type === 'REST_API' && data.job_body
+          ? data.job_body
+          : undefined,
+        job_headers: jobHeadersJson,
         start_date: data.start_date.valueOf(),
         repeat_interval: data.repeat_interval.trim().toUpperCase(),
         ...(data.end_date && {
@@ -142,10 +239,22 @@ const useJobForm = (jobData, onClose, mutate, resetTab) => {
         }),
         ...(jobData && { job_id: jobData.job_id }),
         timezone: getUserTimeZone(),
+        // Failover servers
+        secondary_system_id: data.secondary_system?.id || null,
+        tertiary_system_id: data.tertiary_system?.id || null,
       };
+
+      // Remove fields not needed for EXECUTABLE
       if (data.job_type === 'EXECUTABLE') {
         delete input.job_body;
+        delete input.job_headers;
+        delete input.http_method;
       }
+      // Remove http_method from payload (it's already combined into job_action)
+      delete input.http_method;
+      // Remove object forms of servers (only send IDs)
+      delete input.secondary_system;
+      delete input.tertiary_system;
       let response;
       try {
         response = await api.post(url, input);

@@ -7,7 +7,6 @@ import SimpleBar from 'simplebar-react';
 import useAuthStore from '../../hook/store/useAuthStore';
 import useGroupsStore from '../../hook/store/useGroupStore';
 import useSystemsStore from '../../hook/store/useSystemsStore';
-import useUserStore from '../../hook/store/useUserStore';
 import useFilterData from '../../hook/useFilterData';
 import useModal from '../../hook/useModal';
 import {
@@ -20,21 +19,17 @@ import BaseTextField from '../CustomInput/BaseTextField';
 import CustomDateTimePicker from '../CustomInput/CustomDateTimePicker';
 import { NumberInput } from '../CustomInput/NumberInput';
 import RHFCheckbox from '../CustomInput/RHFCheckbox';
-import Selected from '../CustomInput/Select';
 import TextInput from '../CustomInput/TextInput';
-import BatchJobServerDialog from '../Dialog/BatchJobServerDialog';
 import CreateAndModifyGroup from '../Dialog/CreateAndModifyGroup';
 import RepeatIntervalDialog from '../Dialog/RepeatInterval.jsx';
 
 const ScheduleInfoTab = ({ data, form }) => {
   //Retrieve systems from global state
-  const users = useUserStore((state) => state.users);
   const user = useAuthStore((state) => state.user);
 
   const serverFilter = useSystemsStore((state) => state.systems);
   const groupFilter = useGroupsStore((state) => state.groups);
   const {
-    serverFilterMutation,
     groupFilterMutation,
     totalGroups,
     setGroupOffset,
@@ -47,16 +42,21 @@ const ScheduleInfoTab = ({ data, form }) => {
 
   const restartOnFailure = watch('restart_on_failure');
   const system = watch('system');
+  const secondarySystem = watch('secondary_system');
+  const tertiarySystem = watch('tertiary_system');
   const group = watch('group');
   const startDateTime = watch('start_date');
   const repeatInterval = watch('repeat_interval');
   const endDateTime = watch('end_date');
 
-  const {
-    isVisible: isOpenDialogJobServer,
-    openModal: handleClickOpenJobServer,
-    closeModal: handleCloseJobServer,
-  } = useModal();
+  // Filter out already selected servers to prevent duplicates
+  const getAvailableServersForSlave1 = () => {
+    return serverFilter.filter((s) => s.id !== system?.id);
+  };
+
+  const getAvailableServersForSlave2 = () => {
+    return serverFilter.filter((s) => s.id !== system?.id && s.id !== secondarySystem?.id);
+  };
 
   const {
     isVisible: isRepeatIntervalOpen,
@@ -73,6 +73,16 @@ const ScheduleInfoTab = ({ data, form }) => {
       return [...prev, ...newGroups];
     });
   }, [groupFilter]);
+
+  // Clear slave selections if they conflict with master/slave1
+  useEffect(() => {
+    if (secondarySystem?.id && system?.id === secondarySystem?.id) {
+      setValue('secondary_system', null);
+    }
+    if (tertiarySystem?.id && (system?.id === tertiarySystem?.id || secondarySystem?.id === tertiarySystem?.id)) {
+      setValue('tertiary_system', null);
+    }
+  }, [system?.id, secondarySystem?.id, tertiarySystem?.id, setValue]);
 
 
   const handleGroupScroll = (e) => {
@@ -94,15 +104,6 @@ const ScheduleInfoTab = ({ data, form }) => {
 
   return (
     <SimpleBar style={{ height: '60vh', paddingTop: 6, paddingBottom: 10 }}>
-      {isOpenDialogJobServer && (
-        <BatchJobServerDialog
-          onClose={handleCloseJobServer}
-          open={isOpenDialogJobServer}
-          data={serverFilter?.filter((i) => i.id === system?.id)[0]}
-          mutateSystem={serverFilterMutation}
-          jobForm={form}
-        />
-      )}
       {isVisible && (
         <CreateAndModifyGroup
           open={isVisible}
@@ -130,81 +131,87 @@ const ScheduleInfoTab = ({ data, form }) => {
       )}
       {visibleGroups && serverFilter && (
         <Box className="grid grid-cols-2 gap-2">
-          <Box className="flex flex-col">
+          {/* Server Section */}
+          <Box className="col-span-2 flex flex-col gap-1">
             <Typography
               sx={{
                 fontSize: '12px',
                 fontWeight: 500,
                 color: '#1D1D1F',
-                marginBottom: '4px',
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
               }}
             >
-              System <span style={{ color: '#FF3B30' }}> *</span>
+              Server <span style={{ color: '#FF3B30' }}> *</span>
             </Typography>
-            <Box className="flex gap-2">
-              <BaseSelected
-                name="system"
-                control={control}
-                options={serverFilter}
-                getOptionLabel={(option) => option.name}
-                getOptionKey={(option) => option.id}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-              />
-              <Button
-                disabled={user?.user_type !== 0}
-                onClick={handleClickOpenJobServer}
-                variant="outlined"
-                sx={{
-                  minWidth: '36px',
-                  width: '36px',
-                  height: '36px',
-                  padding: 0,
-                  borderRadius: '10px',
-                  border: '1px solid #E8E8ED',
-                  backgroundColor: '#FFFFFF',
-                  color: '#86868B',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    border: '1px solid #0071E3',
-                    backgroundColor: 'rgba(0, 113, 227, 0.06)',
-                    color: '#0071E3',
-                  },
-                  '&:disabled': {
-                    border: '1px solid #E8E8ED',
-                    backgroundColor: '#F5F5F7',
-                    color: '#C7C7CC',
-                  },
-                  '& .MuiSvgIcon-root': {
-                    fontSize: '18px',
-                  },
-                }}
-              >
-                <AddIcon />
-              </Button>
+            <Box className="grid grid-cols-3 gap-2">
+              {/* Master */}
+              <Box className="flex flex-col">
+                <Typography
+                  sx={{
+                    fontSize: '10px',
+                    fontWeight: 400,
+                    color: '#86868B',
+                    marginBottom: '2px',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                  }}
+                >
+                  Master
+                </Typography>
+                <BaseSelected
+                  name="system"
+                  control={control}
+                  options={serverFilter}
+                  getOptionLabel={(option) => option.name}
+                  getOptionKey={(option) => option.id}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
+                />
+              </Box>
+              {/* Slave1 */}
+              <Box className="flex flex-col">
+                <Typography
+                  sx={{
+                    fontSize: '10px',
+                    fontWeight: 400,
+                    color: '#86868B',
+                    marginBottom: '2px',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                  }}
+                >
+                  Slave1
+                </Typography>
+                <BaseSelected
+                  name="secondary_system"
+                  control={control}
+                  options={[{ id: null, name: '- None -' }, ...getAvailableServersForSlave1()]}
+                  getOptionLabel={(option) => option.name}
+                  getOptionKey={(option) => option.id}
+                  isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                />
+              </Box>
+              {/* Slave2 */}
+              <Box className="flex flex-col">
+                <Typography
+                  sx={{
+                    fontSize: '10px',
+                    fontWeight: 400,
+                    color: '#86868B',
+                    marginBottom: '2px',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                  }}
+                >
+                  Slave2
+                </Typography>
+                <BaseSelected
+                  name="tertiary_system"
+                  control={control}
+                  options={[{ id: null, name: '- None -' }, ...getAvailableServersForSlave2()]}
+                  getOptionLabel={(option) => option.name}
+                  getOptionKey={(option) => option.id}
+                  isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                />
+              </Box>
             </Box>
           </Box>
-          {data ? (
-            <Selected
-              control={control}
-              name="last_reg_user_id"
-              options={users}
-              content="Changer"
-              required
-              valueKey="id"
-              labelKey="user_name"
-            />
-          ) : (
-            <Selected
-              control={control}
-              name="frst_reg_user_id"
-              options={users}
-              content="Creator"
-              valueKey="id"
-              labelKey="user_name"
-              required
-            />
-          )}
           <Box className="flex flex-col">
             <Typography
               sx={{

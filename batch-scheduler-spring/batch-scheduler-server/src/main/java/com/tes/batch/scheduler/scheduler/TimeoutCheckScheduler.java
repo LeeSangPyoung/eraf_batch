@@ -29,6 +29,9 @@ public class TimeoutCheckScheduler {
     private final WorkflowRunMapper workflowRunMapper;
     private final WorkflowMapper workflowMapper;
 
+    // Grace period for stuck workflow detection (30 seconds - detect quickly after all jobs complete)
+    private static final long STUCK_WORKFLOW_GRACE_PERIOD = 30 * 1000L;
+
     /**
      * Check for timed-out jobs every 1 minute
      */
@@ -92,8 +95,79 @@ public class TimeoutCheckScheduler {
             }
         }
 
+        // Check for stuck workflows (all jobs completed but workflow still RUNNING)
+        int stuckCount = checkStuckWorkflows(runningWorkflows, now);
+        timeoutCount += stuckCount;
+
         if (timeoutCount > 0) {
-            log.info("Marked {} jobs/workflows as timed out", timeoutCount);
+            log.info("Marked {} jobs/workflows as timed out or stuck", timeoutCount);
+        }
+    }
+
+    /**
+     * Check for workflows that are stuck in RUNNING state despite all jobs being completed.
+     * This handles cases where Agent completes all jobs but fails to send the workflow result.
+     */
+    private int checkStuckWorkflows(List<WorkflowRunVO> runningWorkflows, long now) {
+        int stuckCount = 0;
+
+        for (WorkflowRunVO run : runningWorkflows) {
+            // Skip if workflow hasn't been running long enough
+            if (run.getStartDate() == null || (now - run.getStartDate()) < STUCK_WORKFLOW_GRACE_PERIOD) {
+                continue;
+            }
+
+            // Check if there are any RUNNING or PENDING logs for this workflow run
+            List<JobRunLogVO> workflowLogs = jobRunLogMapper.findByWorkflowRunId(run.getWorkflowRunId());
+
+            boolean hasActiveJobs = workflowLogs.stream()
+                    .anyMatch(log -> "RUNNING".equals(log.getStatus()) || "PENDING".equals(log.getStatus()));
+
+            if (!hasActiveJobs && !workflowLogs.isEmpty()) {
+                // All jobs have completed - determine final status based on job results
+                boolean hasFailure = workflowLogs.stream()
+                        .anyMatch(log -> "FAILURE".equals(log.getStatus()) ||
+                                        "FAILED".equals(log.getStatus()) ||
+                                        "BROKEN".equals(log.getStatus()) ||
+                                        "TIMEOUT".equals(log.getStatus()));
+
+                String finalStatus = hasFailure ? "FAILED" : "SUCCESS";
+
+                log.warn("Detected stuck workflow run {} (workflow: {}). All {} jobs completed but workflow still RUNNING. Marking as {}",
+                        run.getWorkflowRunId(), run.getWorkflowId(), workflowLogs.size(), finalStatus);
+
+                workflowRunMapper.updateStatus(
+                        run.getWorkflowRunId(),
+                        finalStatus,
+                        now,
+                        now - run.getStartDate(),
+                        "Auto-completed: Agent did not send workflow result"
+                );
+
+                workflowMapper.updateStatus(run.getWorkflowId(), finalStatus, now, null);
+
+                // Reset workflow jobs to SCHEDULED
+                resetWorkflowJobsToScheduled(run.getWorkflowId());
+
+                stuckCount++;
+            }
+        }
+
+        return stuckCount;
+    }
+
+    /**
+     * Reset all jobs in a workflow to SCHEDULED state
+     */
+    private void resetWorkflowJobsToScheduled(String workflowId) {
+        try {
+            List<JobVO> workflowJobs = jobMapper.findByWorkflowId(workflowId);
+            for (JobVO job : workflowJobs) {
+                jobMapper.updateState(job.getJobId(), "SCHEDULED", null);
+            }
+            log.info("Reset {} workflow jobs to SCHEDULED for workflow {}", workflowJobs.size(), workflowId);
+        } catch (Exception e) {
+            log.warn("Failed to reset workflow jobs for workflow {}", workflowId, e);
         }
     }
 

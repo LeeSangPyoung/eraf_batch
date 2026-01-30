@@ -73,20 +73,25 @@ public class BatchJobExecutor implements Job {
                 return;
             }
 
-            // Get server for queue name
-            JobServerVO server = null;
-            String queueName = null;
-            if (job.getSystemId() != null) {
-                server = serverMapper.findById(job.getSystemId());
-                if (server != null) {
-                    queueName = server.getQueueName();
-                }
-            }
+            // Get available server with failover support (primary -> secondary -> tertiary)
+            JobServerVO server = getAvailableServer(job);
 
-            if (queueName == null || queueName.isEmpty()) {
-                log.warn("No queue configured for job's server: {}", jobId);
+            if (server == null) {
+                log.warn("No healthy server available for job: {} (tried primary, secondary, tertiary)", jobId);
+                jobMapper.updateState(jobId, "BROKEN", null);
                 return;
             }
+
+            String queueName = server.getQueueName();
+            if (queueName == null || queueName.isEmpty()) {
+                log.warn("No queue configured for server: {}", server.getSystemId());
+                return;
+            }
+
+            // Log which server was selected
+            String serverRole = determineServerRole(job, server.getSystemId());
+            log.info("Selected {} server for job {}: {} ({})",
+                    serverRole, jobId, server.getSystemName(), server.getSystemId());
 
             // Get group info for denormalization
             JobGroupVO group = null;
@@ -104,13 +109,14 @@ public class BatchJobExecutor implements Job {
             }
 
             // Create run log (matching actual DB schema)
+            // Note: Log the actual server used (may differ from job's primary if failover occurred)
             long now = System.currentTimeMillis();
             String taskId = UUID.randomUUID().toString();
             JobRunLogVO runLog = JobRunLogVO.builder()
                     .jobId(jobId)
                     .jobName(job.getJobName())
-                    .systemId(job.getSystemId())
-                    .systemName(server != null ? server.getSystemName() : null)
+                    .systemId(server.getSystemId())  // Use actual server used (may be failover)
+                    .systemName(server.getSystemName())
                     .groupId(job.getGroupId())
                     .groupName(group != null ? group.getGroupName() : null)
                     .celeryTaskName(taskId)  // maps to task_id
@@ -156,6 +162,70 @@ public class BatchJobExecutor implements Job {
             log.error("Error executing job: {}", jobId, e);
             throw new JobExecutionException(e);
         }
+    }
+
+    /**
+     * Get available server with failover support.
+     * Tries primary -> secondary -> tertiary in order.
+     * Returns first server that is ONLINE and healthy.
+     */
+    private JobServerVO getAvailableServer(JobVO job) {
+        // Try primary server
+        if (job.getSystemId() != null) {
+            JobServerVO primary = serverMapper.findById(job.getSystemId());
+            if (isServerAvailable(primary)) {
+                return primary;
+            }
+            log.info("Primary server {} is unavailable for job {}", job.getSystemId(), job.getJobId());
+        }
+
+        // Try secondary server
+        if (job.getSecondarySystemId() != null) {
+            JobServerVO secondary = serverMapper.findById(job.getSecondarySystemId());
+            if (isServerAvailable(secondary)) {
+                log.info("Failover to secondary server {} for job {}", job.getSecondarySystemId(), job.getJobId());
+                return secondary;
+            }
+            log.info("Secondary server {} is unavailable for job {}", job.getSecondarySystemId(), job.getJobId());
+        }
+
+        // Try tertiary server
+        if (job.getTertiarySystemId() != null) {
+            JobServerVO tertiary = serverMapper.findById(job.getTertiarySystemId());
+            if (isServerAvailable(tertiary)) {
+                log.info("Failover to tertiary server {} for job {}", job.getTertiarySystemId(), job.getJobId());
+                return tertiary;
+            }
+            log.info("Tertiary server {} is unavailable for job {}", job.getTertiarySystemId(), job.getJobId());
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if server is available (ONLINE and healthy)
+     */
+    private boolean isServerAvailable(JobServerVO server) {
+        if (server == null) {
+            return false;
+        }
+        boolean isOnline = "ONLINE".equals(server.getAgentStatus());
+        boolean isHealthy = Boolean.TRUE.equals(server.getIsHealthy());
+        return isOnline && isHealthy;
+    }
+
+    /**
+     * Determine the role of the selected server (primary, secondary, or tertiary)
+     */
+    private String determineServerRole(JobVO job, String selectedSystemId) {
+        if (selectedSystemId.equals(job.getSystemId())) {
+            return "primary";
+        } else if (selectedSystemId.equals(job.getSecondarySystemId())) {
+            return "secondary";
+        } else if (selectedSystemId.equals(job.getTertiarySystemId())) {
+            return "tertiary";
+        }
+        return "unknown";
     }
 
     /**

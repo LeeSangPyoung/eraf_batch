@@ -75,14 +75,14 @@ const BatchJobServerDialog = ({
         system_name: data.name,
       });
       if (response.data.success) {
-        toast.success('Agent stopped successfully');
+        toast.success(t('agentStoppedSuccess'));
         setAgentStatus('OFFLINE');
         mutateSystem();
       } else {
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error('Error when stopping agent');
+      toast.error(t('errorStoppingAgent'));
     } finally {
       setLoading({ loading: false, button: '' });
       setDisable(false);
@@ -97,14 +97,14 @@ const BatchJobServerDialog = ({
         system_name: data.name,
       });
       if (response.data.success) {
-        toast.success('Agent started successfully');
+        toast.success(t('agentStartedSuccess'));
         setAgentStatus('ONLINE');
         mutateSystem();
       } else {
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error('Error when starting agent');
+      toast.error(t('errorStartingAgent'));
     } finally {
       setLoading({ loading: false, button: '' });
       setDisable(false);
@@ -119,14 +119,14 @@ const BatchJobServerDialog = ({
         system_name: data.name,
       });
       if (response.data.success) {
-        toast.success('Agent redeployed successfully');
+        toast.success(t('agentRedeployedSuccess'));
         setAgentStatus('ONLINE');
         mutateSystem();
       } else {
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error('Error when redeploying agent');
+      toast.error(t('errorRedeployingAgent'));
     } finally {
       setLoading({ loading: false, button: '' });
       setDisable(false);
@@ -144,7 +144,7 @@ const BatchJobServerDialog = ({
         },
       });
       if (response.data.success) {
-        toast.success('System delete successfully');
+        toast.success(t('systemDeletedSuccess'));
         jobForm.setValue('system', null);
         mutateSystem();
         onClose();
@@ -152,7 +152,7 @@ const BatchJobServerDialog = ({
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error('Error when deleting system');
+      toast.error(t('errorDeletingSystem'));
     } finally {
       setLoading({ loading: false, button: '' });
       setDisable(false);
@@ -170,7 +170,7 @@ const BatchJobServerDialog = ({
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-3">
             <span className="font-bold">
-              {t(data ? 'Edit Batch Job Server' : 'Create Batch Job Server')}
+              {data ? t('editBatchJobServer') : t('createBatchJobServer')}
             </span>
             {data && (
               <div
@@ -200,7 +200,7 @@ const BatchJobServerDialog = ({
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
                   }}
                 >
-                  {agentStatus === 'ONLINE' ? 'Online' : 'Offline'}
+                  {agentStatus === 'ONLINE' ? t('online') : t('offline')}
                 </span>
               </div>
             )}
@@ -213,7 +213,7 @@ const BatchJobServerDialog = ({
                 loading={loading.loading && loading.button === 'stop'}
                 className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold"
               >
-                Stop
+                {t('stop')}
               </ButtonWithLoading>
               <ButtonWithLoading
                 onClick={openStartConfirmModal}
@@ -221,7 +221,7 @@ const BatchJobServerDialog = ({
                 loading={loading.loading && loading.button === 'start'}
                 className="bg-green-500 hover:bg-green-600 text-white font-semibold"
               >
-                Start
+                {t('start')}
               </ButtonWithLoading>
               <ButtonWithLoading
                 onClick={openRedeployConfirmModal}
@@ -229,7 +229,7 @@ const BatchJobServerDialog = ({
                 loading={loading.loading && loading.button === 'redeploy'}
                 className="bg-blue-500 hover:bg-blue-600 text-white font-semibold"
               >
-                Redeploy
+                {t('redeploy')}
               </ButtonWithLoading>
               <ButtonWithLoading
                 onClick={openDeleteConfirmModal}
@@ -243,12 +243,12 @@ const BatchJobServerDialog = ({
                 widthClassName="w-100"
                 openConfirm={isStopConfirm}
                 setCloseConfirm={closeStopConfirmModal}
-                title="Stop Agent"
+                title={t('stopAgent')}
                 callback={() => handleStop()}
               >
                 <div className="w-full text-lg">
                   <p>
-                    <strong>Do you want to stop the Agent?</strong>
+                    <strong>{t('doYouWantToStopAgent')}</strong>
                   </p>
                 </div>
               </ConfirmDialog>
@@ -256,12 +256,12 @@ const BatchJobServerDialog = ({
                 widthClassName="w-100"
                 openConfirm={isStartConfirm}
                 setCloseConfirm={closeStartConfirmModal}
-                title="Start Agent"
+                title={t('startAgent')}
                 callback={() => handleStart()}
               >
                 <div className="w-full text-lg">
                   <p>
-                    <strong>Do you want to start the Agent?</strong>
+                    <strong>{t('doYouWantToStartAgent')}</strong>
                   </p>
                 </div>
               </ConfirmDialog>
@@ -269,12 +269,12 @@ const BatchJobServerDialog = ({
                 widthClassName="w-100"
                 openConfirm={isRedeployConfirm}
                 setCloseConfirm={closeRedeployConfirmModal}
-                title="Redeploy Agent"
+                title={t('redeployAgent')}
                 callback={() => handleRedeploy()}
               >
                 <div className="w-full text-lg">
                   <p>
-                    <strong>Do you want to redeploy the Agent?</strong>
+                    <strong>{t('doYouWantToRedeployAgent')}</strong>
                   </p>
                 </div>
               </ConfirmDialog>
@@ -282,12 +282,12 @@ const BatchJobServerDialog = ({
                 widthClassName="w-100"
                 openConfirm={isDeleteConfirm}
                 setCloseConfirm={closeDeleteConfirmModal}
-                title="Delete"
+                title={t('delete')}
                 callback={() => handleDelete()}
               >
                 <div className="w-full text-lg">
                   <p>
-                    <strong>Do you want to delete the Scheduler System?</strong>
+                    <strong>{t('doYouWantToDeleteSystem')}</strong>
                   </p>
                 </div>
               </ConfirmDialog>
@@ -320,13 +320,13 @@ const BatchJobServerDialog = ({
             <TextInput
               control={control}
               name="system_name"
-              content="System Name"
+              content={t('systemName')}
               required
             />
             <TextInput
               control={control}
               name="host_name"
-              content="Host Name"
+              content={t('hostName')}
               required
             />
           </Box>
@@ -334,13 +334,13 @@ const BatchJobServerDialog = ({
             <TextInput
               control={control}
               name="host_ip_addr"
-              content="Host IP Address"
+              content={t('hostIpAddress')}
               required
             />
             <TextInput
               control={control}
               name="folder_path"
-              content="Folder Path"
+              content={t('folderPath')}
               required
             />
           </Box>
@@ -348,19 +348,19 @@ const BatchJobServerDialog = ({
             <TextInput
               control={control}
               name="secondary_host_ip_addr"
-              content="Secondary Host IP Address"
+              content={t('secondaryHostIpAddress')}
             />
             <TextInput
               control={control}
               name="secondary_folder_path"
-              content="Secondary Folder Path"
+              content={t('secondaryFolderPath')}
             />
           </Box>
           <Box className="flex gap-3">
             <TextInput
               control={control}
               name="agent_port"
-              content="Agent Port"
+              content={t('agentPort')}
               type="number"
               placeholder="8081-8999"
             />
@@ -370,7 +370,7 @@ const BatchJobServerDialog = ({
           <BaseTextArea
             control={control}
             name="system_comments"
-            content={t('Comments')}
+            content={t('comments')}
           />
           <Box className="col-span-2 ml-auto space-x-2">
             <BaseButton
@@ -385,7 +385,7 @@ const BatchJobServerDialog = ({
                 boxShadow: 'none',
               }}
             >
-              Cancel
+              {t('cancel')}
             </BaseButton>
             <ButtonWithLoading
               type="button"
@@ -394,18 +394,18 @@ const BatchJobServerDialog = ({
               className="bg-black text-white"
               onClick={openSaveConfirmModal}
             >
-              Save
+              {t('save')}
             </ButtonWithLoading>
             <ConfirmDialog
               widthClassName="w-100"
               openConfirm={isSaveConfirm}
               setCloseConfirm={closeSaveConfirmModal}
-              title="Save"
+              title={t('save')}
               callback={handleSubmit(onSubmit)}
             >
               <div className="w-full text-lg">
                 <p>
-                  <strong>Do you want to save the Batch Job Server?</strong>
+                  <strong>{t('doYouWantToSaveServer')}</strong>
                 </p>
               </div>
             </ConfirmDialog>

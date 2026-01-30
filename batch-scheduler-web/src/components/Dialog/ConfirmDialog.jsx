@@ -8,6 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import BaseButton from '../CustomInput/BaseButton';
 
 export const ConfirmDialog = ({
@@ -19,6 +20,7 @@ export const ConfirmDialog = ({
   children,
   ...props
 }) => {
+  const { t } = useTranslation();
   const { widthClassName, hightClassName } = props;
   const handleClose = () => {
     callback();
@@ -108,10 +110,10 @@ export const ConfirmDialog = ({
         }}
       >
         <BaseButton onClick={() => setCloseConfirm()} theme="secondary" size="medium">
-          Cancel
+          {t('cancel')}
         </BaseButton>
         <BaseButton onClick={handleClose} theme="primary" size="medium">
-          OK
+          {t('ok')}
         </BaseButton>
       </DialogActions>
     </Dialog>

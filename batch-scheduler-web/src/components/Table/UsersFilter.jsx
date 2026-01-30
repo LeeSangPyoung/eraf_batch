@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useGroupsStore from '../../hook/store/useGroupStore';
 import useFilterData from '../../hook/useFilterData';
 import SearchTextField from '../CustomInput/SearchTextField';
@@ -13,6 +14,7 @@ function UsersFilter({
   userStatus,
   handleSelectStatus,
 }) {
+  const { t } = useTranslation();
   const groupFilter = useGroupsStore((state) => state.groups);
   const setGroup = useGroupsStore((state) => state.setGroup);
   const {
@@ -53,9 +55,9 @@ function UsersFilter({
   };
 
   const statusOptions = [
-    { value: 'all', label: 'All status' },
-    { value: 'true', label: 'Enable' },
-    { value: 'false', label: 'Disable' }
+    { value: 'all', label: t('allStatus') },
+    { value: 'true', label: t('enable') },
+    { value: 'false', label: t('disable') }
   ];
 
   return (
@@ -66,7 +68,7 @@ function UsersFilter({
           options={statusOptions}
           value={userStatus}
           onChange={handleSelectStatus}
-          content="Status"
+          content={t('status')}
           getOptionLabel={(option) => option.label}
           getOptionValue={(option) => option.value}
         />
@@ -85,7 +87,7 @@ function UsersFilter({
           onInputChange={(event, newValue) => {
             setGroupSearchTextInput(newValue);
           }}
-          content="Group"
+          content={t('group')}
           ListboxProps={{
             onScroll: handleGroupScroll,
           }}
@@ -96,9 +98,9 @@ function UsersFilter({
         <SearchTextField
           size="small"
           value={searchTerm}
-          placeholder="Search"
+          placeholder={t('search')}
           onChange={(e) => setSearchTerm(e.target.value)}
-          content={'Search'}
+          content={t('search')}
         />
       </Box>
     </Box>

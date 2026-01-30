@@ -19,10 +19,22 @@ public class JobVO {
     private String jobName;
 
     /**
-     * Server ID (FK)
+     * Primary Server ID (FK)
      */
     @JsonProperty("system_id")
     private String systemId;
+
+    /**
+     * Secondary Server ID for failover (FK)
+     */
+    @JsonProperty("secondary_system_id")
+    private String secondarySystemId;
+
+    /**
+     * Tertiary Server ID for failover (FK)
+     */
+    @JsonProperty("tertiary_system_id")
+    private String tertiarySystemId;
 
     /**
      * Group ID (FK)
@@ -44,6 +56,11 @@ public class JobVO {
      * Job body (JSON) for REST_API
      */
     private String jobBody;
+
+    /**
+     * Job headers (JSON) for REST_API - custom HTTP headers
+     */
+    private String jobHeaders;
 
     /**
      * Job comments/description (mapped as 'comment' for frontend)
@@ -215,10 +232,22 @@ public class JobVO {
 
     // === Joined fields for frontend compatibility ===
     /**
-     * Server name (mapped as 'system' for frontend)
+     * Primary Server name (mapped as 'system' for frontend)
      */
     @JsonProperty("system")
     private String systemName;
+
+    /**
+     * Secondary Server name for failover
+     */
+    @JsonProperty("secondary_system")
+    private String secondarySystemName;
+
+    /**
+     * Tertiary Server name for failover
+     */
+    @JsonProperty("tertiary_system")
+    private String tertiarySystemName;
 
     /**
      * Group name (mapped as 'group' for frontend)

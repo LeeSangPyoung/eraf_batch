@@ -170,7 +170,7 @@ const ListItem = ({ name, status, time, type }) => (
 );
 
 // Agent Card Component with enhanced styling
-const AgentCard = ({ agent }) => {
+const AgentCard = ({ agent, t }) => {
   const isOnline = agent.agent_status === 'ONLINE';
   const isHealthy = isOnline && agent.is_healthy;
   return (
@@ -195,11 +195,11 @@ const AgentCard = ({ agent }) => {
         }}>
           <Box sx={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isHealthy ? '#34C759' : '#FF3B30' }} />
           <Typography sx={{ fontSize: '11px', fontWeight: 600, color: isHealthy ? '#34C759' : '#FF3B30' }}>
-            {isHealthy ? 'Healthy' : 'Unhealthy'}
+            {isHealthy ? t('healthy') : t('unhealthy')}
           </Typography>
         </Box>
       </Box>
-      <Typography sx={{ fontSize: '12px', color: '#86868B', fontWeight: 500 }}>{agent.host_name || 'Unknown host'}</Typography>
+      <Typography sx={{ fontSize: '12px', color: '#86868B', fontWeight: 500 }}>{agent.host_name || t('unknownHost')}</Typography>
     </Box>
   );
 };
@@ -260,7 +260,7 @@ const Dashboard = () => {
       const today = dayjs().startOf('day').valueOf();
       const todayLogs = logData.filter(log => log.req_start_date >= today);
       const runningJobs = todayLogs.filter(log => log.status === 'RUNNING').length;
-      const failedToday = todayLogs.filter(log => log.status === 'FAILED' || log.status === 'BROKEN').length;
+      const failedToday = todayLogs.filter(log => log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT').length;
       const successToday = todayLogs.filter(log => log.status === 'SUCCESS' || log.status === 'COMPLETED').length;
 
       setStats({
@@ -272,7 +272,7 @@ const Dashboard = () => {
 
       // Recent failed
       const failed = logData
-        .filter(log => log.status === 'FAILED' || log.status === 'BROKEN')
+        .filter(log => log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT')
         .sort((a, b) => (b.req_start_date || 0) - (a.req_start_date || 0))
         .slice(0, 5)
         .map(log => ({ name: log.job_name, status: log.status, time: formatTime(log.req_start_date), type: log.group_name }));
@@ -325,7 +325,7 @@ const Dashboard = () => {
         hourCounts[hour].total++;
         if (log.status === 'SUCCESS' || log.status === 'COMPLETED') {
           hourCounts[hour].success++;
-        } else if (log.status === 'FAILED' || log.status === 'BROKEN') {
+        } else if (log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT') {
           hourCounts[hour].failed++;
         }
       }
@@ -354,7 +354,7 @@ const Dashboard = () => {
         dayMap[key].total++;
         if (log.status === 'SUCCESS' || log.status === 'COMPLETED') {
           dayMap[key].success++;
-        } else if (log.status === 'FAILED' || log.status === 'BROKEN') {
+        } else if (log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT') {
           dayMap[key].failed++;
         }
       }
@@ -369,18 +369,18 @@ const Dashboard = () => {
 
     logs.forEach(log => {
       if (log.status === 'SUCCESS' || log.status === 'COMPLETED') success++;
-      else if (log.status === 'FAILED' || log.status === 'BROKEN') failed++;
+      else if (log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT') failed++;
       else if (log.status === 'RUNNING') running++;
       else other++;
     });
 
     return [
-      { name: 'Success', value: success, color: CHART_COLORS.success },
-      { name: 'Failed', value: failed, color: CHART_COLORS.failed },
-      { name: 'Running', value: running, color: CHART_COLORS.running },
-      { name: 'Other', value: other, color: '#86868B' },
+      { name: t('success'), value: success, color: CHART_COLORS.success },
+      { name: t('failed'), value: failed, color: CHART_COLORS.failed },
+      { name: t('running'), value: running, color: CHART_COLORS.running },
+      { name: t('other'), value: other, color: '#86868B' },
     ].filter(d => d.value > 0);
-  }, [logs]);
+  }, [logs, t]);
 
   // Find peak hour
   const peakHour = useMemo(() => {
@@ -417,10 +417,10 @@ const Dashboard = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
           <Box>
             <Typography sx={{ fontSize: '34px', fontWeight: 700, color: '#1D1D1F', letterSpacing: '-0.025em' }}>
-              Dashboard
+              {t('dashboard')}
             </Typography>
             <Typography sx={{ fontSize: '15px', color: '#86868B', marginTop: '6px', fontWeight: 500 }}>
-              Batch Scheduler Overview
+              {t('batchSchedulerOverview')}
             </Typography>
           </Box>
           {/* Date Range Picker */}
@@ -434,7 +434,7 @@ const Dashboard = () => {
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
           }}>
             <DatePicker
-              label="Start"
+              label={t('start')}
               value={startDate}
               onChange={(v) => v && setStartDate(v)}
               slotProps={{
@@ -449,7 +449,7 @@ const Dashboard = () => {
             />
             <Typography sx={{ color: '#86868B', fontWeight: 500 }}>~</Typography>
             <DatePicker
-              label="End"
+              label={t('end')}
               value={endDate}
               onChange={(v) => v && setEndDate(v)}
               slotProps={{
@@ -467,17 +467,17 @@ const Dashboard = () => {
 
         {/* Summary Cards */}
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
-          <SummaryCard title="Total Jobs" value={stats.totalJobs} onClick={() => navigate('/job-status')} />
-          <SummaryCard title="Running" value={stats.runningJobs} color="#FF9500" />
-          <SummaryCard title="Success Today" value={stats.successToday} color="#34C759" />
-          <SummaryCard title="Failed Today" value={stats.failedToday} color="#FF3B30" />
+          <SummaryCard title={t('totalJobs')} value={stats.totalJobs} onClick={() => navigate('/job-status')} />
+          <SummaryCard title={t('running')} value={stats.runningJobs} color="#FF9500" />
+          <SummaryCard title={t('successToday')} value={stats.successToday} color="#34C759" />
+          <SummaryCard title={t('failedToday')} value={stats.failedToday} color="#FF3B30" />
         </Box>
 
         {/* Charts Row */}
         <Box sx={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', marginBottom: '28px' }}>
           {/* Main Chart */}
           <ChartCard
-            title={viewMode === 'hourly' ? "Today's Hourly Execution" : 'Daily Execution'}
+            title={viewMode === 'hourly' ? t('todaysHourlyExecution') : t('dailyExecution')}
             rightContent={
               <ToggleButtonGroup
                 value={viewMode}
@@ -494,8 +494,8 @@ const Dashboard = () => {
                   },
                 }}
               >
-                <ToggleButton value="hourly">Hourly</ToggleButton>
-                <ToggleButton value="daily">Daily</ToggleButton>
+                <ToggleButton value="hourly">{t('hourly')}</ToggleButton>
+                <ToggleButton value="daily">{t('daily')}</ToggleButton>
               </ToggleButtonGroup>
             }
           >
@@ -531,14 +531,14 @@ const Dashboard = () => {
             {viewMode === 'hourly' && peakHour.count > 0 && (
               <Box sx={{ marginTop: '12px', padding: '12px 16px', backgroundColor: '#F5F5F7', borderRadius: '10px' }}>
                 <Typography sx={{ fontSize: '13px', color: '#1D1D1F' }}>
-                  Today's Peak: <strong>{peakHour.hour}:00 ~ {peakHour.hour}:59</strong> ({peakHour.count} executions)
+                  {t('todaysPeak')}: <strong>{peakHour.hour}:00 ~ {peakHour.hour}:59</strong> ({peakHour.count} {t('executions')})
                 </Typography>
               </Box>
             )}
           </ChartCard>
 
           {/* Pie Chart */}
-          <ChartCard title="Status Distribution">
+          <ChartCard title={t('statusDistribution')}>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie
@@ -577,7 +577,7 @@ const Dashboard = () => {
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
           {/* Running Now */}
           <ChartCard
-            title="Running Now"
+            title={t('runningNow')}
             rightContent={
               <Box
                 sx={{
@@ -599,20 +599,20 @@ const Dashboard = () => {
               </Box>
             ) : (
               <Box sx={{ padding: '32px', textAlign: 'center' }}>
-                <Typography sx={{ fontSize: '14px', color: '#86868B', fontWeight: 500 }}>No running jobs</Typography>
+                <Typography sx={{ fontSize: '14px', color: '#86868B', fontWeight: 500 }}>{t('noRunningJobs')}</Typography>
               </Box>
             )}
           </ChartCard>
 
           {/* Recent Failed */}
           <ChartCard
-            title="Recent Failed"
+            title={t('recentFailed')}
             rightContent={
               <Typography
                 onClick={() => navigate('/job-results')}
                 sx={{ fontSize: '13px', color: '#0071E3', cursor: 'pointer', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
               >
-                View All
+                {t('viewAll')}
               </Typography>
             }
           >
@@ -624,29 +624,29 @@ const Dashboard = () => {
               </Box>
             ) : (
               <Box sx={{ padding: '32px', textAlign: 'center' }}>
-                <Typography sx={{ fontSize: '14px', color: '#34C759', fontWeight: 500 }}>No failures</Typography>
+                <Typography sx={{ fontSize: '14px', color: '#34C759', fontWeight: 500 }}>{t('noFailures')}</Typography>
               </Box>
             )}
           </ChartCard>
 
           {/* Agent Status */}
           <ChartCard
-            title="Agent Status"
+            title={t('agentStatus')}
             rightContent={
               <Typography sx={{ fontSize: '13px', color: '#86868B' }}>
-                {agents.filter(a => a.agent_status === 'ONLINE' && a.is_healthy).length} / {agents.length} Healthy
+                {agents.filter(a => a.agent_status === 'ONLINE' && a.is_healthy).length} / {agents.length} {t('healthy')}
               </Typography>
             }
           >
             {agents.length > 0 ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {agents.slice(0, 4).map((agent, index) => (
-                  <AgentCard key={index} agent={agent} />
+                  <AgentCard key={index} agent={agent} t={t} />
                 ))}
               </Box>
             ) : (
               <Box sx={{ padding: '32px', textAlign: 'center' }}>
-                <Typography sx={{ fontSize: '14px', color: '#86868B', fontWeight: 500 }}>No agents</Typography>
+                <Typography sx={{ fontSize: '14px', color: '#86868B', fontWeight: 500 }}>{t('noAgents')}</Typography>
               </Box>
             )}
           </ChartCard>

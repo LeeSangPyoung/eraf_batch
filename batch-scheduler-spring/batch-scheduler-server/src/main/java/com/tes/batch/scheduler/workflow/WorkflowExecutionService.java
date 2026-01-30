@@ -155,6 +155,35 @@ public class WorkflowExecutionService {
                     }
                 }
 
+                // Skip disabled jobs - create log entry with SKIPPED status
+                if (!Boolean.TRUE.equals(job.getIsEnabled())) {
+                    JobRunLogVO skippedLog = JobRunLogVO.builder()
+                            .jobId(job.getJobId())
+                            .jobName(job.getJobName())
+                            .systemId(job.getSystemId())
+                            .systemName(server != null ? server.getSystemName() : null)
+                            .groupId(job.getGroupId())
+                            .groupName(group != null ? group.getGroupName() : null)
+                            .batchType("Auto")
+                            .operation("SKIPPED")
+                            .status("SKIPPED")
+                            .reqStartDate(now)
+                            .actualStartDate(now)
+                            .actualEndDate(now)
+                            .runDuration("00:00:00")
+                            .retryCount(0)
+                            .workflowRunId(workflowRunId)
+                            .workflowPriority(pg.getPriority())
+                            .userName(creatorUserId)
+                            .additionalInfo("Job is disabled")
+                            .build();
+
+                    jobRunLogMapper.insert(skippedLog);
+                    log.info("Skipped disabled job in workflow: logId={}, jobId={}, workflowRunId={}",
+                            skippedLog.getLogId(), job.getJobId(), workflowRunId);
+                    continue; // Don't add to job messages - skip execution
+                }
+
                 // Create job run log entry with workflow_run_id
                 JobRunLogVO runLog = JobRunLogVO.builder()
                         .jobId(job.getJobId())
@@ -185,6 +214,7 @@ public class WorkflowExecutionService {
                         .jobType(JobType.valueOf(job.getJobType()))
                         .jobAction(job.getJobAction())
                         .jobBody(job.getJobBody())
+                        .jobHeaders(job.getJobHeaders())
                         .maxDurationSeconds(parseDurationToSeconds(job.getMaxRunDuration()))
                         .retryCount(0)
                         .workflowRunId(workflowRunId)

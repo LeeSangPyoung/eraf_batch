@@ -16,6 +16,12 @@ public class JobRequest {
     @JsonProperty("system_id")
     private String systemId;
 
+    @JsonProperty("secondary_system_id")
+    private String secondarySystemId;
+
+    @JsonProperty("tertiary_system_id")
+    private String tertiarySystemId;
+
     @JsonProperty("group_id")
     private String groupId;
 
@@ -27,6 +33,9 @@ public class JobRequest {
 
     @JsonProperty("job_body")
     private String jobBody;
+
+    @JsonProperty("job_headers")
+    private String jobHeaders;
 
     @JsonProperty("job_comments")
     private String jobComments;

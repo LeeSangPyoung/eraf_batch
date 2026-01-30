@@ -19,7 +19,7 @@ function JobResultsDetail({ open, onClose, data }) {
   return (
     <Dialog open={open} maxWidth="md" fullWidth>
       <DialogTitle className="text-2xl font-bold">
-        Job Results Detail
+        {t('jobResultsDetail')}
       </DialogTitle>
       <IconButton
         aria-label="close"

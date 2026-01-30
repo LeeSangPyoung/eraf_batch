@@ -2,6 +2,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import { Box, TablePagination } from '@mui/material';
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import BaseButton from '../../components/CustomInput/BaseButton';
 import UserDialog from '../../components/Dialog/UserDialog';
 import UsersFilter from '../../components/Table/UsersFilter';
@@ -10,6 +11,7 @@ import useModal from '../../hook/useModal';
 import useUserData from '../../hook/user/useUserData';
 import CustomTablePagination from '../../components/Table/CustomTablePagination';
 function Users() {
+  const { t } = useTranslation();
   const { isVisible, openModal, closeModal } = useModal();
 
   const {
@@ -73,7 +75,7 @@ function Users() {
             border: '1px solid #1C1C1C1A',
           }}
         >
-          Search
+          {t('search')}
         </BaseButton>
         <BaseButton
           className="bg-black text-white rounded-lg"
@@ -81,7 +83,7 @@ function Users() {
           sx={{ whiteSpace: 'nowrap', minWidth: 'max-content' }}
           onClick={openModal}
         >
-          Add User
+          {t('addUser')}
         </BaseButton>
       </Box>
       <UsersTable

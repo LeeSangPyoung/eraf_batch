@@ -1,5 +1,7 @@
 package com.tes.batch.agent.executor;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tes.batch.common.dto.JobMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +12,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Executor for REST API type jobs
@@ -20,6 +24,7 @@ import java.time.Duration;
 public class RestApiExecutor {
 
     private final WebClient.Builder webClientBuilder;
+    private final ObjectMapper objectMapper;
 
     /**
      * Execute REST API call
@@ -28,26 +33,37 @@ public class RestApiExecutor {
      * @return Response body as string
      */
     public String execute(JobMessage message) {
-        String url = message.getJobAction();
+        String action = message.getJobAction();
         String body = message.getJobBody();
+        String headersJson = message.getJobHeaders();
         Duration timeout = message.getMaxDuration() != null ? message.getMaxDuration() : Duration.ofMinutes(5);
 
-        log.info("Executing REST API call: {} (timeout: {})", url, timeout);
+        // Parse method and URL from action
+        HttpMethod method = determineMethod(action);
+        String url = stripMethodPrefix(action);
+
+        log.info("Executing REST API call: {} {} (timeout: {})", method, url, timeout);
 
         try {
             WebClient webClient = webClientBuilder.build();
-
-            // Determine HTTP method from URL or default to POST
-            HttpMethod method = determineMethod(url);
 
             WebClient.RequestBodySpec requestSpec = webClient
                     .method(method)
                     .uri(url)
                     .contentType(MediaType.APPLICATION_JSON);
 
+            // Apply custom headers if provided
+            if (headersJson != null && !headersJson.isEmpty()) {
+                Map<String, String> headers = parseHeaders(headersJson);
+                for (Map.Entry<String, String> entry : headers.entrySet()) {
+                    requestSpec = (WebClient.RequestBodySpec) requestSpec.header(entry.getKey(), entry.getValue());
+                    log.debug("Added header: {} = {}", entry.getKey(), entry.getValue());
+                }
+            }
+
             Mono<String> responseMono;
 
-            if (body != null && !body.isEmpty() && (method == HttpMethod.POST || method == HttpMethod.PUT)) {
+            if (body != null && !body.isEmpty() && (method == HttpMethod.POST || method == HttpMethod.PUT || method == HttpMethod.PATCH)) {
                 responseMono = requestSpec
                         .bodyValue(body)
                         .retrieve()
@@ -68,14 +84,50 @@ public class RestApiExecutor {
                     })
                     .block();
 
-            log.info("REST API call completed successfully: {}", url);
+            log.info("REST API call completed successfully: {} {}", method, url);
             return response;
 
         } catch (JobTimeoutException e) {
             throw e;
         } catch (Exception e) {
-            log.error("REST API call failed: {}", url, e);
+            log.error("REST API call failed: {} {}", method, url, e);
             throw new RuntimeException("REST API call failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Parse headers from JSON string.
+     * Supports two formats:
+     * 1. Array of objects: [{"key": "Content-Type", "value": "application/json"}]
+     * 2. Simple object: {"Content-Type": "application/json"}
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, String> parseHeaders(String headersJson) {
+        try {
+            // First try to parse as array of {key, value} objects
+            List<Map<String, String>> headersList = objectMapper.readValue(
+                    headersJson,
+                    new TypeReference<List<Map<String, String>>>() {}
+            );
+
+            // Convert list to map
+            Map<String, String> headers = new java.util.HashMap<>();
+            for (Map<String, String> header : headersList) {
+                String key = header.get("key");
+                String value = header.get("value");
+                if (key != null && !key.isEmpty()) {
+                    headers.put(key, value != null ? value : "");
+                }
+            }
+            return headers;
+        } catch (Exception e) {
+            try {
+                // Fall back to simple object format
+                return objectMapper.readValue(headersJson, new TypeReference<Map<String, String>>() {});
+            } catch (Exception ex) {
+                log.warn("Failed to parse headers JSON: {}", headersJson);
+                return Map.of();
+            }
         }
     }
 
@@ -97,8 +149,30 @@ public class RestApiExecutor {
             return HttpMethod.DELETE;
         } else if (upper.startsWith("PATCH:") || upper.startsWith("PATCH ")) {
             return HttpMethod.PATCH;
+        } else if (upper.startsWith("POST:") || upper.startsWith("POST ")) {
+            return HttpMethod.POST;
         }
 
         return HttpMethod.POST;
+    }
+
+    /**
+     * Strip HTTP method prefix from URL
+     */
+    private String stripMethodPrefix(String action) {
+        if (action == null) {
+            return "";
+        }
+
+        String[] prefixes = {"GET:", "GET ", "POST:", "POST ", "PUT:", "PUT ", "DELETE:", "DELETE ", "PATCH:", "PATCH "};
+        String upper = action.toUpperCase();
+
+        for (String prefix : prefixes) {
+            if (upper.startsWith(prefix)) {
+                return action.substring(prefix.length()).trim();
+            }
+        }
+
+        return action;
     }
 }

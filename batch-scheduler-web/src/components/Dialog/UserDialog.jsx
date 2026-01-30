@@ -99,7 +99,7 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
             letterSpacing: '-0.01em',
           }}
         >
-          {data ? 'Update User' : 'Create User'}
+          {data ? t('updateUser') : t('createUser')}
         </Box>
         {data && (
           <div className="flex space-x-2">
@@ -108,18 +108,18 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
               disabled={disable}
               onClick={openResetPwConfirmModal}
             >
-              Reset password
+              {t('resetPassword')}
             </ButtonWithLoading>
             <ConfirmDialog
               widthClassName="w-100"
               openConfirm={isResetPwConfirm}
               setCloseConfirm={closeResetPwConfirmModal}
-              title="Reset Password"
+              title={t('resetPassword')}
               callback={resetPw}
             >
               <div className="w-full text-lg">
                 <p>
-                  <strong>Do you want to reset the password?</strong>
+                  <strong>{t('doYouWantToResetPassword')}</strong>
                 </p>
               </div>
             </ConfirmDialog>
@@ -130,18 +130,18 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                   disabled={disable}
                   onClick={openLockConfirmModal}
                 >
-                  Lock account
+                  {t('lockAccount')}
                 </ButtonWithLoading>
                 <ConfirmDialog
                   widthClassName="w-100"
                   openConfirm={isLockConfirm}
                   setCloseConfirm={closeLockConfirmModal}
-                  title="Lock Account"
+                  title={t('lockAccount')}
                   callback={lockAcc}
                 >
                   <div className="w-full text-lg">
                     <p>
-                      <strong>Do you want to lock this account?</strong>
+                      <strong>{t('doYouWantToLockAccount')}</strong>
                     </p>
                   </div>
                 </ConfirmDialog>
@@ -153,18 +153,18 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                   disabled={disable}
                   onClick={openUnlockConfirmModal}
                 >
-                  Unlock account
+                  {t('unlockAccount')}
                 </ButtonWithLoading>
                 <ConfirmDialog
                   widthClassName="w-100"
                   openConfirm={isUnlockConfirm}
                   setCloseConfirm={closeUnlockConfirmModal}
-                  title="Unlock Account"
+                  title={t('unlockAccount')}
                   callback={unlockAcc}
                 >
                   <div className="w-full text-lg">
                     <p>
-                      <strong>Do you want to unlock this account?</strong>
+                      <strong>{t('doYouWantToUnlockAccount')}</strong>
                     </p>
                   </div>
                 </ConfirmDialog>
@@ -186,12 +186,12 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
               widthClassName="w-100"
               openConfirm={isDeleteConfirm}
               setCloseConfirm={closeDeleteConfirmModal}
-              title="Delete"
+              title={t('delete')}
               callback={remove}
             >
               <div className="w-full text-lg">
                 <p>
-                  <strong>Do you want to delete the Scheduler User?</strong>
+                  <strong>{t('doYouWantToDeleteUser')}</strong>
                 </p>
               </div>
             </ConfirmDialog>
@@ -213,13 +213,13 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                   <BaseTextField
                     disabled
                     value={data?.user_id || ''}
-                    content="User ID"
+                    content={t('userId')}
                     textStyles="text-grayDark"
                   />
                   <BaseTextField
                     disabled
-                    value={data?.user_status ? 'ENABLE' : 'DISABLE'}
-                    content="User status"
+                    value={data?.user_status ? t('enable').toUpperCase() : t('disable').toUpperCase()}
+                    content={t('userStatus')}
                     textStyles="text-grayDark"
                   />
                 </>
@@ -228,14 +228,14 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                 <TextInput
                   control={control}
                   name="user_id"
-                  content="User ID"
+                  content={t('userId')}
                   required
                 />
               )}
               <TextInput
                 control={control}
                 name="user_name"
-                content="User Name"
+                content={t('userName')}
                 required
               />
               {!data && (
@@ -243,12 +243,12 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                   <CustomPwInput
                     control={control}
                     name="password"
-                    content="Password"
+                    content={t('password')}
                   />
                   <CustomPwInput
                     control={control}
                     name="confirmPassword"
-                    content="(Re-enter) password"
+                    content={t('reenterPassword')}
                   />
                 </>
               )}
@@ -256,7 +256,7 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                 control={control}
                 name="user_type"
                 options={UserType}
-                content="User Type"
+                content={t('userType')}
                 required
                 disabled={data?.user_id === user?.user_id}
               />
@@ -264,17 +264,17 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                 <MultipleSelectChip
                   name="related_scheduler_group"
                   control={control}
-                  content="Group"
+                  content={t('group')}
                   options={groups}
                   height="50px"
                   required
                 />
               )}
-              <TextInput control={control} name="email_addr" content="Email" />
+              <TextInput control={control} name="email_addr" content={t('email')} />
               <TextInput
                 control={control}
                 name="celp_tlno"
-                content="Cellphone"
+                content={t('cellphone')}
                 className={`${data ? 'col-span-2' : ''}`}
               />
             </Box>
@@ -290,21 +290,21 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
             }}
           >
             <BaseButton onClick={handleCancel} theme="secondary">
-              Cancel
+              {t('cancel')}
             </BaseButton>
             <BaseButton theme="primary" onClick={openSaveConfirmModal}>
-              Save
+              {t('save')}
             </BaseButton>
             <ConfirmDialog
               widthClassName="w-100"
               openConfirm={isSaveConfirm}
               setCloseConfirm={closeSaveConfirmModal}
-              title="Save"
+              title={t('save')}
               callback={handleSubmit(onSubmit)}
             >
               <div className="w-full text-lg">
                 <p>
-                  <strong>Do you want to save the changes?</strong>
+                  <strong>{t('doYouWantToSaveChanges')}</strong>
                 </p>
               </div>
             </ConfirmDialog>

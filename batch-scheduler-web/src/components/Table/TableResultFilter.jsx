@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useGroupsStore from '../../hook/store/useGroupStore';
 import useJobStore from '../../hook/store/useJobStore';
 import useSystemsStore from '../../hook/store/useSystemsStore';
@@ -19,6 +20,7 @@ function TableResultFilter({
   handleValueChange,
   handleInputChange,
 }) {
+  const { t } = useTranslation();
   const jobFilter = useJobStore((state) => state.jobs);
   const serverFilter = useSystemsStore((state) => state.systems);
   const groupFilter = useGroupsStore((state) => state.groups);
@@ -123,7 +125,7 @@ function TableResultFilter({
               onInputChange={(event, newValue) => {
                 setServerSearchTextInput(newValue);
               }}
-              content="System"
+              content={t('system')}
             />
             <SearchAutocomplete
               id="group-filter"
@@ -137,7 +139,7 @@ function TableResultFilter({
               onInputChange={(event, newValue) => {
                 setGroupSearchTextInput(newValue);
               }}
-              content="Group"
+              content={t('group')}
               ListboxProps={{
                 onScroll: handleGroupScroll,
               }}
@@ -156,7 +158,7 @@ function TableResultFilter({
               onInputChange={(event, newValue) => {
                 setJobSearchTextInput(newValue);
               }}
-              content="Job"
+              content={t('job')}
               ListboxProps={{
                 onScroll: handleJobScroll,
               }}
@@ -165,7 +167,7 @@ function TableResultFilter({
             <SearchTextField
               size="small"
               value={searchTerm}
-              content="Search"
+              content={t('search')}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </>
@@ -182,7 +184,7 @@ function TableResultFilter({
         onInputChange={(event, newValue) =>
           handleInputChange(event, newValue, 'operation')
         }
-        content="Operation"
+        content={t('operation')}
       />
       <SearchAutocomplete
         id="combo-box-current-state"
@@ -196,16 +198,16 @@ function TableResultFilter({
           handleInputChange(event, newValue, 'status')
         }
         capitalizeOptions={true}
-        content="Status"
+        content={t('status')}
       />
       <BaseDatePicker
-        content="From"
+        content={t('from')}
         value={inputCombo.from}
         onChange={(newValue) => handleValueChange('', newValue, 'from')}
       />
 
       <BaseDatePicker
-        content="To"
+        content={t('to')}
         value={inputCombo.to}
         onChange={(newValue) => handleValueChange('', newValue, 'to')}
       />

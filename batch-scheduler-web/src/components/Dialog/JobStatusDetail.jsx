@@ -66,7 +66,7 @@ const JobDetailTab = (props) => {
         },
       });
       if (response.data.success) {
-        toast.success('Job delete successfully');
+        toast.success(t('jobDeleteSuccess'));
         mutate();
         jobFilterMutation();
         onClose();
@@ -74,7 +74,7 @@ const JobDetailTab = (props) => {
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error('Error when deleting job');
+      toast.error(t('errorDeletingJob'));
     } finally {
       setLoading({ loading: false, button: '' });
       setDisable(false);
@@ -90,13 +90,13 @@ const JobDetailTab = (props) => {
         user_id: user?.id,
       });
       if (response.data.success) {
-        toast.success('Job manually run successfully');
+        toast.success(t('jobRunSuccess'));
         onClose();
       } else {
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error('Error when running job manually');
+      toast.error(t('errorRunningJob'));
     } finally {
       setLoading({ loading: false, button: '' });
       setDisable(false);
@@ -111,13 +111,13 @@ const JobDetailTab = (props) => {
         job_id: data.job_id,
       });
       if (response.data.success) {
-        toast.success('Job stopped successfully');
+        toast.success(t('jobStopSuccess'));
         onClose();
       } else {
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error('Error when force stop job manually');
+      toast.error(t('errorStoppingJob'));
     } finally {
       setLoading({ loading: false, button: '' });
       setDisable(false);
@@ -134,7 +134,7 @@ const JobDetailTab = (props) => {
         last_reg_user_id: user?.id,
       });
       if (response.data.success) {
-        toast.success('Job deactivated successfully');
+        toast.success(t('jobDeactivatedSuccess'));
         setLoading({ loading: false, button: '' });
         mutate();
         onClose();
@@ -142,7 +142,7 @@ const JobDetailTab = (props) => {
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error('Error when disable job manually');
+      toast.error(t('errorDeactivatingJob'));
     } finally {
       setLoading({ loading: false, button: '' });
       setDisable(false);
@@ -159,7 +159,7 @@ const JobDetailTab = (props) => {
         last_reg_user_id: user?.id,
       });
       if (response.data.success) {
-        toast.success('Job activated successfully');
+        toast.success(t('jobActivatedSuccess'));
         setLoading({ loading: false, button: '' });
         mutate();
         onClose();
@@ -167,7 +167,7 @@ const JobDetailTab = (props) => {
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error('Error when enable job');
+      toast.error(t('errorActivatingJob'));
     } finally {
       setLoading({ loading: false, button: '' });
       setDisable(false);
@@ -219,10 +219,51 @@ const JobDetailTab = (props) => {
           marginTop: '8px',
         }}
       >
-        <InfoItem label={t('system_id')} value={data.system} />
+        {/* Server with failover badges */}
+        <Box sx={{ gridColumn: 'span 3', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <Box component="span" sx={{ fontSize: '12px', fontWeight: 500, color: '#86868B', fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif' }}>
+            Server
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Master - with pulse animation when running */}
+            <Box sx={{
+              display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px',
+              backgroundColor: '#FF9500', borderRadius: '16px',
+              ...(data.current_state === 'RUNNING' && {
+                animation: 'pulse 2s ease-in-out infinite',
+                '@keyframes pulse': {
+                  '0%, 100%': { boxShadow: '0 0 0 0 rgba(255, 149, 0, 0.4)' },
+                  '50%': { boxShadow: '0 0 0 8px rgba(255, 149, 0, 0)' },
+                },
+              }),
+            }}>
+              <Box sx={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>M</Box>
+              <Box sx={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>{data.system || '-'}</Box>
+            </Box>
+            {/* Slave1 */}
+            {data.secondary_system && (
+              <>
+                <Box sx={{ fontSize: '14px', color: '#C7C7CC' }}>→</Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', backgroundColor: '#F5F5F7', borderRadius: '16px' }}>
+                  <Box sx={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 500 }}>S1</Box>
+                  <Box sx={{ fontSize: '13px', color: '#86868B', fontWeight: 500 }}>{data.secondary_system}</Box>
+                </Box>
+              </>
+            )}
+            {/* Slave2 */}
+            {data.tertiary_system && (
+              <>
+                <Box sx={{ fontSize: '14px', color: '#C7C7CC' }}>→</Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', backgroundColor: '#F5F5F7', borderRadius: '16px' }}>
+                  <Box sx={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 500 }}>S2</Box>
+                  <Box sx={{ fontSize: '13px', color: '#86868B', fontWeight: 500 }}>{data.tertiary_system}</Box>
+                </Box>
+              </>
+            )}
+          </Box>
+        </Box>
         <InfoItem label={t('group_name')} value={data.group} />
         <InfoItem label={t('job_name')} value={data.job_name} />
-
         <InfoItem label={t('creator')} value={data.creator} />
         <InfoItem label={t('job_type')} value={data.jobType} />
         <InfoItem label={t('job_create_date')} value={timestampFormat(data.jobCreateDate)} />
@@ -275,7 +316,7 @@ const JobDetailTab = (props) => {
 
         <InfoItem label={t('last_start_date')} value={timestampFormat(data.lastStartDate)} />
         <InfoItem label={t('next_run_date')} value={timestampFormat(data.nextRunDate)} />
-        <InfoItem label={t('enable')} value={data.enable ? 'True' : 'False'} />
+        <InfoItem label={t('enable')} value={data.enable ? t('true') : t('false')} />
 
         <InfoItem label={t('state')} value={data.current_state} />
 
@@ -340,8 +381,9 @@ const JobDetailTab = (props) => {
         )}
         <ButtonWithLoading
           onClick={handleManualRun}
-          disabled={disable || isRunning || isDeleted}
+          disabled={disable || isRunning || isDeleted || !data.enable}
           loading={loading.loading && loading.button === 'execution'}
+          title={!data.enable ? t('cannotExecuteDisabledJob') : ''}
         >
           {t('execution')}
         </ButtonWithLoading>
@@ -354,7 +396,7 @@ const JobDetailTab = (props) => {
         </ButtonWithLoading>
         <BaseButton
           onClick={handleClickOpenModifyDialog}
-          disabled={disable || isRunning || isDeleted || user?.user_type !== 0}
+          disabled={disable || isDeleted || user?.user_type !== 0}
           theme="secondary"
           size="small"
         >
@@ -370,7 +412,7 @@ const JobDetailTab = (props) => {
         )}
         <BaseButton
           onClick={openDeleteConfirmModal}
-          disabled={disable || isRunning || isWaiting || user?.user_type !== 0}
+          disabled={disable || user?.user_type !== 0}
           theme="danger"
           size="small"
           endIcon={loading.loading && loading.button === 'delete' ? <CircularProgress size={14} color="inherit" /> : null}
@@ -381,10 +423,17 @@ const JobDetailTab = (props) => {
           widthClassName="w-100"
           openConfirm={isDeleteConfirm}
           setCloseConfirm={closeDeleteConfirmModal}
-          title="Delete"
+          title={t('delete')}
           callback={() => handleDelete()}
         >
-          <p>Do you want to delete the Scheduler Job?</p>
+          <div>
+            <p>{t('doYouWantToDeleteJob')}</p>
+            {(isRunning || isWaiting) && (
+              <p style={{ color: '#FF3B30', marginTop: '8px', fontWeight: 500 }}>
+                {t('warningJobIsRunning')}
+              </p>
+            )}
+          </div>
         </ConfirmDialog>
       </Box>
 
@@ -407,6 +456,7 @@ const JobDetailTab = (props) => {
 };
 
 const JobHistoryTab = (props) => {
+  const { t } = useTranslation();
   const { data } = props;
   // const navigate = useNavigate();
   const [logData, setLogData] = useState('');
@@ -483,10 +533,10 @@ const JobHistoryTab = (props) => {
       {/* Stats Row */}
       {job && (
         <Box sx={{ display: 'flex', gap: '12px', justifyContent: 'flex-start' }}>
-          <StatItem label="Retry Delay" value={job.retryDelay} />
-          <StatItem label="Run Count" value={job.runCount} />
-          <StatItem label="Failure Count" value={job.failureCount} />
-          <StatItem label="Retry Count" value={job.retryCount} />
+          <StatItem label={t('retryDelay')} value={job.retryDelay} />
+          <StatItem label={t('runCount')} value={job.runCount} />
+          <StatItem label={t('failureCount')} value={job.failureCount} />
+          <StatItem label={t('retryCount')} value={job.retryCount} />
         </Box>
       )}
 
@@ -498,7 +548,7 @@ const JobHistoryTab = (props) => {
           theme="secondary"
           size="small"
         >
-          Refresh
+          {t('refresh')}
         </BaseButton>
       </Box>
 
@@ -537,6 +587,7 @@ const JobHistoryTab = (props) => {
 };
 
 function JobStatusDetail({ open, onClose, data, mutate }) {
+  const { t } = useTranslation();
   const [tabIndex, setTabIndex] = useState(0);
   const [r, setR] = useState(() => Math.random());
   // @ts-ignore
@@ -582,7 +633,7 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
           letterSpacing: '-0.01em',
         }}
       >
-        Job Detail
+        {t('jobDetail')}
       </DialogTitle>
       <IconButton
         aria-label="close"
@@ -634,9 +685,9 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
           },
         }}
       >
-        <Tab label="Job Info" />
-        <Tab label="Job History" />
-        <Tab label="Job Log" />
+        <Tab label={t('jobInfo')} />
+        <Tab label={t('jobHistory')} />
+        <Tab label={t('jobLog')} />
       </Tabs>
       <DialogContent
         sx={{
@@ -656,7 +707,7 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
                 theme="secondary"
                 size="small"
               >
-                Refresh
+                {t('refresh')}
               </BaseButton>
               <BaseButton
                 theme="primary"
@@ -676,7 +727,7 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
                   );
                 }}
               >
-                Go To Dashboard
+                {t('goToDashboard')}
               </BaseButton>
             </Box>
             <Box

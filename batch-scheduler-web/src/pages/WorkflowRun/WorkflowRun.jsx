@@ -1,6 +1,7 @@
 import SearchIcon from '@mui/icons-material/Search';
 import { Box, Button } from '@mui/material';
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import CustomTablePagination from '../../components/Table/CustomTablePagination';
 import WorkflowRunTable from '../../components/Table/WorkflowRunTable';
 import TableWorkflowRunFilter from '../../components/Table/TableWorkflowRunFilter';
@@ -8,6 +9,7 @@ import useWorkflowRun from '../../hook/useWorkflowRun';
 import BaseButton from '../../components/CustomInput/BaseButton';
 
 const WorkflowRun = () => {
+  const { t } = useTranslation();
   const {
     total,
     workflowRunData,
@@ -63,7 +65,7 @@ const WorkflowRun = () => {
           onClick={handleFetchData}
           startIcon={<SearchIcon />}
         >
-          Search
+          {t('search')}
         </BaseButton>
       </Box>
 

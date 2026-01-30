@@ -116,7 +116,7 @@ function SystemTable({
                           letterSpacing: '-0.01em',
                         }}
                       >
-                        {isOnline ? 'Online' : 'Offline'}
+                        {isOnline ? t('online') : t('offline')}
                       </span>
                     </div>
                   );
@@ -162,7 +162,7 @@ function SystemTable({
                           letterSpacing: '-0.01em',
                         }}
                       >
-                        {isHealthy ? 'Healthy' : 'Unhealthy'}
+                        {isHealthy ? t('healthy') : t('unhealthy')}
                       </span>
                     </div>
                   );

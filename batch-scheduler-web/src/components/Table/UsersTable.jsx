@@ -50,14 +50,14 @@ function UsersTable({
     <TableWrapper minusHeight="330px">
       <TableHead>
         <TableRow className="bg-white sticky top-[-1]">
-          <TableCell style={styleHeaderTable}>User ID</TableCell>
-          <TableCell style={styleHeaderTable}>User Name</TableCell>
-          <TableCell style={styleHeaderTable}>User Status</TableCell>
-          <TableCell style={styleHeaderTable}>Cellphone</TableCell>
-          <TableCell style={styleHeaderTable}>Email</TableCell>
-          <TableCell style={styleHeaderTable}> Login Fail Count</TableCell>
-          <TableCell style={styleHeaderTable}>Last Password Change Date</TableCell>
-          <TableCell style={styleHeaderTable}> Last Login Time</TableCell>
+          <TableCell style={styleHeaderTable}>{t('userId')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('userName')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('userStatus')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('cellphone')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('email')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('loginFailCount')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('lastPasswordChangeDate')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('lastLoginTime')}</TableCell>
         </TableRow>
       </TableHead>
       <TableBody style={{ maxHeight: '100%', overflowY: 'auto' }}>
@@ -109,7 +109,7 @@ function UsersTable({
                           letterSpacing: '-0.01em',
                         }}
                       >
-                        {isEnabled ? 'Enable' : 'Disable'}
+                        {isEnabled ? t('enable') : t('disable')}
                       </span>
                     </div>
                   );

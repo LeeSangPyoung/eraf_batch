@@ -71,7 +71,7 @@ function WorkflowRunDetail({ open, onClose, data: initialData, search }) {
   return (
     <Dialog open={open} maxWidth="md" fullWidth>
       <DialogTitle className="text-2xl font-bold">
-        Workflow Run Detail
+        {t('workflowRunDetail')}
       </DialogTitle>
       <IconButton
         aria-label="close"

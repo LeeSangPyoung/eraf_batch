@@ -7,6 +7,7 @@ import {
   Typography,
 } from '@mui/material';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import CloseIcon from '@mui/icons-material/Close';
 import useMyInfo from '../../hook/useMyInfo';
 import { UserType } from '../../utils/enum';
@@ -14,6 +15,7 @@ import useGroupsStore from '../../hook/store/useGroupStore';
 import BaseTextField from '../CustomInput/BaseTextField';
 
 const MyInfo = ({ open, onClose }) => {
+  const { t } = useTranslation();
   const { info } = useMyInfo();
   const userType = UserType.find((type) => type.value === info?.user_type);
   const groups = useGroupsStore((state) => state.groups);
@@ -47,7 +49,7 @@ const MyInfo = ({ open, onClose }) => {
           letterSpacing: '-0.01em',
         }}
       >
-        My Info
+        {t('myInfo')}
       </DialogTitle>
       <IconButton
         aria-label="close"
@@ -82,7 +84,7 @@ const MyInfo = ({ open, onClose }) => {
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
                   }}
                 >
-                  User ID
+                  {t('userId')}
                 </Typography>
                 <BaseTextField
                   disabled
@@ -101,11 +103,11 @@ const MyInfo = ({ open, onClose }) => {
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
                   }}
                 >
-                  User Status
+                  {t('userStatus')}
                 </Typography>
                 <BaseTextField
                   disabled
-                  value={info.user_status ? 'ENABLE' : 'DISABLE'}
+                  value={info.user_status ? t('enable').toUpperCase() : t('disable').toUpperCase()}
                   fullWidth
                 />
               </Box>
@@ -120,7 +122,7 @@ const MyInfo = ({ open, onClose }) => {
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
                   }}
                 >
-                  User Type
+                  {t('userType')}
                 </Typography>
                 <BaseTextField disabled value={userType?.label || ''} fullWidth />
               </Box>
@@ -135,7 +137,7 @@ const MyInfo = ({ open, onClose }) => {
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
                   }}
                 >
-                  Phone
+                  {t('phone')}
                 </Typography>
                 <BaseTextField disabled value={info.celp_tlno || ''} fullWidth />
               </Box>
@@ -150,7 +152,7 @@ const MyInfo = ({ open, onClose }) => {
                     fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
                   }}
                 >
-                  Email
+                  {t('email')}
                 </Typography>
                 <BaseTextField disabled value={info.email_addr || ''} fullWidth />
               </Box>
@@ -166,7 +168,7 @@ const MyInfo = ({ open, onClose }) => {
                       fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
                     }}
                   >
-                    Groups
+                    {t('groups')}
                   </Typography>
                   <BaseTextField
                     disabled

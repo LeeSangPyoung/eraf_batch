@@ -6,6 +6,7 @@ import {
   Typography,
 } from '@mui/material';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import api from '../../services/api';
 import { formatDate, getUserTimeZone } from '../../utils/helper';
@@ -15,6 +16,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 function RepeatInterval({ open, onClose, repeatInterval, startDate }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -88,7 +90,7 @@ function RepeatInterval({ open, onClose, repeatInterval, startDate }) {
               fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
             }}
           >
-            Repeat Interval
+            {t('repeatInterval')}
           </Typography>
         </Box>
         <IconButton
@@ -128,7 +130,7 @@ function RepeatInterval({ open, onClose, repeatInterval, startDate }) {
               letterSpacing: '0.05em',
             }}
           >
-            Schedule Rule
+            {t('scheduleRule')}
           </Typography>
           <Typography
             sx={{
@@ -157,7 +159,7 @@ function RepeatInterval({ open, onClose, repeatInterval, startDate }) {
                 letterSpacing: '0.05em',
               }}
             >
-              Upcoming Runs ({rows.length})
+              {t('upcomingRuns')} ({rows.length})
             </Typography>
             <Box
               sx={{
@@ -217,13 +219,13 @@ function RepeatInterval({ open, onClose, repeatInterval, startDate }) {
 
         {loading && (
           <Box sx={{ textAlign: 'center', padding: '40px 0', color: '#86868B' }}>
-            Loading schedule...
+            {t('loadingSchedule')}
           </Box>
         )}
 
         {!loading && rows.length === 0 && (
           <Box sx={{ textAlign: 'center', padding: '40px 0', color: '#86868B' }}>
-            No scheduled runs
+            {t('noScheduledRuns')}
           </Box>
         )}
       </DialogContent>

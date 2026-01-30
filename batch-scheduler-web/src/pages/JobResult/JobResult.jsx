@@ -1,6 +1,7 @@
 import SearchIcon from '@mui/icons-material/Search';
 import { Box, Button } from '@mui/material';
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import CustomTablePagination from '../../components/Table/CustomTablePagination';
 import JobResultTable from '../../components/Table/JobResultTable';
 import TableResultFilter from '../../components/Table/TableResultFilter';
@@ -8,6 +9,7 @@ import useJobResult from '../../hook/useJobResult';
 import BaseButton from '../../components/CustomInput/BaseButton';
 
 const JobResult = () => {
+  const { t } = useTranslation();
   const {
     total,
     jobResultData,
@@ -64,7 +66,7 @@ const JobResult = () => {
           theme="light"
           startIcon={<SearchIcon />}
         >
-          Search
+          {t('search')}
         </BaseButton>
       </div>
       <JobResultTable

@@ -1,5 +1,6 @@
 import { Autocomplete, MenuItem, Select, TextField } from '@mui/material';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useGroupsStore from '../../hook/store/useGroupStore';
 import { workflowStatusOptions } from '../../utils/enum';
 import useFilterData from '../../hook/useFilterData';
@@ -16,6 +17,7 @@ const WorkflowFilter = ({
   handleValueChange,
   handleInputChange,
 }) => {
+  const { t } = useTranslation();
   const groupFilter = useGroupsStore((state) => state.groups);
   const setGroup = useGroupsStore((state) => state.setGroup);
   const { totalGroups, setGroupOffset, groupSearchTextInput, setGroupSearchTextInput } = useFilterData();
@@ -50,9 +52,9 @@ const WorkflowFilter = ({
       <>
         <SearchTextField
           value={searchTerm}
-          content="Search"
+          content={t('search')}
           onChange={(e) => setSearchTerm(e.target.value)}
-        />        
+        />
         <SearchAutocomplete
           id="group-filter"
           options={visibleGroups}
@@ -67,7 +69,7 @@ const WorkflowFilter = ({
           onInputChange={(event, newValue) => {
             setGroupSearchTextInput(newValue);
           }}
-          content="Group"
+          content={t('group')}
           ListboxProps={{
             onScroll: handleGroupScroll
           }}
@@ -83,7 +85,7 @@ const WorkflowFilter = ({
           onInputChange={(event, newValue) =>
             handleInputChange(event, newValue, 'latestStatus')
           }
-          content="Latest Status"
+          content={t('latestStatus')}
         />
       </>
     </div>

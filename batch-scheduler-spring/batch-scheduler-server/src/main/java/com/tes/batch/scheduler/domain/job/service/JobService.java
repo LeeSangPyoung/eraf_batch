@@ -196,10 +196,13 @@ public class JobService {
                 .jobId(UUID.randomUUID().toString())
                 .jobName(request.getJobName())
                 .systemId(request.getSystemId())
+                .secondarySystemId(request.getSecondarySystemId())
+                .tertiarySystemId(request.getTertiarySystemId())
                 .groupId(request.getGroupId())
                 .jobType(request.getJobType())
                 .jobAction(request.getJobAction())
                 .jobBody(request.getJobBody())
+                .jobHeaders(request.getJobHeaders())
                 .jobComments(request.getJobComments())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
@@ -259,10 +262,13 @@ public class JobService {
 
         existing.setJobName(request.getJobName());
         existing.setSystemId(request.getSystemId());
+        existing.setSecondarySystemId(request.getSecondarySystemId());
+        existing.setTertiarySystemId(request.getTertiarySystemId());
         existing.setGroupId(request.getGroupId());
         existing.setJobType(request.getJobType());
         existing.setJobAction(request.getJobAction());
         existing.setJobBody(request.getJobBody());
+        existing.setJobHeaders(request.getJobHeaders());
         existing.setJobComments(request.getJobComments());
         existing.setStartDate(request.getStartDate());
         existing.setEndDate(request.getEndDate());
@@ -312,14 +318,43 @@ public class JobService {
             throw new IllegalArgumentException("Job not found: " + jobId);
         }
 
-        // Unschedule from Quartz first
+        // If job is running or waiting, stop it first
+        if ("RUNNING".equals(existing.getCurrentState()) || "WAITING".equals(existing.getCurrentState())) {
+            log.info("Stopping running job before deletion: {}", jobId);
+            // Update latest run log status to REVOKED
+            JobRunLogVO latestLog = jobRunLogMapper.findLatestByJobId(jobId);
+            if (latestLog != null && ("RUNNING".equals(latestLog.getStatus()) || "PENDING".equals(latestLog.getStatus()))) {
+                jobRunLogMapper.updateStatus(
+                        latestLog.getLogId(),
+                        "REVOKED",
+                        "REVOKED",
+                        null,
+                        System.currentTimeMillis(),
+                        null,
+                        "Job deleted while running",
+                        null,
+                        null
+                );
+            }
+        }
+
+        // Unschedule from Quartz
         schedulerService.unscheduleJob(jobId);
 
-        // Delete related logs
-        jobRunLogMapper.deleteByJobId(jobId);
+        // If job is part of a workflow, just remove from workflow (don't delete workflow)
+        if (existing.getWorkflowId() != null) {
+            log.info("Removing job from workflow before deletion: jobId={}, workflowId={}",
+                    jobId, existing.getWorkflowId());
+            // Clear workflow info from the job (the job record will be deleted anyway)
+        }
+
+        // DON'T delete logs - keep them for audit trail
+        // jobRunLogMapper.deleteByJobId(jobId);
+
+        // Delete the job
         jobMapper.delete(jobId);
 
-        log.info("Deleted job and unscheduled from Quartz: {}", jobId);
+        log.info("Deleted job (logs preserved): {}", jobId);
     }
 
     @Transactional
@@ -329,31 +364,37 @@ public class JobService {
             throw new IllegalArgumentException("Job not found: " + jobId);
         }
 
-        // Manual execution is allowed even if job is disabled
-        // Only scheduled execution respects the isEnabled flag
-
-        // Get server queue name
-        String queueName = null;
-        if (job.getSystemId() != null) {
-            JobServerVO server = serverMapper.findById(job.getSystemId());
-            if (server != null) {
-                queueName = server.getQueueName();
-            }
+        // Block manual execution if job is disabled
+        if (!Boolean.TRUE.equals(job.getIsEnabled())) {
+            throw new IllegalStateException("Cannot execute disabled job. Please enable the job first.");
         }
 
+        // Get available server with failover support (primary -> secondary -> tertiary)
+        JobServerVO server = getAvailableServer(job);
+
+        if (server == null) {
+            throw new IllegalStateException("No healthy server available (tried primary, secondary, tertiary)");
+        }
+
+        String queueName = server.getQueueName();
         if (queueName == null || queueName.isEmpty()) {
-            throw new IllegalStateException("No queue configured for job's server");
+            throw new IllegalStateException("No queue configured for server: " + server.getSystemName());
         }
+
+        // Log which server was selected
+        String serverRole = determineServerRole(job, server.getSystemId());
+        log.info("Manual execution using {} server: {} ({})", serverRole, server.getSystemName(), server.getSystemId());
 
         // Create run log with all denormalized fields
+        // Note: Log the actual server used (may differ from job's primary if failover occurred)
         long now = System.currentTimeMillis();
         String taskId = UUID.randomUUID().toString();
         String currentUserName = securityUtils.getCurrentUserId();
         JobRunLogVO runLog = JobRunLogVO.builder()
                 .jobId(jobId)
                 .jobName(job.getJobName())
-                .systemId(job.getSystemId())
-                .systemName(job.getSystemName())
+                .systemId(server.getSystemId())  // Use actual server used (may be failover)
+                .systemName(server.getSystemName())
                 .groupId(job.getGroupId())
                 .groupName(job.getGroupName())
                 .celeryTaskName(taskId)  // maps to task_id
@@ -379,6 +420,7 @@ public class JobService {
                 .jobType(JobType.valueOf(job.getJobType()))
                 .jobAction(job.getJobAction())
                 .jobBody(job.getJobBody())
+                .jobHeaders(job.getJobHeaders())
                 .maxDurationSeconds(parseMaxDuration(job.getMaxRunDuration()))
                 .retryCount(job.getMaxFailure() != null ? job.getMaxFailure() : 0)
                 .retryDelay(job.getRetryDelay() != null ? job.getRetryDelay() : 0)
@@ -449,5 +491,69 @@ public class JobService {
         }
 
         log.info("Updated job status: jobId={}, isEnabled={}, newState={}", jobId, isEnabled, newState);
+    }
+
+    /**
+     * Get available server with failover support.
+     * Tries primary -> secondary -> tertiary in order.
+     * Returns first server that is ONLINE and healthy.
+     */
+    private JobServerVO getAvailableServer(JobVO job) {
+        // Try primary server
+        if (job.getSystemId() != null) {
+            JobServerVO primary = serverMapper.findById(job.getSystemId());
+            if (isServerAvailable(primary)) {
+                return primary;
+            }
+            log.info("Primary server {} is unavailable for job {}", job.getSystemId(), job.getJobId());
+        }
+
+        // Try secondary server
+        if (job.getSecondarySystemId() != null) {
+            JobServerVO secondary = serverMapper.findById(job.getSecondarySystemId());
+            if (isServerAvailable(secondary)) {
+                log.info("Failover to secondary server {} for job {}", job.getSecondarySystemId(), job.getJobId());
+                return secondary;
+            }
+            log.info("Secondary server {} is unavailable for job {}", job.getSecondarySystemId(), job.getJobId());
+        }
+
+        // Try tertiary server
+        if (job.getTertiarySystemId() != null) {
+            JobServerVO tertiary = serverMapper.findById(job.getTertiarySystemId());
+            if (isServerAvailable(tertiary)) {
+                log.info("Failover to tertiary server {} for job {}", job.getTertiarySystemId(), job.getJobId());
+                return tertiary;
+            }
+            log.info("Tertiary server {} is unavailable for job {}", job.getTertiarySystemId(), job.getJobId());
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if server is available (ONLINE and healthy)
+     */
+    private boolean isServerAvailable(JobServerVO server) {
+        if (server == null) {
+            return false;
+        }
+        boolean isOnline = "ONLINE".equals(server.getAgentStatus());
+        boolean isHealthy = Boolean.TRUE.equals(server.getIsHealthy());
+        return isOnline && isHealthy;
+    }
+
+    /**
+     * Determine the role of the selected server (primary, secondary, or tertiary)
+     */
+    private String determineServerRole(JobVO job, String selectedSystemId) {
+        if (selectedSystemId.equals(job.getSystemId())) {
+            return "primary";
+        } else if (selectedSystemId.equals(job.getSecondarySystemId())) {
+            return "secondary";
+        } else if (selectedSystemId.equals(job.getTertiarySystemId())) {
+            return "tertiary";
+        }
+        return "unknown";
     }
 }

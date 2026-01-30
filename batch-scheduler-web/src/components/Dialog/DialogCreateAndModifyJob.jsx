@@ -8,6 +8,7 @@ import {
   Tabs,
 } from '@mui/material';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useJobForm from '../../hook/useJobForm';
 import ActionInfoTab from '../Tab/ActionInfoTab';
 import ScheduleInfoTab from '../Tab/ScheduleInfoTab';
@@ -18,6 +19,7 @@ import useModal from '../../hook/useModal.jsx';
 import BaseButton from '../CustomInput/BaseButton';
 
 const DialogCreateAndModifyJob = ({ open, onClose, data, mutate }) => {
+  const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const [tabIndex, setTabIndex] = useState(0);
   const [formData, setFormData] = useState({});
@@ -84,8 +86,8 @@ const DialogCreateAndModifyJob = ({ open, onClose, data, mutate }) => {
         }}
       >
         {data
-          ? 'Modification of Scheduler Job'
-          : 'Creation of New Scheduler Job'}
+          ? t('modificationOfSchedulerJob')
+          : t('creationOfNewSchedulerJob')}
       </DialogTitle>
       <Tabs
         value={tabIndex}
@@ -118,8 +120,8 @@ const DialogCreateAndModifyJob = ({ open, onClose, data, mutate }) => {
           },
         }}
       >
-        <Tab label="Schedule Info" />
-        <Tab label="Action Info" />
+        <Tab label={t('scheduleInfo')} />
+        <Tab label={t('actionInfo')} />
       </Tabs>
       <DialogContent sx={{ padding: '16px 20px' }}>
         <form>
@@ -138,7 +140,7 @@ const DialogCreateAndModifyJob = ({ open, onClose, data, mutate }) => {
             }}
           >
             <BaseButton onClick={handleCancel} theme="secondary">
-              Cancel
+              {t('cancel')}
             </BaseButton>
             <BaseButton
               disabled={user?.user_type !== 0}
@@ -146,18 +148,18 @@ const DialogCreateAndModifyJob = ({ open, onClose, data, mutate }) => {
               theme="primary"
               onClick={form.handleSubmit(submitFormData)}
             >
-              {form.formState.isSubmitting ? 'Saving...' : 'Save'}
+              {form.formState.isSubmitting ? t('saving') : t('save')}
             </BaseButton>
             <ConfirmDialog
               widthClassName="w-100"
               openConfirm={isSaveConfirm}
               setCloseConfirm={closeConfirmModal}
-              title="Save"
+              title={t('save')}
               callback={() => form.onSubmit(formData)}
             >
               <div className="w-full text-lg">
                 <p>
-                  <strong>Do you want to save the Scheduler Job?</strong>
+                  <strong>{t('doYouWantToSaveJob')}</strong>
                 </p>
               </div>
             </ConfirmDialog>

@@ -9,6 +9,8 @@ export const failStates = [
   'failed',
   'STOPPED',
   'stopped',
+  'TIMEOUT',
+  'timeout',
 ];
 export const successStates = [
   'success',
@@ -27,7 +29,7 @@ export const runningStates = [
   'assigned',
 ];
 
-export const standbyStates = ['STANDBY', 'standby', 'PENDING', 'pending', 'WAITING', 'waiting'];
+export const standbyStates = ['STANDBY', 'standby', 'PENDING', 'pending', 'WAITING', 'waiting', 'DISABLED', 'disabled'];
 
 export const completedStates = [
   'COMPLETED',

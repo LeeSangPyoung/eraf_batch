@@ -55,12 +55,12 @@ const WorkflowTable = ({
     <TableWrapper minusHeight="300px">
       <TableHead>
         <TableRow className="bg-white  sticky top-[-1px]">
-          <TableCell style={styleHeaderTable}>{t('Workflow Name')}</TableCell>
-          <TableCell style={styleHeaderTable}>{t('Group')}</TableCell>
-          <TableCell style={styleHeaderTable}>{t('Status')}</TableCell>
-          <TableCell style={styleHeaderTable}>{t('Created Date')}</TableCell>
-          <TableCell style={styleHeaderTable}>{t('Last Start Date')}</TableCell>
-          <TableCell style={styleHeaderTable}>{t('Next Start Time')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('workflowName')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('group')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('status')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('createdDate')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('lastStartDate')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('nextStartTime')}</TableCell>
         </TableRow>
       </TableHead>
       <TableBody className="transition">
@@ -85,7 +85,7 @@ const WorkflowTable = ({
                   {row.workflow_name}
                   {(!row.start_date || !row.repeat_interval) && (
                     <span style={{ float: 'right' }}>
-                      <Chip label="NEED UPDATE" color="error" />
+                      <Chip label={t('needUpdate')} color="error" />
                     </span>
                   )}
                 </TableCell>

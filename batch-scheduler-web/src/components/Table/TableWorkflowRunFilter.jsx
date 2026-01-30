@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import useGroupsStore from '../../hook/store/useGroupStore';
 import useWorkflowStore from '../../hook/store/useWorkflowStore';
 import useFilterData from '../../hook/useFilterData';
@@ -17,6 +18,7 @@ function TableWorkflowRunFilter({
   handleValueChange,
   handleInputChange,
 }) {
+  const { t } = useTranslation();
   const workflowFilter = useWorkflowStore((state) => state.workflows);
   const groupFilter = useGroupsStore((state) => state.groups);
   const setGroup = useGroupsStore((state) => state.setGroup);
@@ -102,7 +104,7 @@ function TableWorkflowRunFilter({
             onInputChange={(event, newValue) => {
               setWorkflowSearchTextInput(newValue);
             }}
-            content="Workflow"
+            content={t('workflow-label')}
             ListboxProps={{
               onScroll: handleWorkflowScroll,
             }}
@@ -119,14 +121,14 @@ function TableWorkflowRunFilter({
             onInputChange={(event, newValue) => {
               setGroupSearchTextInput(newValue);
             }}
-            content="Group"
+            content={t('group')}
             ListboxProps={{
               onScroll: handleGroupScroll,
             }}
           />
           <SearchTextField
             value={searchTerm}
-            content="Search"
+            content={t('search')}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </>
@@ -143,15 +145,15 @@ function TableWorkflowRunFilter({
         onInputChange={(event, newValue) =>
           handleInputChange(event, newValue, 'status')
         }
-        content="Status"
+        content={t('status')}
       />
       <BaseDatePicker
-        content="From"
+        content={t('from')}
         value={inputCombo.from}
         onChange={(newValue) => handleValueChange('', newValue, 'from')}
       />
       <BaseDatePicker
-        content="To"
+        content={t('to')}
         value={inputCombo.to}
         onChange={(newValue) => handleValueChange('', newValue, 'to')}
       />

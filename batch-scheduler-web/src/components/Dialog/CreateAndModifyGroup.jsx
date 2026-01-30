@@ -56,7 +56,7 @@ const CreateAndModifyGroup = ({
     try {
       const response = await api.delete(`/group/delete?groupId=${data.id}`);
       if (response.data.success) {
-        toast.success('Group deleted successfully');
+        toast.success(t('groupDeletedSuccess'));
         if (setVisibleGroups) setVisibleGroups([]);
         if (mutate) mutate();
         onClose();
@@ -64,7 +64,7 @@ const CreateAndModifyGroup = ({
         toast.error(response.data.error_msg, { autoClose: false });
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error deleting group', { autoClose: false });
+      toast.error(error.response?.data?.message || t('errorDeletingGroup'), { autoClose: false });
     } finally {
       setLoading(false);
     }
@@ -109,7 +109,7 @@ const CreateAndModifyGroup = ({
           letterSpacing: '-0.01em',
         }}
       >
-        {data ? 'Update Group' : 'Create Group'}
+        {data ? t('updateGroup') : t('createGroup')}
       </DialogTitle>
       <IconButton
         aria-label="close"
@@ -136,13 +136,13 @@ const CreateAndModifyGroup = ({
             <TextInput
               control={control}
               name="group_name"
-              content="Group Name"
+              content={t('groupName')}
               required
             />
             <BaseTextArea
               control={control}
               name="group_comments"
-              content="Comments"
+              content={t('comments')}
             />
           </Box>
           <Box
@@ -156,18 +156,18 @@ const CreateAndModifyGroup = ({
             }}
           >
             <BaseButton onClick={openCancelConfirmModal} theme="light">
-              Cancel
+              {t('cancel')}
             </BaseButton>
             <ConfirmDialog
               widthClassName="w-100"
               openConfirm={isCancelConfirm}
               setCloseConfirm={closeCancelConfirmModal}
-              title="Cancel"
+              title={t('cancel')}
               callback={handleCancel}
             >
               <div className="w-full text-lg">
                 <p>
-                  <strong>Are you sure you want to close this dialog?</strong>
+                  <strong>{t('doYouWantToCloseDialog')}</strong>
                 </p>
               </div>
             </ConfirmDialog>
@@ -179,22 +179,22 @@ const CreateAndModifyGroup = ({
                   onClick={openDeleteConfirmModal}
                   disabled={loading}
                 >
-                  Delete
+                  {t('delete')}
                 </BaseButton>
                 <ConfirmDialog
                   widthClassName="w-100"
                   openConfirm={isDeleteConfirm}
                   setCloseConfirm={closeDeleteConfirmModal}
-                  title="Delete"
+                  title={t('delete')}
                   callback={handleDelete}
                 >
                   <div className="w-full text-lg">
                     <p>
-                      <strong>Are you sure you want to delete this group?</strong>
+                      <strong>{t('doYouWantToDeleteGroup')}</strong>
                     </p>
                     <br />
                     <p>
-                      Group Name:{' '}
+                      {t('groupName')}:{' '}
                       <span className="text-red-500">{data?.group_name}</span>
                     </p>
                   </div>
@@ -203,7 +203,7 @@ const CreateAndModifyGroup = ({
             )}
 
             <BaseButton type="submit" theme="dark">
-              Save
+              {t('save')}
             </BaseButton>
           </Box>
         </form>
@@ -211,13 +211,13 @@ const CreateAndModifyGroup = ({
           widthClassName="w-100"
           openConfirm={isSaveConfirm}
           setCloseConfirm={closeSaveConfirmModal}
-          title={data ? 'Update' : 'Create'}
+          title={data ? t('update') : t('create')}
           callback={handleConfirmSave}
         >
           <div className="w-full text-lg">
             <p>
               <strong>
-                {data ? 'Are you sure you want to update this group?' : 'Are you sure you want to create this group?'}
+                {data ? t('doYouWantToUpdateGroup') : t('doYouWantToCreateGroup')}
               </strong>
             </p>
           </div>

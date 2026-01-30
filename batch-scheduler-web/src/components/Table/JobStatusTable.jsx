@@ -73,16 +73,16 @@ function JobStatusTable({
           <TableCell style={{ ...styleHeaderTable, maxWidth: '250px' }}>
             {t('job_name')}
           </TableCell>
-          <TableCell style={styleHeaderTable}>Enable</TableCell>
+          <TableCell style={styleHeaderTable}>{t('enable')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('current_state')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('wf_registered')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('schedule')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('last_start_date')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('last_result')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('duration')}</TableCell>
-          <TableCell style={styleHeaderTable}>Run count</TableCell>
-          <TableCell style={styleHeaderTable}>Failure count</TableCell>
-          <TableCell style={styleHeaderTable}>Retry count</TableCell>
+          <TableCell style={styleHeaderTable}>{t('runCount')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('failureCount')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('retryCount')}</TableCell>
         </TableRow>
       </TableHead>
       <TableBody style={{ maxHeight: '100%', overflowY: 'auto' }}>
@@ -111,15 +111,9 @@ function JobStatusTable({
               </TableCell>
               <TableCell
                 style={styleTableCell}
-                sx={colorIndicator(row.current_state)}
+                sx={colorIndicator(row.enable === false ? 'DISABLED' : row.current_state)}
               >
-                <DotStatus value={row.current_state} />
-                {/* <CustomChip
-                  label={row.current_state}
-                  sx={colorIndicator(row.current_state)}
-                  // @ts-ignore
-                  bgcolor={styleChipBackground(row.current_state)}
-                /> */}
+                <DotStatus value={row.enable === false ? 'DISABLED' : row.current_state} />
               </TableCell>
               <TableCell style={styleTableCell}>
                 {row.workflow_id !== null ? 'Yes' : 'No'}
