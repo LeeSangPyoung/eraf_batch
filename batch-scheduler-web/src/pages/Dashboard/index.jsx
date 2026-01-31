@@ -297,14 +297,13 @@ const Dashboard = () => {
     return dayjs(timestamp).format('MM/DD HH:mm');
   };
 
-  // Process data for hourly chart (today only, up to current hour)
+  // Process data for hourly chart (today only, all 24 hours)
   const hourlyData = useMemo(() => {
-    const currentHour = dayjs().hour();
     const todayStart = dayjs().startOf('day').valueOf();
     const todayEnd = dayjs().endOf('day').valueOf();
 
-    // Only show hours up to current hour
-    const hourCounts = Array.from({ length: currentHour + 1 }, (_, i) => ({
+    // Show all 24 hours
+    const hourCounts = Array.from({ length: 24 }, (_, i) => ({
       hour: `${i.toString().padStart(2, '0')}:00`,
       total: 0,
       success: 0,
@@ -321,7 +320,7 @@ const Dashboard = () => {
       const timestamp = log.req_start_date || log.actual_start_date;
       if (!timestamp) return;
       const hour = dayjs(timestamp).hour();
-      if (hour <= currentHour && hourCounts[hour]) {
+      if (hourCounts[hour]) {
         hourCounts[hour].total++;
         if (log.status === 'SUCCESS' || log.status === 'COMPLETED') {
           hourCounts[hour].success++;
@@ -363,24 +362,39 @@ const Dashboard = () => {
     return Object.values(dayMap);
   }, [logs, startDate, endDate]);
 
-  // Process data for pie chart
+  // Process data for pie chart - show all statuses individually
   const pieData = useMemo(() => {
-    let success = 0, failed = 0, running = 0, other = 0;
+    const statusCounts = {};
 
     logs.forEach(log => {
-      if (log.status === 'SUCCESS' || log.status === 'COMPLETED') success++;
-      else if (log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT') failed++;
-      else if (log.status === 'RUNNING') running++;
-      else other++;
+      const status = log.status || 'UNKNOWN';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
     });
 
-    return [
-      { name: t('success'), value: success, color: CHART_COLORS.success },
-      { name: t('failed'), value: failed, color: CHART_COLORS.failed },
-      { name: t('running'), value: running, color: CHART_COLORS.running },
-      { name: t('other'), value: other, color: '#86868B' },
-    ].filter(d => d.value > 0);
-  }, [logs, t]);
+    // Define colors for each status
+    const statusColors = {
+      'SUCCESS': CHART_COLORS.success,
+      'COMPLETED': CHART_COLORS.success,
+      'FAILED': CHART_COLORS.failed,
+      'FAILURE': CHART_COLORS.failed,
+      'BROKEN': '#FF6B6B',
+      'TIMEOUT': '#FF9500',
+      'RUNNING': CHART_COLORS.running,
+      'PENDING': '#A0A0A5',
+      'STARTED': '#5AC8FA',
+      'SKIPPED': '#C7C7CC',
+      'REVOKED': '#AF52DE',
+    };
+
+    return Object.entries(statusCounts)
+      .map(([status, count]) => ({
+        name: status,
+        value: count,
+        color: statusColors[status] || '#86868B',
+      }))
+      .filter(d => d.value > 0)
+      .sort((a, b) => b.value - a.value); // Sort by count descending
+  }, [logs]);
 
   // Find peak hour
   const peakHour = useMemo(() => {

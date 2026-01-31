@@ -57,6 +57,7 @@ const WorkflowTable = ({
         <TableRow className="bg-white  sticky top-[-1px]">
           <TableCell style={styleHeaderTable}>{t('workflowName')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('group')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('repeatInterval')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('status')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('createdDate')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('lastStartDate')}</TableCell>
@@ -90,6 +91,7 @@ const WorkflowTable = ({
                   )}
                 </TableCell>
                 <TableCell style={styleTableCell}>{row.group}</TableCell>
+                <TableCell style={styleTableCell}>{row.repeat_interval || '-'}</TableCell>
                 <TableCell
                   style={styleTableCell}
                   sx={colorIndicator(row.latest_status)}

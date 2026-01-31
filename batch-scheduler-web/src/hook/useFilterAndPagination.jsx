@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 const useFilterAndPagination = ({jobId, groupId, search} = {jobId: '', groupId: '', search: ''}) => {
@@ -7,6 +7,13 @@ const useFilterAndPagination = ({jobId, groupId, search} = {jobId: '', groupId: 
   const [job, setJob] = useState(jobNavigate ? jobNavigate : 'all');
   const [server, setServer] = useState('all');
   const [group, setGroup] = useState(groupId || 'all');
+
+  // Update job when jobId prop changes
+  useEffect(() => {
+    if (jobId) {
+      setJob(jobId);
+    }
+  }, [jobId]);
   const [workflow, setWorkflow] = useState('all');
   const [searchTerm, setSearchTerm] = useState(search);
   const [pageSize, setPageSize] = useState(30);

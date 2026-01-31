@@ -29,6 +29,7 @@ import JobResultTable from '../Table/JobResultTable.jsx';
 import { ConfirmDialog } from './ConfirmDialog.jsx';
 import DialogCreateAndModifyJob from './DialogCreateAndModifyJob';
 import RepeatInterval from './RepeatInterval';
+import RealtimeLogViewer from '../Log/RealtimeLogViewer';
 
 const JobDetailTab = (props) => {
   const user = useAuthStore((state) => state.user);
@@ -589,19 +590,35 @@ const JobHistoryTab = (props) => {
 function JobStatusDetail({ open, onClose, data, mutate }) {
   const { t } = useTranslation();
   const [tabIndex, setTabIndex] = useState(0);
-  const [r, setR] = useState(() => Math.random());
+  // Get job result data for log viewer
+  const {
+    jobResultData: logJobResults,
+    refreshData: refreshLogResults,
+  } = useJobResult({ jobId: data?.job_id });
+
   // @ts-ignore
   const handleChangeTab = (event, newValue) => {
     setTabIndex(newValue);
-  };
-
-  const refreshServerLogData = () => {
-    setR(Math.random());
+    // Refresh log results when switching to log tab
+    if (newValue === 2) {
+      refreshLogResults();
+    }
   };
 
   const handleClose = () => {
     setTabIndex(0); // Reset to first tab
     onClose();
+  };
+
+  // Get the RUNNING task or the latest result (use log_id for SSE channel)
+  const getActiveTaskId = () => {
+    if (logJobResults && logJobResults.length > 0) {
+      // Find running task first, otherwise get the most recent one
+      const runningTask = logJobResults.find(r => r.status === 'RUNNING');
+      if (runningTask) return String(runningTask.log_id);
+      return String(logJobResults[0]?.log_id);
+    }
+    return null;
   };
 
   return (
@@ -701,61 +718,26 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
         {tabIndex === 1 && <JobHistoryTab data={data} />}
         {tabIndex === 2 && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <BaseButton
-                onClick={refreshServerLogData}
-                theme="secondary"
-                size="small"
-              >
-                {t('refresh')}
-              </BaseButton>
-              <BaseButton
-                theme="primary"
-                size="small"
-                onClick={() => {
-                  // @ts-ignore
-                  window.open(
-                    import.meta.env.VITE_SERVER_LOG_URL +
-                      '/d/' +
-                      import.meta.env.VITE_SERVER_LOG_DASHBOARD_ID +
-                      '/worker-logs?orgId=1&from=' +
-                      (Date.now() - 24 * 60 * 60 * 1000) +
-                      '&to=' +
-                      Date.now() +
-                      '&timezone=browser&var-job_id=' +
-                      data?.job_id,
-                  );
-                }}
-              >
-                {t('goToDashboard')}
-              </BaseButton>
-            </Box>
-            <Box
-              sx={{
-                borderRadius: '12px',
-                overflow: 'hidden',
-                border: '1px solid #E8E8ED',
-              }}
-            >
-              <iframe
-                key={r}
-                style={{ width: '100%', border: 'none' }}
-                src={
-                  // @ts-ignore
-                  import.meta.env.VITE_SERVER_LOG_URL +
-                  '/d-solo/' +
-                  import.meta.env.VITE_SERVER_LOG_DASHBOARD_ID +
-                  '/worker-logs?orgId=1&from=' +
-                  (Date.now() - 24 * 60 * 60 * 1000) +
-                  '&to=' +
-                  Date.now() +
-                  '&timezone=browser&var-job_id=' +
-                  data?.job_id +
-                  '&panelId=1&__feature.dashboardSceneSolo'
-                }
-                height="450px"
+            {/* Real-time log viewer - automatically shows RUNNING or latest result */}
+            {logJobResults && logJobResults.length > 0 && getActiveTaskId() ? (
+              <RealtimeLogViewer
+                key={getActiveTaskId()}
+                taskId={getActiveTaskId()}
+                jobId={data?.job_id}
+                isRunning={logJobResults.find(r => String(r.log_id) === getActiveTaskId())?.status === 'RUNNING'}
               />
-            </Box>
+            ) : (
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                minHeight: '200px',
+                color: '#86868B',
+                fontSize: '14px',
+              }}>
+                {t('noLogsYet') || 'No execution history yet.'}
+              </Box>
+            )}
           </Box>
         )}
       </DialogContent>

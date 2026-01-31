@@ -53,6 +53,7 @@ public class SecurityConfig {
                     "/health",
                     "/ws/**",
                     "/logs/**",
+                    "/api/logs/**",
                     "/error"
                 ).permitAll()
                 // Admin only endpoints

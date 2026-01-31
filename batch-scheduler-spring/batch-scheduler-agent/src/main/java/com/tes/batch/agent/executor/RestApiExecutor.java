@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tes.batch.common.dto.JobMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -16,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Executor for REST API type jobs
+ * Executor for REST API type jobs with real-time log streaming
  */
 @Slf4j
 @Component
@@ -25,9 +26,15 @@ public class RestApiExecutor {
 
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
+    private final StringRedisTemplate redisTemplate;
+
+    private static final String LOG_CHANNEL_PREFIX = "job:log:";
+    private static final String LOG_BUFFER_PREFIX = "job:log:buffer:";
+    private static final int LOG_BUFFER_MAX_SIZE = 1000;
+    private static final int LOG_BUFFER_TTL_HOURS = 24;
 
     /**
-     * Execute REST API call
+     * Execute REST API call with real-time log streaming
      *
      * @param message Job message containing URL and body
      * @return Response body as string
@@ -36,13 +43,15 @@ public class RestApiExecutor {
         String action = message.getJobAction();
         String body = message.getJobBody();
         String headersJson = message.getJobHeaders();
+        String taskId = message.getTaskId();
         Duration timeout = message.getMaxDuration() != null ? message.getMaxDuration() : Duration.ofMinutes(5);
+        String logChannel = LOG_CHANNEL_PREFIX + taskId;
 
         // Parse method and URL from action
         HttpMethod method = determineMethod(action);
         String url = stripMethodPrefix(action);
 
-        log.info("Executing REST API call: {} {} (timeout: {})", method, url, timeout);
+        log.info("Executing REST API call: {} {} (timeout: {}, logChannel: {})", method, url, timeout, logChannel);
 
         try {
             WebClient webClient = webClientBuilder.build();
@@ -85,14 +94,56 @@ public class RestApiExecutor {
                     .block();
 
             log.info("REST API call completed successfully: {} {}", method, url);
+            // Publish response (truncated if too long)
+            if (response != null) {
+                publishLog(logChannel, truncateForLog(response, 2000));
+            }
+            publishLog(logChannel, "[END]");
+
             return response;
 
         } catch (JobTimeoutException e) {
+            publishLog(logChannel, "[END]");
             throw e;
         } catch (Exception e) {
             log.error("REST API call failed: {} {}", method, url, e);
+            publishLog(logChannel, "[END]");
             throw new RuntimeException("REST API call failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Publish log line to Redis channel and buffer for late subscribers
+     */
+    private void publishLog(String channel, String message) {
+        try {
+            // Publish to Pub/Sub for real-time subscribers (raw output without timestamp)
+            redisTemplate.convertAndSend(channel, message);
+
+            // Also store in a LIST for late subscribers (buffer)
+            String bufferKey = channel.replace(LOG_CHANNEL_PREFIX, LOG_BUFFER_PREFIX);
+            redisTemplate.opsForList().rightPush(bufferKey, message);
+
+            // Trim buffer to max size
+            redisTemplate.opsForList().trim(bufferKey, -LOG_BUFFER_MAX_SIZE, -1);
+
+            // Set TTL if not already set
+            if (Boolean.FALSE.equals(redisTemplate.hasKey(bufferKey + ":ttl"))) {
+                redisTemplate.expire(bufferKey, Duration.ofHours(LOG_BUFFER_TTL_HOURS));
+                redisTemplate.opsForValue().set(bufferKey + ":ttl", "1", Duration.ofHours(LOG_BUFFER_TTL_HOURS));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to publish log to Redis: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Truncate string for logging
+     */
+    private String truncateForLog(String str, int maxLength) {
+        if (str == null) return "null";
+        if (str.length() <= maxLength) return str;
+        return str.substring(0, maxLength) + "... (truncated, total " + str.length() + " chars)";
     }
 
     /**

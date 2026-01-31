@@ -95,4 +95,9 @@ public interface JobRunLogMapper {
             @Param("endDate") Long endDate,
             @Param("errors") String errors
     );
+
+    /**
+     * Find log by task ID for real-time log streaming
+     */
+    JobRunLogVO selectByTaskId(@Param("taskId") String taskId);
 }

@@ -32,8 +32,8 @@ const useJobResult = ({jobId} = {jobId: ''}) => {
     isLoading: loading,
     mutate,
   } = useSWR(
-    ['/logs/filter', pageSize, pageNumber],
-    async ([url, pageSize, pageNumber]) => {
+    ['/logs/filter', job, pageSize, pageNumber],
+    async ([url, currentJob, pageSize, pageNumber]) => {
       try {
         const input = {
           ...(job !== 'all' && { job_id: job }),

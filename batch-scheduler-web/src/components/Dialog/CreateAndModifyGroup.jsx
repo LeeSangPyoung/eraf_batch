@@ -40,11 +40,6 @@ const CreateAndModifyGroup = ({
     openModal: openSaveConfirmModal,
     closeModal: closeSaveConfirmModal,
   } = useModal();
-  const {
-    isVisible: isCancelConfirm,
-    openModal: openCancelConfirmModal,
-    closeModal: closeCancelConfirmModal,
-  } = useModal();
 
   const handleCancel = () => {
     reset();
@@ -113,7 +108,7 @@ const CreateAndModifyGroup = ({
       </DialogTitle>
       <IconButton
         aria-label="close"
-        onClick={openCancelConfirmModal}
+        onClick={handleCancel}
         sx={{
           position: 'absolute',
           right: 16,
@@ -155,22 +150,9 @@ const CreateAndModifyGroup = ({
               borderTop: '1px solid #E8E8ED',
             }}
           >
-            <BaseButton onClick={openCancelConfirmModal} theme="light">
+            <BaseButton onClick={handleCancel} theme="light">
               {t('cancel')}
             </BaseButton>
-            <ConfirmDialog
-              widthClassName="w-100"
-              openConfirm={isCancelConfirm}
-              setCloseConfirm={closeCancelConfirmModal}
-              title={t('cancel')}
-              callback={handleCancel}
-            >
-              <div className="w-full text-lg">
-                <p>
-                  <strong>{t('doYouWantToCloseDialog')}</strong>
-                </p>
-              </div>
-            </ConfirmDialog>
 
             {data && user?.user_type === 0 && (
               <>

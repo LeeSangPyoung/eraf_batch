@@ -254,4 +254,13 @@
           AND status IN ('RUNNING', 'PENDING')
     </update>
 
+    <!-- Select by Task ID for real-time log streaming -->
+    <select id="selectByTaskId" resultMap="JobRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_run_logs
+        WHERE task_id = #{taskId}
+        ORDER BY log_id DESC
+        LIMIT 1
+    </select>
+
 </mapper>

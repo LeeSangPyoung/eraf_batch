@@ -266,7 +266,6 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                   control={control}
                   content={t('group')}
                   options={groups}
-                  height="50px"
                   required
                 />
               )}

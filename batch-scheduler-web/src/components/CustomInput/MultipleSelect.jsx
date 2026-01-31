@@ -22,14 +22,18 @@ const ITEM_PADDING_TOP = 8;
 const MenuProps = {
   PaperProps: {
     sx: {
-      borderRadius: '0',
-
+      borderRadius: '12px',
+      marginTop: '4px',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+      border: '1px solid #E8E8ED',
       ul: {
-        padding: 0,
+        padding: '4px',
 
         li: {
-          borderRadius: '0',
-          padding: '15px',
+          borderRadius: '8px',
+          padding: '8px 12px',
+          fontSize: '14px',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
           '& .PrivateSwitchBase-input': {
             border: '1px solid black',
           },
@@ -52,19 +56,22 @@ export default function MultipleSelectChip({
   className,
   options,
   required,
-  height = '50px',
+  height = '36px',
   ...props
 }) {
   return (
     <Box className={clsx('w-full', className)}>
       {content && (
         <Typography
-          className={clsx(
-            'text-sm font-medium ',
-            textStyles ?? 'text-secondaryGray',
-          )}
+          sx={{
+            fontSize: '12px',
+            fontWeight: 500,
+            color: '#1D1D1F',
+            marginBottom: '4px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+          }}
         >
-          {content} {required && <span className="text-red-500"> *</span>}
+          {content} {required && <span style={{ color: '#FF3B30' }}> *</span>}
         </Typography>
       )}
       <Controller
@@ -99,16 +106,28 @@ export default function MultipleSelectChip({
               error={!!error}
               MenuProps={MenuProps}
               sx={{
-                background: 'white',
+                background: '#FFFFFF',
                 height: height,
+                minHeight: '36px',
+                borderRadius: '12px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                fontSize: '14px',
+                transition: 'all 0.2s ease',
+                '& .MuiSelect-select': {
+                  padding: '0 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                },
                 '& .MuiOutlinedInput-notchedOutline': {
-                  border: error ? '1px solid #d32f2f' : '1px solid #E9EAEB',
+                  border: error ? '2px solid #FF3B30' : '1px solid #D2D2D7',
+                  borderRadius: '12px',
+                  transition: 'border-color 0.2s ease',
                 },
                 '&:hover .MuiOutlinedInput-notchedOutline': {
-                  border: error ? '1px solid #d32f2f' : '1px solid #E9EAEB',
+                  borderColor: error ? '#FF3B30' : '#86868B',
                 },
                 '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  border: error ? '1px solid #d32f2f' : '1px solid #E9EAEB',
+                  border: error ? '2px solid #FF3B30' : '2px solid #0071E3',
                 },
                 '.MuiList-root': {
                   padding: '0',
@@ -122,14 +141,21 @@ export default function MultipleSelectChip({
                   key={opt.name}
                   value={opt.id}
                   sx={{
-                    margin: '0 2px',
-                    borderRadius: '10px !important',
+                    margin: '2px',
+                    borderRadius: '8px !important',
+                    transition: 'background-color 0.15s ease',
                     '& .MuiCheckbox-root': {
                       padding: '0',
                       paddingRight: '10px',
                     },
+                    '&:hover': {
+                      backgroundColor: '#F5F5F7',
+                    },
                     '&.Mui-selected': {
-                      backgroundColor: 'transparent !important',
+                      backgroundColor: 'rgba(0, 113, 227, 0.08) !important',
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 113, 227, 0.12) !important',
+                      },
                     },
                   }}
                 >
@@ -137,18 +163,37 @@ export default function MultipleSelectChip({
                     checked={field.value.includes(opt.id)}
                     sx={{
                       '& .MuiSvgIcon-root': {
-                        color: '#E9EAEB',
+                        color: '#D2D2D7',
+                        fontSize: '20px',
                       },
                       '&.Mui-checked .MuiSvgIcon-root': {
-                        color: '#FABB18',
+                        color: '#0071E3',
                       },
                     }}
                   />
-                  <ListItemText primary={opt.name} />
+                  <ListItemText
+                    primary={opt.name}
+                    sx={{
+                      '& .MuiTypography-root': {
+                        fontSize: '14px',
+                        fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                      },
+                    }}
+                  />
                 </MenuItem>
               ))}
             </Select>
-            <FormHelperText error={!!error}>{error?.message}</FormHelperText>
+            <FormHelperText
+              error={!!error}
+              sx={{
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+                fontSize: '12px',
+                marginTop: '6px',
+                marginLeft: '4px',
+              }}
+            >
+              {error?.message}
+            </FormHelperText>
           </FormControl>
         )}
       />
