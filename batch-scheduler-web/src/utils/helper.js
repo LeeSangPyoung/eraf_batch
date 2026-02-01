@@ -5,6 +5,7 @@ import utc from 'dayjs/plugin/utc';
 import { twMerge } from 'tailwind-merge';
 import {
   completedStates,
+  scheduledStates,
   currentStateOptions,
   failStates,
   runningStates,
@@ -61,7 +62,10 @@ export function colorIndicator(state) {
     return { color: '#8E8E93' }; // Apple System Gray
   }
   if (completedStates.includes(state)) {
-    return { color: '#0071E3' }; // Apple Blue
+    return { color: '#86868B' }; // Apple Gray - Same as DELETED
+  }
+  if (scheduledStates.includes(state)) {
+    return { color: '#0071E3' }; // Apple Blue - Scheduled for next run
   }
   return { color: '#86868B' }; // Apple Gray
 }
@@ -80,7 +84,10 @@ export function backgroundIndicator(state) {
     return '#8E8E93'; // Apple System Gray
   }
   if (completedStates.includes(state)) {
-    return '#0071E3'; // Apple Blue
+    return '#86868B'; // Apple Gray - Same as DELETED
+  }
+  if (scheduledStates.includes(state)) {
+    return '#0071E3'; // Apple Blue - Scheduled for next run
   }
   return '#86868B'; // Apple Gray
 }

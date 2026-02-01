@@ -27,7 +27,7 @@ import BaseSelected from '../CustomInput/BaseSelected';
 import { styleHeaderTable } from '../Table/JobResultTable';
 import { TableWrapper } from '../Table/TableWrapper';
 
-const IGNORE_STATUS_JOB = ['RUNNING', 'SUCCESS', 'COMPLETED', 'BROKEN'];
+const IGNORE_STATUS_JOB = ['RUNNING', 'SUCCESS', 'COMPLETED', 'BROKEN', 'DELETED'];
 
 const JobOfWorkflowTable = ({ className, form, fields, handleFieldChange }) => {
   const { control, setLastChanged } = form;

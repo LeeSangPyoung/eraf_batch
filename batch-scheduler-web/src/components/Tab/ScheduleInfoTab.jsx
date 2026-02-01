@@ -1,6 +1,6 @@
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info.js';
-import { Box, IconButton, InputAdornment, Typography } from '@mui/material';
+import { Box, Chip, IconButton, Typography } from '@mui/material';
 import Button from '@mui/material/Button';
 import React, { useEffect, useState } from 'react';
 import SimpleBar from 'simplebar-react';
@@ -22,6 +22,7 @@ import RHFCheckbox from '../CustomInput/RHFCheckbox';
 import TextInput from '../CustomInput/TextInput';
 import CreateAndModifyGroup from '../Dialog/CreateAndModifyGroup';
 import RepeatIntervalDialog from '../Dialog/RepeatInterval.jsx';
+import RRuleBuilder from '../Dialog/RRuleBuilder.jsx';
 
 const ScheduleInfoTab = ({ data, form }) => {
   //Retrieve systems from global state
@@ -62,6 +63,12 @@ const ScheduleInfoTab = ({ data, form }) => {
     isVisible: isRepeatIntervalOpen,
     openModal: handleOpenRepeatInterval,
     closeModal: closeRepeatInterval,
+  } = useModal();
+
+  const {
+    isVisible: isRRuleBuilderOpen,
+    openModal: openRRuleBuilder,
+    closeModal: closeRRuleBuilder,
   } = useModal();
 
   useEffect(() => {
@@ -321,34 +328,110 @@ const ScheduleInfoTab = ({ data, form }) => {
             content="End Date & Time"
             disablePast
           />
-          <TextInput
-            control={control}
-            name="repeat_interval"
-            content="Repeat Interval"
-            required={true}
-            className="col-span-2"
-            InputProps={{
-              endAdornment:
-                startDateTime && isValidRepeatInterval() ? (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={handleOpenRepeatInterval}
-                      aria-label="info"
-                      sx={{
-                        padding: '6px',
-                        color: '#86868B',
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          color: '#0071E3',
-                          backgroundColor: 'rgba(0, 113, 227, 0.06)',
-                        },
-                      }}
-                    >
-                      <InfoIcon sx={{ fontSize: '20px' }} />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-            }}
+          {/* Repeat Interval with Presets - grouped together */}
+          <Box className="col-span-2">
+            <Typography
+              sx={{
+                fontSize: '12px',
+                fontWeight: 500,
+                color: '#1D1D1F',
+                marginBottom: '6px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
+              }}
+            >
+              Repeat Interval <span style={{ color: '#FF3B30' }}> *</span>
+            </Typography>
+            <Box
+              sx={{
+                border: '1px solid #E8E8ED',
+                borderRadius: '12px',
+                padding: '12px',
+                backgroundColor: '#FAFAFA',
+              }}
+            >
+              <Box sx={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <Box sx={{ flex: 1 }}>
+                  <TextInput
+                    control={control}
+                    name="repeat_interval"
+                  />
+                </Box>
+                {startDateTime && isValidRepeatInterval() && (
+                  <IconButton
+                    onClick={handleOpenRepeatInterval}
+                    aria-label="View scheduled runs"
+                    sx={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #E8E8ED',
+                      color: '#0071E3',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 113, 227, 0.06)',
+                        borderColor: '#0071E3',
+                      },
+                    }}
+                  >
+                    <InfoIcon sx={{ fontSize: '20px' }} />
+                  </IconButton>
+                )}
+              </Box>
+            {/* RRULE Presets */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
+              {[
+                { label: 'Every 1 min', value: 'FREQ=MINUTELY;INTERVAL=1' },
+                { label: 'Every 5 min', value: 'FREQ=MINUTELY;INTERVAL=5' },
+                { label: 'Hourly', value: 'FREQ=HOURLY;INTERVAL=1' },
+                { label: 'Daily', value: 'FREQ=DAILY;INTERVAL=1' },
+                { label: 'Weekly', value: 'FREQ=WEEKLY;INTERVAL=1' },
+                { label: 'Monthly', value: 'FREQ=MONTHLY;INTERVAL=1' },
+              ].map((preset) => (
+                <Chip
+                  key={preset.value}
+                  label={preset.label}
+                  size="small"
+                  onClick={() => setValue('repeat_interval', preset.value)}
+                  sx={{
+                    fontSize: '11px',
+                    height: '24px',
+                    backgroundColor: repeatInterval === preset.value ? '#0071E3' : '#FFFFFF',
+                    color: repeatInterval === preset.value ? '#FFFFFF' : '#1D1D1F',
+                    border: repeatInterval === preset.value ? 'none' : '1px solid #E8E8ED',
+                    '&:hover': {
+                      backgroundColor: repeatInterval === preset.value ? '#0077ED' : '#F5F5F7',
+                    },
+                    cursor: 'pointer',
+                  }}
+                />
+              ))}
+              <Chip
+                label="Custom..."
+                size="small"
+                onClick={openRRuleBuilder}
+                sx={{
+                  fontSize: '11px',
+                  height: '24px',
+                  backgroundColor: '#FFFFFF',
+                  color: '#0071E3',
+                  border: '1px solid #0071E3',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 113, 227, 0.06)',
+                  },
+                  cursor: 'pointer',
+                }}
+              />
+            </Box>
+            </Box>
+          </Box>
+
+          {/* RRULE Builder Dialog */}
+          <RRuleBuilder
+            open={isRRuleBuilderOpen}
+            onClose={closeRRuleBuilder}
+            onApply={(rrule) => setValue('repeat_interval', rrule)}
+            currentValue={repeatInterval}
           />
           {/* <NumberInput
             control={control}

@@ -34,6 +34,9 @@ export const standbyStates = ['STANDBY', 'standby', 'PENDING', 'pending', 'WAITI
 export const completedStates = [
   'COMPLETED',
   'completed',
+];
+
+export const scheduledStates = [
   'SCHEDULED',
   'scheduled',
   'RETRY SCHEDULED',
@@ -43,23 +46,19 @@ export const completedStates = [
 ];
 
 export const enableOptions = ['true', 'false'];
-export const wfRegisteredOptions = ['Yes', 'No'];
 export const currentStateOptions = [
-  'READY TO RUN',
-  'RUNNING',
   'SCHEDULED',
-  'RETRY SCHEDULED',
-  'BLOCKED',
-  'BROKEN',
+  'RUNNING',
+  'WAITING',
   'COMPLETED',
+  'BROKEN',
   'DISABLED',
-  'FAILED',
+  'STOPPED',
   'DELETED',
 ];
 
 export const workflowStatusOptions = [
-  'CREATED',
-  'ASSIGNED',
+  'PENDING',
   'RUNNING',
   'SUCCESS',
   'FAILED',
@@ -67,23 +66,15 @@ export const workflowStatusOptions = [
 
 export const workflowRunStatusOptions = ['RUNNING', 'SUCCESS', 'FAILED'];
 
-export const lastResultOptions = ['succeed', 'failed'];
+export const lastResultOptions = ['SUCCESS', 'FAILURE', 'TIMEOUT', 'REVOKED', 'RETRY'];
 
 export const operationOptions = [
-  'CREATE',
-  'BROKEN',
-  'COMPLETED',
-  'ENABLED',
-  'DISABLED',
   'RUN',
-  'RETRY_RUN',
-  'RECOVERY_RUN',
-  'SCHEDULED',
-  'READY_TO_RUN',
-  'RETRY_SCHEDULED',
-  'BLOCKED',
-  'FAILED',
-  'UPDATE',
+  'RETRY',
+  'COMPLETED',
+  'BROKEN',
+  'REVOKED',
+  'SKIPPED',
 ];
 
 export const httpRequestPattern =

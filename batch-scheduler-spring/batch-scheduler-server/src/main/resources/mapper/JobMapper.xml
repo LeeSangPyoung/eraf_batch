@@ -50,6 +50,7 @@
         <result property="creator" column="creator"/>
         <result property="lastResult" column="last_result"/>
         <result property="duration" column="duration"/>
+        <result property="workflowName" column="workflow_name"/>
     </resultMap>
 
     <!-- Base Column List -->
@@ -136,13 +137,17 @@
                g.group_name,
                u.user_name as creator,
                rl.status as last_result,
-               rl.duration as duration
+               rl.duration as duration,
+               COALESCE(w.workflow_name, w2.workflow_name) as workflow_name
         FROM scheduler_jobs j
         LEFT JOIN scheduler_job_servers s ON j.system_id = s.system_id
         LEFT JOIN scheduler_job_servers s2 ON j.secondary_system_id = s2.system_id
         LEFT JOIN scheduler_job_servers s3 ON j.tertiary_system_id = s3.system_id
         LEFT JOIN scheduler_job_groups g ON j.group_id = g.group_id
         LEFT JOIN scheduler_users u ON j.frst_reg_user_id = u.id
+        LEFT JOIN scheduler_workflow w ON j.workflow_id = w.id
+        LEFT JOIN scheduler_workflow_priority_group wpg ON j.priority_group_id = wpg.id
+        LEFT JOIN scheduler_workflow w2 ON wpg.workflow_id = w2.id
         LEFT JOIN LATERAL (
             SELECT log_id, status, duration FROM scheduler_job_run_logs
             WHERE job_id = j.job_id ORDER BY log_id DESC LIMIT 1
@@ -167,21 +172,17 @@
                 AND (
                     LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
                     OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
                 )
-            </if>
-            <if test="wfRegistered != null">
-                <if test="wfRegistered == true">
-                    AND j.workflow_id IS NOT NULL
-                </if>
-                <if test="wfRegistered == false">
-                    AND j.workflow_id IS NULL
-                </if>
             </if>
             <if test="lastStartDateFrom != null">
                 AND j.last_start_date &gt;= #{lastStartDateFrom}
             </if>
             <if test="lastStartDateTo != null">
                 AND j.last_start_date &lt;= #{lastStartDateTo}
+            </if>
+            <if test="lastResult != null and lastResult != ''">
+                AND rl.status = #{lastResult}
             </if>
         </where>
         ORDER BY j.job_name ASC
@@ -192,6 +193,9 @@
     <select id="countByFilters" resultType="long">
         SELECT COUNT(*)
         FROM scheduler_jobs j
+        LEFT JOIN scheduler_workflow w ON j.workflow_id = w.id
+        LEFT JOIN scheduler_workflow_priority_group wpg ON j.priority_group_id = wpg.id
+        LEFT JOIN scheduler_workflow w2 ON wpg.workflow_id = w2.id
         <where>
             <if test="jobId != null and jobId != ''">
                 AND j.job_id = #{jobId}
@@ -212,15 +216,8 @@
                 AND (
                     LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
                     OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
                 )
-            </if>
-            <if test="wfRegistered != null">
-                <if test="wfRegistered == true">
-                    AND j.workflow_id IS NOT NULL
-                </if>
-                <if test="wfRegistered == false">
-                    AND j.workflow_id IS NULL
-                </if>
             </if>
             <if test="lastStartDateFrom != null">
                 AND j.last_start_date &gt;= #{lastStartDateFrom}
@@ -238,13 +235,17 @@
                g.group_name,
                u.user_name as creator,
                rl.status as last_result,
-               rl.duration as duration
+               rl.duration as duration,
+               COALESCE(w.workflow_name, w2.workflow_name) as workflow_name
         FROM scheduler_jobs j
         LEFT JOIN scheduler_job_servers s ON j.system_id = s.system_id
         LEFT JOIN scheduler_job_servers s2 ON j.secondary_system_id = s2.system_id
         LEFT JOIN scheduler_job_servers s3 ON j.tertiary_system_id = s3.system_id
         LEFT JOIN scheduler_job_groups g ON j.group_id = g.group_id
         LEFT JOIN scheduler_users u ON j.frst_reg_user_id = u.id
+        LEFT JOIN scheduler_workflow w ON j.workflow_id = w.id
+        LEFT JOIN scheduler_workflow_priority_group wpg ON j.priority_group_id = wpg.id
+        LEFT JOIN scheduler_workflow w2 ON wpg.workflow_id = w2.id
         LEFT JOIN LATERAL (
             SELECT log_id, status, duration FROM scheduler_job_run_logs
             WHERE job_id = j.job_id ORDER BY log_id DESC LIMIT 1

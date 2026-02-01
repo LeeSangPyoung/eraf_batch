@@ -8,7 +8,6 @@ import {
   currentStateOptions,
   enableOptions,
   lastResultOptions,
-  wfRegisteredOptions,
 } from '../../utils/enum';
 import BaseDatePicker from '../CustomInput/BaseDatePicker';
 import SearchTextField from '../CustomInput/SearchTextField';
@@ -229,21 +228,6 @@ function TableFilter({
         content={t('to')}
         value={inputCombo.to}
         onChange={(newValue) => handleValueChange('', newValue, 'to')}
-      />
-
-      <SearchAutocomplete
-        id="combo-box-wf-registered"
-        options={wfRegisteredOptions}
-        value={inputCombo.wfRegistered}
-        inputValue={inputCombo.wfRegisteredInput}
-        onChange={(event, newValue) =>
-          handleValueChange(event, newValue, 'wfRegistered')
-        }
-        onInputChange={(event, newValue) =>
-          handleInputChange(event, newValue, 'wfRegistered')
-        }
-        content={t('wfRegistered')}
-        capitalizeOptions={true}
       />
     </div>
   );
