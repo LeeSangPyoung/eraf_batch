@@ -198,6 +198,12 @@ public class JobVO {
     private String workflowId;
 
     /**
+     * Workflow name (denormalized from workflow table)
+     */
+    @JsonProperty("workflow_name")
+    private String workflowName;
+
+    /**
      * Priority group ID in workflow
      */
     private String priorityGroupId;

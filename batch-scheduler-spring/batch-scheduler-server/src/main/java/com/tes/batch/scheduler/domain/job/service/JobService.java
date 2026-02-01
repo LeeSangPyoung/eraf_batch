@@ -56,6 +56,7 @@ public class JobService {
                     request.getCurrentState(),
                     request.getTextSearch(),
                     request.getWfRegistered(),
+                    request.getLastResult(),
                     request.getLastStartDateFrom(),
                     request.getLastStartDateTo(),
                     request.getSize(),
@@ -151,6 +152,7 @@ public class JobService {
                     request.getCurrentState(),
                     request.getTextSearch(),
                     request.getWfRegistered(),
+                    request.getLastResult(),
                     request.getLastStartDateFrom(),
                     request.getLastStartDateTo()
             );

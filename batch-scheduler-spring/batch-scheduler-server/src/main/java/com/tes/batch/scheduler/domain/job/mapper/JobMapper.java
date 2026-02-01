@@ -34,6 +34,7 @@ public interface JobMapper {
             @Param("currentState") String currentState,
             @Param("textSearch") String textSearch,
             @Param("wfRegistered") Boolean wfRegistered,
+            @Param("lastResult") String lastResult,
             @Param("lastStartDateFrom") Long lastStartDateFrom,
             @Param("lastStartDateTo") Long lastStartDateTo,
             @Param("limit") int limit,
@@ -48,6 +49,7 @@ public interface JobMapper {
             @Param("currentState") String currentState,
             @Param("textSearch") String textSearch,
             @Param("wfRegistered") Boolean wfRegistered,
+            @Param("lastResult") String lastResult,
             @Param("lastStartDateFrom") Long lastStartDateFrom,
             @Param("lastStartDateTo") Long lastStartDateTo
     );

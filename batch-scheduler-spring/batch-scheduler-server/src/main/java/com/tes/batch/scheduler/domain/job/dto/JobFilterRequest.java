@@ -15,10 +15,12 @@ public class JobFilterRequest {
     private Boolean isEnabled;
     @JsonAlias("current_state")
     private String currentState;
-    @JsonAlias("search_text")
+    @JsonAlias({"search_text", "text_search"})
     private String textSearch;
     @JsonAlias("wf_registered")
     private Boolean wfRegistered;
+    @JsonAlias("last_result")
+    private String lastResult;
     @JsonAlias("last_start_date_from")
     private Long lastStartDateFrom;
     @JsonAlias("last_start_date_to")
