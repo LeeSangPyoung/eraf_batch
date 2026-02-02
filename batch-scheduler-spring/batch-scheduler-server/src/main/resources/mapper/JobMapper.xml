@@ -270,6 +270,7 @@
             AND (
                 LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
                 OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
             )
         </if>
         ORDER BY j.job_name ASC
@@ -280,6 +281,9 @@
     <select id="countByFiltersAndGroupIds" resultType="long">
         SELECT COUNT(*)
         FROM scheduler_jobs j
+        LEFT JOIN scheduler_workflow w ON j.workflow_id = w.id
+        LEFT JOIN scheduler_workflow_priority_group wpg ON j.priority_group_id = wpg.id
+        LEFT JOIN scheduler_workflow w2 ON wpg.workflow_id = w2.id
         WHERE j.group_id IN
         <foreach collection="groupIds" item="gid" open="(" separator="," close=")">
             #{gid}
@@ -300,6 +304,7 @@
             AND (
                 LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
                 OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
             )
         </if>
     </select>

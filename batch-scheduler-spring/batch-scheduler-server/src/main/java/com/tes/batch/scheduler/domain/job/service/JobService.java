@@ -67,6 +67,15 @@ public class JobService {
             if (groupIds.isEmpty()) {
                 return List.of();
             }
+            // If user selected a specific group, filter to only that group (if allowed)
+            if (request.getGroupId() != null && !request.getGroupId().isEmpty()) {
+                if (groupIds.contains(request.getGroupId())) {
+                    groupIds = Set.of(request.getGroupId());
+                } else {
+                    // User tried to filter by a group they don't have access to
+                    return List.of();
+                }
+            }
             jobs = jobMapper.findByFiltersAndGroupIds(
                     groupIds,
                     request.getJobId(),
@@ -160,6 +169,15 @@ public class JobService {
             Set<String> groupIds = securityUtils.getCurrentGroupIds();
             if (groupIds.isEmpty()) {
                 return 0;
+            }
+            // If user selected a specific group, filter to only that group (if allowed)
+            if (request.getGroupId() != null && !request.getGroupId().isEmpty()) {
+                if (groupIds.contains(request.getGroupId())) {
+                    groupIds = Set.of(request.getGroupId());
+                } else {
+                    // User tried to filter by a group they don't have access to
+                    return 0;
+                }
             }
             return jobMapper.countByFiltersAndGroupIds(
                     groupIds,

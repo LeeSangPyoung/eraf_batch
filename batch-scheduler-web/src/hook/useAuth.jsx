@@ -34,7 +34,7 @@ const useAuth = () => {
       if (response.data.success) {
         const jwt = response.data.data.token;
         login(jwt);
-        navigate('/');
+        navigate('/dashboard');
       } else {
         if (
           response.data.error_msg ===

@@ -199,7 +199,7 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
         )}
       </DialogTitle>
       <DialogContent sx={{ padding: '24px' }}>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit)} autoComplete="off">
           <SimpleBar
             style={{
               maxHeight: '60vh',
@@ -230,6 +230,7 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                   name="user_id"
                   content={t('userId')}
                   required
+                  autoComplete="off"
                 />
               )}
               <TextInput
@@ -237,6 +238,7 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                 name="user_name"
                 content={t('userName')}
                 required
+                autoComplete="off"
               />
               {!data && (
                 <>
@@ -244,11 +246,13 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                     control={control}
                     name="password"
                     content={t('password')}
+                    autoComplete="new-password"
                   />
                   <CustomPwInput
                     control={control}
                     name="confirmPassword"
                     content={t('reenterPassword')}
+                    autoComplete="new-password"
                   />
                 </>
               )}
@@ -258,7 +262,6 @@ const UserDialog = ({ open, onClose, data, mutate }) => {
                 options={UserType}
                 content={t('userType')}
                 required
-                disabled={data?.user_id === user?.user_id}
               />
               {groups && groups.length > 0 && (
                 <MultipleSelectChip

@@ -183,18 +183,20 @@ const SideBar = () => {
             </Link>
           ))}
 
-          {/* Divider */}
-          <Box
-            sx={{
-              height: '1px',
-              backgroundColor: '#E8E8ED',
-              margin: '8px 16px',
-              opacity: 0.6,
-            }}
-          />
+          {/* Divider - Admin Only */}
+          {Number(user?.user_type) === 0 && (
+            <Box
+              sx={{
+                height: '1px',
+                backgroundColor: '#E8E8ED',
+                margin: '8px 16px',
+                opacity: 0.6,
+              }}
+            />
+          )}
 
-          {/* Section 2: Management */}
-          {managementLinks.map((link) => (
+          {/* Section 2: Management (Admin Only) */}
+          {Number(user?.user_type) === 0 && managementLinks.map((link) => (
             <Link
               key={link.text}
               to={link.to}
@@ -230,7 +232,7 @@ const SideBar = () => {
           ))}
 
           {/* Admin Only - User Master */}
-          {user?.user_type === 0 && (
+          {Number(user?.user_type) === 0 && (
             <Link
               to="/user-master"
               style={{

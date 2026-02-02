@@ -15,13 +15,11 @@ const ProtectedRoute = ({ element }) => {
     return <Navigate to="/sign-in" replace />;
   }
 
-  if (user?.user_type !== 0 && location.pathname === '/user-master') {
-    return <Navigate to="/" replace />;
+  // General User cannot access admin pages
+  const adminOnlyPaths = ['/user-master', '/system-management', '/group-management'];
+  if (Number(user?.user_type) !== 0 && adminOnlyPaths.includes(location.pathname)) {
+    return <Navigate to="/dashboard" replace />;
   }
-
-  // if (user?.user_type !== 0 && location.pathname === '/workflows') {
-  //   return <Navigate to="/" replace />;
-  // }
 
   return (
     <Box className="app flex flex-col min-h-screen bg-white">
