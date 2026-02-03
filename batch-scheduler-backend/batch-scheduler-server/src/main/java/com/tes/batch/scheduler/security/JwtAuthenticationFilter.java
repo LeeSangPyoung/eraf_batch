@@ -1,0 +1,78 @@
+package com.tes.batch.scheduler.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtTokenProvider jwtTokenProvider;
+
+    // Public paths that don't require authentication
+    private static final String[] PUBLIC_PATHS = {
+        "/user/login",
+        "/actuator/health",
+        "/health",
+        "/error"
+    };
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        for (String publicPath : PUBLIC_PATHS) {
+            if (path.startsWith(publicPath)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+        try {
+            String token = resolveToken(request);
+
+            if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+                Authentication authentication = jwtTokenProvider.getAuthentication(token);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("Set Authentication to security context for '{}', uri: {}",
+                        authentication.getName(), request.getRequestURI());
+            }
+        } catch (Exception e) {
+            log.error("Cannot set user authentication: {}", e.getMessage());
+        }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private String resolveToken(HttpServletRequest request) {
+        // First try Authorization header
+        String bearerToken = request.getHeader("Authorization");
+        String token = jwtTokenProvider.resolveToken(bearerToken);
+
+        // If no header token, check query parameter (for SSE connections)
+        if (!StringUtils.hasText(token)) {
+            token = request.getParameter("token");
+            if (StringUtils.hasText(token)) {
+                log.debug("Using token from query parameter for SSE request: {}", request.getRequestURI());
+            }
+        }
+
+        return token;
+    }
+}
