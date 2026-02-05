@@ -10,16 +10,17 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const auth = localStorage.getItem('auth');
-    if(auth){
-      const token = JSON.parse(auth).state.token
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+    if (auth) {
+      try {
+        const token = JSON.parse(auth).state.token;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (e) {
+        // Invalid auth data, continue without token
       }
-      return config;
-    }else{
-      useAuthStore.getState().logout();
     }
-
+    return config; // Always return config
   },
   (error) => Promise.reject(error),
 );
