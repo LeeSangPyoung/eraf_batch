@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import useJobForm from '../../hook/useJobForm';
 import ActionInfoTab from '../Tab/ActionInfoTab';
 import ScheduleInfoTab from '../Tab/ScheduleInfoTab';
@@ -54,6 +55,42 @@ const DialogCreateAndModifyJob = ({ open, onClose, data, mutate }) => {
     };
     setFormData(data);
     openConfirmModal();
+  };
+
+  // Field name mapping for error messages
+  const fieldNames = {
+    system: t('server') || 'Server',
+    group: t('group') || 'Group',
+    job_name: t('job_name') || 'Job Name',
+    start_date: t('start_date') || 'Start Date & Time',
+    end_date: t('end_date') || 'End Date & Time',
+    repeat_interval: t('repeat_interval') || 'Repeat Interval',
+    job_action: t('job_action') || 'Job Action / URL',
+    job_type: t('job_type') || 'Job Type',
+    http_method: 'HTTP Method',
+    job_body: 'Request Body',
+  };
+
+  // Handle validation errors - show toast with error details
+  const handleValidationErrors = (errors) => {
+    const errorFields = Object.keys(errors);
+    if (errorFields.length > 0) {
+      const firstErrorField = errorFields[0];
+      const fieldName = fieldNames[firstErrorField] || firstErrorField;
+      const errorMessage = errors[firstErrorField]?.message || errors[firstErrorField]?.id?.message || t('requiredFieldsMissing');
+
+      // Switch to the appropriate tab if the error is on a different tab
+      const scheduleInfoFields = ['system', 'group', 'job_name', 'start_date', 'end_date', 'repeat_interval'];
+      const actionInfoFields = ['job_action', 'job_type', 'http_method', 'job_body', 'job_headers'];
+
+      if (scheduleInfoFields.includes(firstErrorField) && tabIndex !== 0) {
+        setTabIndex(0);
+      } else if (actionInfoFields.includes(firstErrorField) && tabIndex !== 1) {
+        setTabIndex(1);
+      }
+
+      toast.error(`${fieldName}: ${errorMessage}`, { autoClose: 5000 });
+    }
   };
 
   return (
@@ -146,7 +183,7 @@ const DialogCreateAndModifyJob = ({ open, onClose, data, mutate }) => {
               disabled={user?.user_type !== 0}
               type="submit"
               theme="primary"
-              onClick={form.handleSubmit(submitFormData)}
+              onClick={form.handleSubmit(submitFormData, handleValidationErrors)}
             >
               {form.formState.isSubmitting ? t('saving') : t('save')}
             </BaseButton>

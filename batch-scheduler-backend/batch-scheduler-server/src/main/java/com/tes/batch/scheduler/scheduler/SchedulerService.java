@@ -403,6 +403,16 @@ public class SchedulerService {
                 // If RRULE is not SECONDLY, normalize to :00 seconds for precise scheduling
                 if (!job.getRepeatInterval().contains("FREQ=SECONDLY")) {
                     nextRun = nextRun.withSecond(0).withNano(0);
+
+                    // IMPORTANT: After normalization, the time might be in the past or too close to now
+                    // (e.g., RRULE returns 03:52:35, normalize to 03:52:00, but now is 03:52:15)
+                    // If so, advance to the next minute to prevent immediate re-execution
+                    long normalizedMs = nextRun.toInstant().toEpochMilli();
+                    if (normalizedMs <= now) {
+                        nextRun = nextRun.plusMinutes(1);
+                        log.debug("Normalized time {} was in the past, advanced to next minute: {}",
+                                normalizedMs, nextRun);
+                    }
                 }
 
                 long nextRunMs = nextRun.toInstant().toEpochMilli();
@@ -446,6 +456,16 @@ public class SchedulerService {
                 // If RRULE is not SECONDLY, normalize to :00 seconds for precise scheduling
                 if (!workflow.getRepeatInterval().contains("FREQ=SECONDLY")) {
                     nextRun = nextRun.withSecond(0).withNano(0);
+
+                    // IMPORTANT: After normalization, the time might be in the past or too close to now
+                    // (e.g., RRULE returns 03:52:35, normalize to 03:52:00, but now is 03:52:15)
+                    // If so, advance to the next minute to prevent immediate re-execution
+                    long nextRunMs = nextRun.toInstant().toEpochMilli();
+                    if (nextRunMs <= now) {
+                        nextRun = nextRun.plusMinutes(1);
+                        log.debug("Normalized time {} was in the past, advanced to next minute: {}",
+                                nextRunMs, nextRun);
+                    }
                 }
 
                 return nextRun.toInstant().toEpochMilli();

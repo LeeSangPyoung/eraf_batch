@@ -72,6 +72,33 @@ public class WorkflowExecutionService {
     public Long executeWorkflow(WorkflowVO workflow) {
         log.info("Starting workflow execution: {}", workflow.getWorkflowName());
 
+        // Pre-check: Verify all jobs have at least one healthy server available
+        List<WorkflowPriorityGroupVO> priorityGroups = priorityGroupMapper.findByWorkflowId(workflow.getId());
+        String preCheckError = preCheckServerAvailability(priorityGroups);
+        if (preCheckError != null) {
+            log.error("Workflow pre-check failed: {}", preCheckError);
+            // Create failed workflow run record
+            long now = System.currentTimeMillis();
+            WorkflowRunVO failedRun = WorkflowRunVO.builder()
+                    .workflowId(workflow.getId())
+                    .workflowName(workflow.getWorkflowName())
+                    .startDate(now)
+                    .endDate(now)
+                    .status("FAILED")
+                    .errorMessage(preCheckError)
+                    .build();
+            workflowRunMapper.insert(failedRun);
+
+            // Update workflow status and schedule next run
+            Long nextRunDate = schedulerService.calculateNextRunDate(workflow);
+            workflowMapper.updateStatus(workflow.getId(), "FAILED", now, nextRunDate);
+            if (nextRunDate != null) {
+                schedulerService.scheduleWorkflow(workflow.getId(), nextRunDate);
+            }
+
+            return failedRun.getWorkflowRunId();
+        }
+
         // Create workflow run record
         WorkflowRunVO workflowRun = WorkflowRunVO.builder()
                 .workflowId(workflow.getId())
@@ -81,7 +108,6 @@ public class WorkflowExecutionService {
                 .build();
 
         // Count total jobs
-        List<WorkflowPriorityGroupVO> priorityGroups = priorityGroupMapper.findByWorkflowId(workflow.getId());
         int totalJobs = 0;
         for (WorkflowPriorityGroupVO pg : priorityGroups) {
             List<JobVO> jobs = jobMapper.findByPriorityGroupId(pg.getId());
@@ -142,9 +168,9 @@ public class WorkflowExecutionService {
             List<JobMessage> jobMessages = new ArrayList<>();
 
             for (JobVO job : jobs) {
-                // Get group/server info for denormalization
+                // Get group/server info for denormalization (with failover support)
                 JobGroupVO group = job.getGroupId() != null ? groupMapper.findById(job.getGroupId()) : null;
-                JobServerVO server = job.getSystemId() != null ? serverMapper.findById(job.getSystemId()) : null;
+                JobServerVO server = getAvailableServer(job);
 
                 // Get job creator's user ID for logging
                 String creatorUserId = null;
@@ -217,11 +243,11 @@ public class WorkflowExecutionService {
                     continue; // Don't add to job messages - skip execution
                 }
 
-                // Create job run log entry with workflow_run_id
+                // Create job run log entry with workflow_run_id (using failover server if applicable)
                 JobRunLogVO runLog = JobRunLogVO.builder()
                         .jobId(job.getJobId())
                         .jobName(job.getJobName())
-                        .systemId(job.getSystemId())
+                        .systemId(server != null ? server.getSystemId() : job.getSystemId())
                         .systemName(server != null ? server.getSystemName() : null)
                         .groupId(job.getGroupId())
                         .groupName(group != null ? group.getGroupName() : null)
@@ -277,21 +303,123 @@ public class WorkflowExecutionService {
     }
 
     /**
-     * Determine target queue from jobs in priority groups
+     * Determine target queue from jobs in priority groups (with failover support)
      */
     private String determineTargetQueue(List<WorkflowPriorityGroupVO> priorityGroups) {
         for (WorkflowPriorityGroupVO pg : priorityGroups) {
             List<JobVO> jobs = jobMapper.findByPriorityGroupId(pg.getId());
             for (JobVO job : jobs) {
-                if (job.getSystemId() != null) {
-                    JobServerVO server = serverMapper.findById(job.getSystemId());
-                    if (server != null && server.getQueueName() != null) {
-                        return server.getQueueName();
-                    }
+                JobServerVO server = getAvailableServer(job);
+                if (server != null && server.getQueueName() != null) {
+                    return server.getQueueName();
                 }
             }
         }
         return null;
+    }
+
+    /**
+     * Get available server with failover support.
+     * Tries primary -> secondary -> tertiary in order.
+     * Returns first server that is ONLINE and healthy.
+     */
+    private JobServerVO getAvailableServer(JobVO job) {
+        // Try primary server
+        if (job.getSystemId() != null) {
+            JobServerVO primary = serverMapper.findById(job.getSystemId());
+            if (isServerAvailable(primary)) {
+                return primary;
+            }
+            log.info("Primary server {} is unavailable for job {}", job.getSystemId(), job.getJobId());
+        }
+
+        // Try secondary server
+        if (job.getSecondarySystemId() != null) {
+            JobServerVO secondary = serverMapper.findById(job.getSecondarySystemId());
+            if (isServerAvailable(secondary)) {
+                log.info("Failover to secondary server {} for job {}", job.getSecondarySystemId(), job.getJobId());
+                return secondary;
+            }
+            log.info("Secondary server {} is unavailable for job {}", job.getSecondarySystemId(), job.getJobId());
+        }
+
+        // Try tertiary server
+        if (job.getTertiarySystemId() != null) {
+            JobServerVO tertiary = serverMapper.findById(job.getTertiarySystemId());
+            if (isServerAvailable(tertiary)) {
+                log.info("Failover to tertiary server {} for job {}", job.getTertiarySystemId(), job.getJobId());
+                return tertiary;
+            }
+            log.info("Tertiary server {} is unavailable for job {}", job.getTertiarySystemId(), job.getJobId());
+        }
+
+        // Fallback: return primary server even if unhealthy (let the workflow fail with clear error)
+        if (job.getSystemId() != null) {
+            return serverMapper.findById(job.getSystemId());
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if server is available (ONLINE and healthy)
+     */
+    private boolean isServerAvailable(JobServerVO server) {
+        if (server == null) {
+            return false;
+        }
+        boolean isOnline = "ONLINE".equals(server.getAgentStatus());
+        boolean isHealthy = Boolean.TRUE.equals(server.getIsHealthy());
+        return isOnline && isHealthy;
+    }
+
+    /**
+     * Pre-check server availability for all jobs in the workflow.
+     * Returns error message if any job has no healthy server, null if all OK.
+     */
+    private String preCheckServerAvailability(List<WorkflowPriorityGroupVO> priorityGroups) {
+        for (WorkflowPriorityGroupVO pg : priorityGroups) {
+            List<JobVO> jobs = jobMapper.findByPriorityGroupId(pg.getId());
+            for (JobVO job : jobs) {
+                // Skip disabled jobs
+                if (!Boolean.TRUE.equals(job.getIsEnabled())) {
+                    continue;
+                }
+                // Skip jobs that reached maxRun
+                if (job.getMaxRun() != null && job.getMaxRun() > 0 &&
+                    job.getRunCount() != null && job.getRunCount() >= job.getMaxRun()) {
+                    continue;
+                }
+
+                // Check if any server is available for this job
+                boolean hasHealthyServer = false;
+
+                if (job.getSystemId() != null) {
+                    JobServerVO primary = serverMapper.findById(job.getSystemId());
+                    if (isServerAvailable(primary)) {
+                        hasHealthyServer = true;
+                    }
+                }
+                if (!hasHealthyServer && job.getSecondarySystemId() != null) {
+                    JobServerVO secondary = serverMapper.findById(job.getSecondarySystemId());
+                    if (isServerAvailable(secondary)) {
+                        hasHealthyServer = true;
+                    }
+                }
+                if (!hasHealthyServer && job.getTertiarySystemId() != null) {
+                    JobServerVO tertiary = serverMapper.findById(job.getTertiarySystemId());
+                    if (isServerAvailable(tertiary)) {
+                        hasHealthyServer = true;
+                    }
+                }
+
+                if (!hasHealthyServer) {
+                    return String.format("No healthy server available for job '%s'. Please check server status or add backup servers.",
+                            job.getJobName());
+                }
+            }
+        }
+        return null; // All jobs have healthy servers
     }
 
     /**

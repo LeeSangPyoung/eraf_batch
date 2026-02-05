@@ -28,9 +28,13 @@ public class TimeoutCheckScheduler {
     private final JobRunLogMapper jobRunLogMapper;
     private final WorkflowRunMapper workflowRunMapper;
     private final WorkflowMapper workflowMapper;
+    private final SchedulerService schedulerService;
 
     // Grace period for stuck workflow detection (30 seconds - detect quickly after all jobs complete)
     private static final long STUCK_WORKFLOW_GRACE_PERIOD = 30 * 1000L;
+
+    // Timeout for PENDING jobs (5 minutes - if job doesn't start within this time, server is likely unavailable)
+    private static final long PENDING_JOB_TIMEOUT = 5 * 60 * 1000L;
 
     /**
      * Check for timed-out jobs every 1 minute
@@ -43,7 +47,7 @@ public class TimeoutCheckScheduler {
         long now = System.currentTimeMillis();
         int timeoutCount = 0;
 
-        // Check job run logs that are RUNNING or PENDING
+        // Check job run logs that are RUNNING
         List<JobRunLogVO> runningLogs = jobRunLogMapper.findByFilters(
                 null, null, null, null, "RUNNING",
                 null, null, 1000, 0
@@ -68,6 +72,42 @@ public class TimeoutCheckScheduler {
 
                 // Update job state to BROKEN
                 jobMapper.updateState(runLog.getJobId(), "BROKEN", null);
+                timeoutCount++;
+            }
+        }
+
+        // Check job run logs that are PENDING for too long (server unavailable)
+        List<JobRunLogVO> pendingLogs = jobRunLogMapper.findByFilters(
+                null, null, null, null, "PENDING",
+                null, null, 1000, 0
+        );
+
+        for (JobRunLogVO runLog : pendingLogs) {
+            if (runLog.getReqStartDate() != null && (now - runLog.getReqStartDate()) > PENDING_JOB_TIMEOUT) {
+                log.warn("Job run log {} stuck in PENDING for over 5 minutes (job: {}, scheduled: {}). Server may be unavailable.",
+                        runLog.getLogId(), runLog.getJobId(), runLog.getReqStartDate());
+
+                jobRunLogMapper.updateStatus(
+                        runLog.getLogId(),
+                        "FAILED",
+                        "BROKEN",
+                        null,
+                        now,
+                        null,
+                        "Job stuck in PENDING for over 5 minutes - server unavailable or agent not responding",
+                        null,
+                        null
+                );
+
+                // Update job state to BROKEN
+                jobMapper.updateState(runLog.getJobId(), "BROKEN", null);
+
+                // If this is part of a workflow, fail the workflow too
+                if (runLog.getWorkflowRunId() != null) {
+                    failStuckWorkflowRun(runLog.getWorkflowRunId(), now,
+                            "Job '" + runLog.getJobName() + "' stuck in PENDING - server unavailable");
+                }
+
                 timeoutCount++;
             }
         }
@@ -154,6 +194,43 @@ public class TimeoutCheckScheduler {
         }
 
         return stuckCount;
+    }
+
+    /**
+     * Fail a workflow run that is stuck due to PENDING jobs
+     */
+    private void failStuckWorkflowRun(Long workflowRunId, long now, String errorMessage) {
+        try {
+            WorkflowRunVO run = workflowRunMapper.findById(workflowRunId);
+            if (run != null && "RUNNING".equals(run.getStatus())) {
+                log.warn("Failing stuck workflow run {} due to: {}", workflowRunId, errorMessage);
+
+                // Calculate next run date for rescheduling
+                var workflow = workflowMapper.findById(run.getWorkflowId());
+                Long nextRunDate = workflow != null ? schedulerService.calculateNextRunDate(workflow) : null;
+
+                workflowRunMapper.updateStatus(
+                        workflowRunId,
+                        "FAILED",
+                        now,
+                        run.getStartDate() != null ? now - run.getStartDate() : null,
+                        errorMessage
+                );
+
+                workflowMapper.updateStatus(run.getWorkflowId(), "FAILED", now, nextRunDate);
+
+                // Reset workflow jobs to SCHEDULED
+                resetWorkflowJobsToScheduled(run.getWorkflowId());
+
+                // Reschedule workflow for next run
+                if (nextRunDate != null) {
+                    schedulerService.scheduleWorkflow(run.getWorkflowId(), nextRunDate);
+                    log.info("Rescheduled workflow {} for next run at {}", run.getWorkflowId(), nextRunDate);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to fail stuck workflow run {}", workflowRunId, e);
+        }
     }
 
     /**

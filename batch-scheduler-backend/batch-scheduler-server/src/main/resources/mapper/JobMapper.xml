@@ -108,8 +108,9 @@
     <select id="findByPriorityGroupId" resultMap="JobResultMap">
         SELECT <include refid="BaseColumns"/>
         FROM scheduler_jobs j
-        WHERE j.priority_group_id = #{priorityGroupId}
-        ORDER BY j.priority ASC
+        INNER JOIN scheduler_workflow_priority_group_jobs pgj ON j.job_id = pgj.job_id
+        WHERE pgj.priority_group_id = #{priorityGroupId}
+        ORDER BY j.job_name ASC
     </select>
 
     <!-- Find Jobs to Execute (for polling - kept for compatibility) -->
@@ -152,7 +153,7 @@
                u.user_name as creator,
                rl.status as last_result,
                rl.duration as duration,
-               COALESCE(w.workflow_name, w2.workflow_name) as workflow_name
+               COALESCE(w.workflow_name, w2.workflow_name, w3.workflow_name) as workflow_name
         FROM scheduler_jobs j
         LEFT JOIN scheduler_job_servers s ON j.system_id = s.system_id
         LEFT JOIN scheduler_job_servers s2 ON j.secondary_system_id = s2.system_id
@@ -162,6 +163,9 @@
         LEFT JOIN scheduler_workflow w ON j.workflow_id = w.id
         LEFT JOIN scheduler_workflow_priority_group wpg ON j.priority_group_id = wpg.id
         LEFT JOIN scheduler_workflow w2 ON wpg.workflow_id = w2.id
+        LEFT JOIN scheduler_workflow_priority_group_jobs pgj ON j.job_id = pgj.job_id
+        LEFT JOIN scheduler_workflow_priority_group wpg2 ON pgj.priority_group_id = wpg2.id
+        LEFT JOIN scheduler_workflow w3 ON wpg2.workflow_id = w3.id
         LEFT JOIN LATERAL (
             SELECT log_id, status, duration FROM scheduler_job_run_logs
             WHERE job_id = j.job_id ORDER BY log_id DESC LIMIT 1
@@ -250,7 +254,7 @@
                u.user_name as creator,
                rl.status as last_result,
                rl.duration as duration,
-               COALESCE(w.workflow_name, w2.workflow_name) as workflow_name
+               COALESCE(w.workflow_name, w2.workflow_name, w3.workflow_name) as workflow_name
         FROM scheduler_jobs j
         LEFT JOIN scheduler_job_servers s ON j.system_id = s.system_id
         LEFT JOIN scheduler_job_servers s2 ON j.secondary_system_id = s2.system_id
@@ -260,6 +264,9 @@
         LEFT JOIN scheduler_workflow w ON j.workflow_id = w.id
         LEFT JOIN scheduler_workflow_priority_group wpg ON j.priority_group_id = wpg.id
         LEFT JOIN scheduler_workflow w2 ON wpg.workflow_id = w2.id
+        LEFT JOIN scheduler_workflow_priority_group_jobs pgj ON j.job_id = pgj.job_id
+        LEFT JOIN scheduler_workflow_priority_group wpg2 ON pgj.priority_group_id = wpg2.id
+        LEFT JOIN scheduler_workflow w3 ON wpg2.workflow_id = w3.id
         LEFT JOIN LATERAL (
             SELECT log_id, status, duration FROM scheduler_job_run_logs
             WHERE job_id = j.job_id ORDER BY log_id DESC LIMIT 1

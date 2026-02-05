@@ -280,4 +280,18 @@ public class JobVO {
      * Last result status - from last log
      */
     private String lastResult;
+
+    // === Runtime fields for active job tracking ===
+    /**
+     * Currently running server ID (when job is RUNNING/WAITING)
+     * This may differ from systemId when failover occurs
+     */
+    @JsonProperty("running_system_id")
+    private String runningSystemId;
+
+    /**
+     * Currently running server name (when job is RUNNING/WAITING)
+     */
+    @JsonProperty("running_system_name")
+    private String runningSystemName;
 }

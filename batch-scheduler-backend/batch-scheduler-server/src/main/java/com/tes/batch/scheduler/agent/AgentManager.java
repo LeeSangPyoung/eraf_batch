@@ -1,5 +1,6 @@
 package com.tes.batch.scheduler.agent;
 
+import com.tes.batch.common.enums.DeploymentType;
 import com.tes.batch.scheduler.domain.server.mapper.JobServerMapper;
 import com.tes.batch.scheduler.domain.server.vo.JobServerVO;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,15 @@ public class AgentManager {
 
     private final AgentDeployer agentDeployer;
     private final JobServerMapper serverMapper;
+
+    /**
+     * Validate server requirements before registration (e.g., Java for JAR deployment)
+     */
+    public void validateServerRequirements(JobServerVO server) throws Exception {
+        log.info("Validating server requirements for: {} ({})", server.getSystemName(), server.getDeploymentType());
+        agentDeployer.validateRequirements(server);
+        log.info("Server requirements validation passed for: {}", server.getSystemName());
+    }
 
     /**
      * Deploy and start agent on server
@@ -101,5 +111,45 @@ public class AgentManager {
         }
 
         startAgent(systemId, privateKeyPath);
+    }
+
+    /**
+     * Cleanup previous deployment when switching deployment types
+     */
+    public void cleanupPreviousDeployment(String systemId, DeploymentType previousType, String privateKeyPath) {
+        JobServerVO server = serverMapper.findById(systemId);
+        if (server == null) {
+            throw new IllegalArgumentException("Server not found: " + systemId);
+        }
+
+        try {
+            log.info("Cleaning up previous {} deployment for: {}", previousType, server.getSystemName());
+            agentDeployer.cleanupPreviousDeployment(server, previousType, privateKeyPath);
+            log.info("Previous deployment cleanup completed for: {}", server.getSystemName());
+
+        } catch (Exception e) {
+            log.error("Failed to cleanup previous deployment for server: {}", server.getSystemName(), e);
+            throw new RuntimeException("Previous deployment cleanup failed: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Delete deployment completely (for server deletion)
+     */
+    public void deleteDeployment(String systemId, String privateKeyPath) {
+        JobServerVO server = serverMapper.findById(systemId);
+        if (server == null) {
+            throw new IllegalArgumentException("Server not found: " + systemId);
+        }
+
+        try {
+            log.info("Deleting deployment for: {}", server.getSystemName());
+            agentDeployer.deleteDeployment(server, privateKeyPath);
+            log.info("Deployment deleted for: {}", server.getSystemName());
+
+        } catch (Exception e) {
+            log.error("Failed to delete deployment for server: {}", server.getSystemName(), e);
+            throw new RuntimeException("Deployment deletion failed: " + e.getMessage(), e);
+        }
     }
 }

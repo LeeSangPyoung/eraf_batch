@@ -17,6 +17,11 @@ public interface JobServerMapper {
 
     boolean existsBySystemName(@Param("systemName") String systemName);
 
+    JobServerVO findByHostAndPort(
+            @Param("hostIpAddr") String hostIpAddr,
+            @Param("agentPort") Integer agentPort
+    );
+
     List<JobServerVO> findAll();
 
     List<JobServerVO> findByFilters(

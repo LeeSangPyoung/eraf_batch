@@ -192,7 +192,35 @@ public class JobService {
 
     @Transactional(readOnly = true)
     public JobVO getJob(String jobId) {
-        return jobMapper.findByIdWithRelations(jobId);
+        JobVO job = jobMapper.findByIdWithRelations(jobId);
+        if (job == null) {
+            return null;
+        }
+
+        // If job is RUNNING or WAITING, find the actual running server from the latest job run log
+        if ("RUNNING".equals(job.getCurrentState()) || "WAITING".equals(job.getCurrentState())) {
+            // Find the latest RUNNING or PENDING job run log for this job
+            List<JobRunLogVO> logs = jobRunLogMapper.findByFilters(
+                    jobId, null, null, null, null, // jobId filter only
+                    null, null, 10, 0 // Get recent logs
+            );
+
+            if (logs != null && !logs.isEmpty()) {
+                // Find the first RUNNING or PENDING log
+                JobRunLogVO activeLog = logs.stream()
+                        .filter(log -> "RUNNING".equals(log.getStatus()) || "PENDING".equals(log.getStatus()))
+                        .findFirst()
+                        .orElse(null);
+
+                if (activeLog != null && activeLog.getSystemId() != null) {
+                    job.setRunningSystemId(activeLog.getSystemId());
+                    job.setRunningSystemName(activeLog.getSystemName());
+                    log.debug("Job {} is running on server {} ({})", jobId, activeLog.getSystemId(), activeLog.getSystemName());
+                }
+            }
+        }
+
+        return job;
     }
 
     @Transactional
@@ -308,6 +336,20 @@ public class JobService {
         existing.setRetryDelay(request.getRetryDelay());
         existing.setPriority(request.getPriority());
         existing.setIsEnabled(request.getIsEnabled());
+
+        // If job is COMPLETED and maxRun is increased (or set to 0 for unlimited), reactivate it
+        if ("COMPLETED".equals(existing.getCurrentState())) {
+            Integer newMaxRun = request.getMaxRun();
+            Integer currentRunCount = existing.getRunCount() != null ? existing.getRunCount() : 0;
+
+            // Reactivate if: maxRun is 0 (unlimited) OR maxRun > current run count
+            if (newMaxRun == null || newMaxRun == 0 || newMaxRun > currentRunCount) {
+                existing.setCurrentState("SCHEDULED");
+                log.info("Reactivated COMPLETED job {} because maxRun changed: newMaxRun={}, runCount={}",
+                        existing.getJobId(), newMaxRun, currentRunCount);
+            }
+        }
+
         existing.setAutoDrop(request.getAutoDrop());
         existing.setRestartOnFailure(request.getRestartOnFailure());
         existing.setRestartable(request.getRestartable());

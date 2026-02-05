@@ -138,6 +138,22 @@ public class WorkflowService {
         groupResponses.sort(Comparator.comparing(WorkflowResponse.PriorityGroupResponse::getPriority));
         response.setPriorityGroups(groupResponses);
 
+        // Flatten all jobs into assignJobs for frontend compatibility
+        List<WorkflowResponse.AssignedJobResponse> assignedJobs = new ArrayList<>();
+        for (WorkflowPriorityGroupVO pg : priorityGroups) {
+            List<JobVO> jobs = jobMapper.findByPriorityGroupId(pg.getId());
+            for (JobVO job : jobs) {
+                assignedJobs.add(WorkflowResponse.AssignedJobResponse.builder()
+                        .jobId(job.getJobId())
+                        .jobName(job.getJobName())
+                        .priority(pg.getPriority())
+                        .delay(job.getWorkflowDelay() != null ? job.getWorkflowDelay() : 0)
+                        .ignoreResult(pg.getIgnoreResult())
+                        .build());
+            }
+        }
+        response.setAssignJobs(assignedJobs);
+
         return ApiResponse.success(response);
     }
 
@@ -207,6 +223,8 @@ public class WorkflowService {
                                 pgId,
                                 jobRequest.getWorkflowDelay()
                         );
+                        // Also insert into mapping table
+                        priorityGroupMapper.insertPriorityGroupJob(pgId, jobRequest.getJobId());
                     }
                 }
             }
@@ -266,6 +284,8 @@ public class WorkflowService {
         // Clear existing priority groups and jobs linkage
         List<WorkflowPriorityGroupVO> oldGroups = priorityGroupMapper.findByWorkflowId(request.getId());
         for (WorkflowPriorityGroupVO oldGroup : oldGroups) {
+            // Delete mapping table entries first
+            priorityGroupMapper.deletePriorityGroupJobs(oldGroup.getId());
             // Unlink jobs from old priority group
             jobMapper.clearWorkflowInfo(oldGroup.getId());
         }
@@ -293,6 +313,8 @@ public class WorkflowService {
                                 pgId,
                                 jobRequest.getWorkflowDelay()
                         );
+                        // Also insert into mapping table
+                        priorityGroupMapper.insertPriorityGroupJob(pgId, jobRequest.getJobId());
                     }
                 }
             }
@@ -327,6 +349,8 @@ public class WorkflowService {
         // Clear jobs linkage
         List<WorkflowPriorityGroupVO> groups = priorityGroupMapper.findByWorkflowId(workflowId);
         for (WorkflowPriorityGroupVO group : groups) {
+            // Delete mapping table entries first
+            priorityGroupMapper.deletePriorityGroupJobs(group.getId());
             jobMapper.clearWorkflowInfo(group.getId());
         }
 

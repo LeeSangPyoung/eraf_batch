@@ -1,6 +1,7 @@
 package com.tes.batch.scheduler.domain.server.vo;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.tes.batch.common.enums.DeploymentType;
 import lombok.*;
 
 /**
@@ -21,8 +22,6 @@ public class JobServerVO {
     private String hostName;
     @JsonProperty("host_ip_addr")
     private String hostIpAddr;
-    @JsonProperty("secondary_host_ip_addr")
-    private String secondaryHostIpAddr;
     @JsonProperty("system_comments")
     private String systemComments;
 
@@ -34,22 +33,23 @@ public class JobServerVO {
     private String queueName;
 
     /**
-     * Folder path for agent deployment on primary host.
+     * Folder path for agent deployment.
      */
     @JsonProperty("folder_path")
     private String folderPath;
-
-    /**
-     * Folder path for agent deployment on secondary host.
-     */
-    @JsonProperty("secondary_folder_path")
-    private String secondaryFolderPath;
 
     /**
      * SSH username for agent deployment.
      */
     @JsonProperty("ssh_user")
     private String sshUser;
+
+    /**
+     * SSH password for password-based authentication.
+     * If null, SSH key-based authentication will be used.
+     */
+    @JsonProperty("ssh_password")
+    private String sshPassword;
 
     /**
      * Agent status: ONLINE, OFFLINE, UNKNOWN
@@ -73,6 +73,22 @@ public class JobServerVO {
     @Builder.Default
     @JsonProperty("agent_port")
     private Integer agentPort = 8081;
+
+    /**
+     * Agent deployment type: JAR or DOCKER
+     */
+    @Builder.Default
+    @JsonProperty("deployment_type")
+    private DeploymentType deploymentType = DeploymentType.JAR;
+
+    /**
+     * Mount paths for Docker deployment.
+     * Comma-separated list of host paths to mount into the agent container.
+     * Example: /workspace,/home/tangosvc/scripts
+     * If empty/null, folderPath will be mounted by default.
+     */
+    @JsonProperty("mount_paths")
+    private String mountPaths;
 
     /**
      * First registration date (epoch ms)

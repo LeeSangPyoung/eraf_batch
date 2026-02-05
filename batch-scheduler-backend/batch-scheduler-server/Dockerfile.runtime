@@ -1,0 +1,34 @@
+# Runtime-only Dockerfile for Batch Scheduler Server (uses pre-built JARs)
+
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+# Install necessary runtime dependencies including Docker CLI
+RUN apk add --no-cache \
+    openssh-client \
+    bash \
+    curl \
+    docker-cli
+
+# Copy the pre-built server JAR
+COPY batch-scheduler-server/target/batch-scheduler-server-*.jar app.jar
+
+# Copy the pre-built agent JAR (for JAR deployment scenario)
+COPY batch-scheduler-agent/target/batch-scheduler-agent-*.jar batch-scheduler-agent.jar
+
+# Copy the agent Docker image tar.gz (for Docker deployment scenario)
+COPY batch-scheduler-agent.tar.gz batch-scheduler-agent.tar.gz
+
+# Create directories for logs and keys
+RUN mkdir -p /app/logs /app/keys
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# Run the application
+ENTRYPOINT ["java", "-jar", "app.jar"]

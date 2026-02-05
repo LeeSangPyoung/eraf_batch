@@ -1,6 +1,7 @@
 package com.tes.batch.scheduler.domain.server.controller;
 
 import com.tes.batch.common.dto.ApiResponse;
+import com.tes.batch.common.enums.DeploymentType;
 import com.tes.batch.scheduler.domain.server.dto.ServerFilterRequest;
 import com.tes.batch.scheduler.domain.server.dto.ServerRequest;
 import com.tes.batch.scheduler.domain.server.service.ServerService;
@@ -82,13 +83,13 @@ public class ServerController {
     }
 
     /**
-     * Delete server
+     * Delete server (with proper deployment cleanup)
      * DELETE /server/delete
      */
     @DeleteMapping("/delete")
     public ApiResponse<Void> deleteServer(@RequestParam String systemId) {
         try {
-            serverService.deleteServer(systemId);
+            serverService.deleteServerWithCleanup(systemId);
             return ApiResponse.success(null);
         } catch (Exception e) {
             log.error("Failed to delete server", e);
@@ -129,14 +130,26 @@ public class ServerController {
     }
 
     /**
-     * Redeploy server worker
+     * Redeploy server worker (supports deployment type transition)
      * POST /server/redeploy
+     * @param request { system_name: string, previous_deployment_type?: "JAR" | "DOCKER" }
      */
     @PostMapping("/redeploy")
     public ApiResponse<Void> redeployServer(@RequestBody Map<String, Object> request) {
         try {
             String systemName = (String) request.get("system_name");
-            serverService.redeployServer(systemName);
+            String previousTypeStr = (String) request.get("previous_deployment_type");
+
+            DeploymentType previousType = null;
+            if (previousTypeStr != null && !previousTypeStr.isEmpty()) {
+                try {
+                    previousType = DeploymentType.valueOf(previousTypeStr.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid previous_deployment_type: {}", previousTypeStr);
+                }
+            }
+
+            serverService.redeployServer(systemName, previousType);
             return ApiResponse.success(null);
         } catch (Exception e) {
             log.error("Failed to redeploy server", e);

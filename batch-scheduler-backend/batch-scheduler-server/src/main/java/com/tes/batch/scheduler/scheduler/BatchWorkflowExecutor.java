@@ -41,12 +41,19 @@ public class BatchWorkflowExecutor implements Job {
             // Skip if workflow is already RUNNING (prevent concurrent executions)
             if ("RUNNING".equals(workflow.getLatestStatus())) {
                 log.warn("Workflow {} is already RUNNING, skipping this execution", workflowId);
-                // Reschedule for next run so it doesn't get lost
-                Long nextRunDate = schedulerService.calculateNextRunDate(workflow);
-                if (nextRunDate != null) {
-                    workflowMapper.updateNextRunDate(workflowId, nextRunDate);
-                    schedulerService.scheduleWorkflow(workflowId, nextRunDate);
-                }
+                // Don't reschedule here - handleWorkflowResult will reschedule when the workflow completes.
+                // Rescheduling here causes duplicate triggers and rapid re-execution.
+                return;
+            }
+
+            // Skip if next run time hasn't arrived yet (prevent premature execution)
+            long now = System.currentTimeMillis();
+            if (workflow.getNextRunDate() != null && now < workflow.getNextRunDate()) {
+                long secondsUntilRun = (workflow.getNextRunDate() - now) / 1000;
+                log.info("Workflow {} next run is in {} seconds, skipping premature execution",
+                    workflowId, secondsUntilRun);
+                // Reschedule for the correct time
+                schedulerService.scheduleWorkflow(workflowId, workflow.getNextRunDate());
                 return;
             }
 

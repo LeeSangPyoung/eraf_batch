@@ -21,13 +21,13 @@ public class SshService {
     @Value("${app.agent.jar-path:./batch-scheduler-agent.jar}")
     private String agentJarPath;
 
-    @Value("${spring.data.redis.host:192.168.254.102}")
+    @Value("${app.agent.redis-host}")
     private String redisHost;
 
-    @Value("${spring.data.redis.port:6379}")
+    @Value("${app.agent.redis-port}")
     private int redisPort;
 
-    @Value("${app.scheduler.api-url:http://localhost:8080}")
+    @Value("${app.scheduler.external-url}")
     private String schedulerUrl;
 
     /**
@@ -42,37 +42,57 @@ public class SshService {
     }
 
     /**
-     * Create SSH session
+     * Create SSH session with password authentication
      */
-    public Session createSession(String host, String username) throws JSchException {
+    public Session createSession(String host, String username, String password) throws JSchException {
         JSch jsch = new JSch();
 
-        // Try to load private key
-        String keyPath = sshKeysPath + "/" + username + "/id_rsa";
-        File keyFile = new File(keyPath);
-        log.info("Looking for SSH key at: {} (absolute: {})", keyPath, keyFile.getAbsolutePath());
-        if (keyFile.exists()) {
-            jsch.addIdentity(keyPath);
-            log.info("Using SSH key: {}", keyFile.getAbsolutePath());
-        } else {
-            log.warn("SSH key not found: {}", keyFile.getAbsolutePath());
-            // Try default key location
-            String defaultKey = System.getProperty("user.home") + "/.ssh/id_rsa";
-            File defaultKeyFile = new File(defaultKey);
-            if (defaultKeyFile.exists()) {
-                jsch.addIdentity(defaultKey);
-                log.info("Using default SSH key: {}", defaultKey);
+        // Check if password authentication should be used
+        boolean usePassword = password != null && !password.isEmpty();
+
+        if (!usePassword) {
+            // Try to load private key
+            String keyPath = sshKeysPath + "/" + username + "/id_rsa";
+            File keyFile = new File(keyPath);
+            log.info("Looking for SSH key at: {} (absolute: {})", keyPath, keyFile.getAbsolutePath());
+            if (keyFile.exists()) {
+                jsch.addIdentity(keyPath);
+                log.info("Using SSH key: {}", keyFile.getAbsolutePath());
             } else {
-                log.error("No SSH key found! Tried: {} and {}", keyFile.getAbsolutePath(), defaultKey);
+                log.warn("SSH key not found: {}", keyFile.getAbsolutePath());
+                // Try default key location
+                String defaultKey = System.getProperty("user.home") + "/.ssh/id_rsa";
+                File defaultKeyFile = new File(defaultKey);
+                if (defaultKeyFile.exists()) {
+                    jsch.addIdentity(defaultKey);
+                    log.info("Using default SSH key: {}", defaultKey);
+                } else {
+                    log.warn("No SSH key found! Tried: {} and {}", keyFile.getAbsolutePath(), defaultKey);
+                }
             }
+        } else {
+            log.info("Using SSH password authentication for user: {}", username);
         }
 
         Session session = jsch.getSession(username, host, 22);
+
+        // Set password if using password authentication
+        if (usePassword) {
+            session.setPassword(password);
+        }
+
         session.setConfig("StrictHostKeyChecking", "no");
         session.setConfig("PreferredAuthentications", "publickey,keyboard-interactive,password");
         session.setTimeout(30000);
 
         return session;
+    }
+
+    /**
+     * Create SSH session (legacy - no password)
+     */
+    public Session createSession(String host, String username) throws JSchException {
+        return createSession(host, username, null);
     }
 
     /**
@@ -430,7 +450,7 @@ public class SshService {
     /**
      * Sync config and restart agent (lightweight operation for heartbeat recovery)
      */
-    public void syncConfigAndRestart(String hostIpAddr, String sshUser, String folderPath, String queueName, Integer agentPort) throws Exception {
+    public void syncConfigAndRestart(String hostIpAddr, String sshUser, String sshPassword, String folderPath, String queueName, Integer agentPort) throws Exception {
         String[] userHost = parseUserHost(hostIpAddr, sshUser);
         String username = userHost[0];
         String host = userHost[1];
@@ -441,7 +461,7 @@ public class SshService {
 
         log.info("Syncing config and restarting agent at {}@{}:{} (port: {})", username, host, folderPath, agentPort);
 
-        Session session = createSession(host, username);
+        Session session = createSession(host, username, sshPassword);
         try {
             session.connect();
 

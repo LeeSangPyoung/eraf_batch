@@ -1,0 +1,144 @@
+# GitLab CI/CD Pipeline for Batch Scheduler Backend
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  # Container Registry
+  REGISTRY: $CI_REGISTRY
+  SERVER_IMAGE: $CI_REGISTRY_IMAGE/server
+  AGENT_IMAGE: $CI_REGISTRY_IMAGE/agent
+
+# Cache Maven dependencies
+cache:
+  paths:
+    - .m2/repository
+    - batch-scheduler-server/target
+    - batch-scheduler-agent/target
+    - batch-scheduler-common/target
+
+stages:
+  - build
+  - test
+  - docker-build
+  - docker-push
+  - deploy
+
+# Build with Maven
+build:maven:
+  stage: build
+  image: maven:3.9-eclipse-temurin-23
+  script:
+    - echo "Building with Maven..."
+    - mvn clean package -DskipTests
+  artifacts:
+    paths:
+      - batch-scheduler-server/target/*.jar
+      - batch-scheduler-agent/target/*.jar
+      - batch-scheduler-common/target/*.jar
+    expire_in: 1 day
+  only:
+    - main
+    - develop
+    - tags
+
+# Run tests
+test:unit:
+  stage: test
+  image: maven:3.9-eclipse-temurin-23
+  script:
+    - echo "Running unit tests..."
+    - mvn test
+  coverage: '/Total.*?([0-9]{1,3})%/'
+  only:
+    - main
+    - develop
+    - merge_requests
+
+# Build Server Docker image
+docker:build:server:
+  stage: docker-build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Building Server Docker image..."
+    - docker build
+      -f batch-scheduler-server/Dockerfile
+      -t $SERVER_IMAGE:$CI_COMMIT_SHORT_SHA
+      -t $SERVER_IMAGE:latest
+      .
+    - docker push $SERVER_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $SERVER_IMAGE:latest
+  dependencies:
+    - build:maven
+  only:
+    - main
+    - tags
+
+# Build Agent Docker image
+docker:build:agent:
+  stage: docker-build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Building Agent Docker image..."
+    - docker build
+      -f batch-scheduler-agent/Dockerfile
+      -t $AGENT_IMAGE:$CI_COMMIT_SHORT_SHA
+      -t $AGENT_IMAGE:latest
+      .
+    - docker push $AGENT_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $AGENT_IMAGE:latest
+  dependencies:
+    - build:maven
+  only:
+    - main
+    - tags
+
+# Tag images for releases
+docker:tag:release:
+  stage: docker-push
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Tagging release $CI_COMMIT_TAG..."
+    - docker pull $SERVER_IMAGE:latest
+    - docker pull $AGENT_IMAGE:latest
+    - docker tag $SERVER_IMAGE:latest $SERVER_IMAGE:$CI_COMMIT_TAG
+    - docker tag $AGENT_IMAGE:latest $AGENT_IMAGE:$CI_COMMIT_TAG
+    - docker push $SERVER_IMAGE:$CI_COMMIT_TAG
+    - docker push $AGENT_IMAGE:$CI_COMMIT_TAG
+  only:
+    - tags
+
+# Deploy to development (optional)
+deploy:dev:
+  stage: deploy
+  image: docker:24-dind
+  script:
+    - echo "Deploying to development environment..."
+    - echo "SSH to dev server and run:"
+    - echo "docker-compose pull && docker-compose up -d"
+  only:
+    - develop
+  when: manual
+
+# Deploy to production (optional)
+deploy:prod:
+  stage: deploy
+  image: docker:24-dind
+  script:
+    - echo "Deploying to production environment..."
+    - echo "This should be triggered manually after testing"
+  only:
+    - tags
+  when: manual

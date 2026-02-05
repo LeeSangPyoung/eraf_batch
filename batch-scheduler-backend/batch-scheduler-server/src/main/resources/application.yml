@@ -7,9 +7,9 @@ spring:
 
   # Database Configuration
   datasource:
-    url: jdbc:postgresql://192.168.152.129:5432/batch
-    username: batch
-    password: batch123
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -27,8 +27,8 @@ spring:
   # Redis Configuration
   data:
     redis:
-      host: 192.168.152.129
-      port: 6379
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT}
       timeout: 5000ms
       lettuce:
         pool:
@@ -71,13 +71,21 @@ jwt:
 # Application Configuration
 app:
   scheduler:
-    api-url: http://localhost:8080
+    # External URL that agents can reach (composed from SCHEDULER_HOST and SCHEDULER_PORT)
+    external-url: http://${SCHEDULER_HOST}:${SCHEDULER_PORT}
   agent:
-    jar-path: ./batch-scheduler-agent.jar  # 서버 실행 디렉토리 기준
+    # Agent JAR file path
+    jar-path: ${AGENT_JAR_PATH:./batch-scheduler-agent.jar}
+    # Agent Docker image name and tar.gz path
+    docker-image: ${AGENT_DOCKER_IMAGE:batch-scheduler-agent:latest}
+    docker-image-path: ${AGENT_DOCKER_IMAGE_PATH:./batch-scheduler-agent.tar.gz}
+    # Redis host/port that agents can reach
+    redis-host: ${REDIS_HOST}
+    redis-port: ${REDIS_PORT}
   session:
     timeout: 3600  # 1 hour in seconds
   cors:
-    allowed-origins: http://localhost:3000,http://localhost:5566,http://192.168.152.129:3000,http://192.168.152.128:3000
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS}
 
 # SSH Configuration
 ssh:
@@ -110,7 +118,7 @@ logging:
     org.springframework.security: INFO
     org.mybatis: DEBUG
   file:
-    name: ./server.log
+    name: ${LOG_PATH:/app/logs}/server.log
   pattern:
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
     console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"

@@ -10,9 +10,9 @@ import useWorkflowStore from './store/useWorkflowStore';
 
 const fetcher = ([url, pageSize, offset, search_text, set, onSuccess]) => {
   const params = { params: { page_size: pageSize, page_number: offset, search_text } };
-  api.get(url, params).then(response => {
-    onSuccess && onSuccess?.(response.data.data); 
-    set(response.data.data); 
+  return api.get(url, params).then(response => {
+    onSuccess && onSuccess?.(response.data.data);
+    set(response.data.data);
     return response.data;
   }).catch(error => {
     toast.error(error);

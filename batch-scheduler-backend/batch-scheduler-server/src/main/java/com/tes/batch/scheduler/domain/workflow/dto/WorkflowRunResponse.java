@@ -30,6 +30,9 @@ public class WorkflowRunResponse {
 
     private String error;
 
+    @JsonProperty("total_jobs")
+    private Integer totalJobs;
+
     @JsonProperty("job_runs")
     private List<JobRunLogVO> jobRuns;
 
@@ -42,6 +45,7 @@ public class WorkflowRunResponse {
                 .startTime(vo.getStartTime())
                 .endTime(vo.getEndTime())
                 .error(vo.getError())
+                .totalJobs(vo.getTotalJobs())
                 .build();
     }
 }

@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.idea
+.vscode
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings
+
+# Build outputs (will be built inside container)
+**/target/
+**/build/
+*.war
+*.ear
+
+# Allow specific JARs for runtime Dockerfile
+!batch-scheduler-server/target/batch-scheduler-server-*.jar
+!batch-scheduler-agent/target/batch-scheduler-agent-*.jar
+
+# Logs
+*.log
+**/logs/
+
+# Allow agent tar.gz for Docker deployment
+!batch-scheduler-agent.tar.gz
+
+# Temporary files
+**/*.tmp
+**/*.temp
+**/*.swp
+**/*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Test files
+**/src/test/
+
+# Keys and secrets (should not be in image)
+**/keys/
+*.key
+*.pem
+*.p12
+*.jks

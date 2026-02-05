@@ -140,6 +140,7 @@ public class AgentHealthChecker {
                 sshService.syncConfigAndRestart(
                         server.getHostIpAddr(),
                         server.getSshUser(),
+                        server.getSshPassword(),
                         server.getFolderPath(),
                         server.getQueueName(),
                         server.getAgentPort()

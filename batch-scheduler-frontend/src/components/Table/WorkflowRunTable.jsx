@@ -60,6 +60,7 @@ function WorkflowRunTable({
           <TableCell style={styleHeaderTable}>{t('workflowRunId')}</TableCell>
           {/* <TableCell style={styleHeaderTable}>{t('workflowId')}</TableCell> */}
           <TableCell style={styleHeaderTable}>{t('workflowName')}</TableCell>
+          <TableCell style={styleHeaderTable}>{t('totalJobs')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('start_date')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('end_date')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('status')}</TableCell>
@@ -86,6 +87,9 @@ function WorkflowRunTable({
                 {/* <TableCell style={styleTableCell}>{row.workflow_id}</TableCell> */}
                 <TableCell style={styleTableCell}>
                   {row.workflow_name}
+                </TableCell>
+                <TableCell style={styleTableCell}>
+                  {row.total_jobs ?? '-'}
                 </TableCell>
                 <TableCell style={styleTableCell}>
                   {timestampFormat(row.start_date)}

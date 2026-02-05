@@ -226,41 +226,88 @@ const JobDetailTab = (props) => {
             Server
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Master - with pulse animation when running */}
-            <Box sx={{
-              display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px',
-              backgroundColor: '#FF9500', borderRadius: '16px',
-              ...(data.current_state === 'RUNNING' && {
-                animation: 'pulse 2s ease-in-out infinite',
-                '@keyframes pulse': {
-                  '0%, 100%': { boxShadow: '0 0 0 0 rgba(255, 149, 0, 0.4)' },
-                  '50%': { boxShadow: '0 0 0 8px rgba(255, 149, 0, 0)' },
-                },
-              }),
-            }}>
-              <Box sx={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>M</Box>
-              <Box sx={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>{data.system || '-'}</Box>
-            </Box>
-            {/* Slave1 */}
-            {data.secondary_system && (
-              <>
-                <Box sx={{ fontSize: '14px', color: '#C7C7CC' }}>→</Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', backgroundColor: '#F5F5F7', borderRadius: '16px' }}>
-                  <Box sx={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 500 }}>S1</Box>
-                  <Box sx={{ fontSize: '13px', color: '#86868B', fontWeight: 500 }}>{data.secondary_system}</Box>
-                </Box>
-              </>
-            )}
-            {/* Slave2 */}
-            {data.tertiary_system && (
-              <>
-                <Box sx={{ fontSize: '14px', color: '#C7C7CC' }}>→</Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', backgroundColor: '#F5F5F7', borderRadius: '16px' }}>
-                  <Box sx={{ fontSize: '10px', color: '#AEAEB2', fontWeight: 500 }}>S2</Box>
-                  <Box sx={{ fontSize: '13px', color: '#86868B', fontWeight: 500 }}>{data.tertiary_system}</Box>
-                </Box>
-              </>
-            )}
+            {/* Determine which server is currently active based on running_system_id or current_state */}
+            {(() => {
+              const isRunning = data.current_state === 'RUNNING' || data.current_state === 'WAITING';
+              // running_system_id comes from the latest job run log showing actual executing server
+              const runningSystemId = data.running_system_id;
+
+              // Only highlight servers when job is actively running
+              let activeServer = null;
+              if (isRunning) {
+                if (runningSystemId === data.secondary_system_id) {
+                  activeServer = 'secondary';
+                } else if (runningSystemId === data.tertiary_system_id) {
+                  activeServer = 'tertiary';
+                } else {
+                  activeServer = 'master'; // default to master when running
+                }
+              }
+
+              const isMasterActive = activeServer === 'master';
+              const isSecondaryActive = activeServer === 'secondary';
+              const isTertiaryActive = activeServer === 'tertiary';
+
+              return (
+                <>
+                  {/* Master */}
+                  <Box sx={{
+                    display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px',
+                    backgroundColor: isMasterActive ? '#FF9500' : '#F5F5F7', borderRadius: '16px',
+                    ...(isRunning && isMasterActive && {
+                      animation: 'pulse 2s ease-in-out infinite',
+                      '@keyframes pulse': {
+                        '0%, 100%': { boxShadow: '0 0 0 0 rgba(255, 149, 0, 0.4)' },
+                        '50%': { boxShadow: '0 0 0 8px rgba(255, 149, 0, 0)' },
+                      },
+                    }),
+                  }}>
+                    <Box sx={{ fontSize: '10px', color: isMasterActive ? 'rgba(255,255,255,0.8)' : '#AEAEB2', fontWeight: 500 }}>M</Box>
+                    <Box sx={{ fontSize: '13px', color: isMasterActive ? '#fff' : '#86868B', fontWeight: isMasterActive ? 600 : 500 }}>{data.system || '-'}</Box>
+                  </Box>
+                  {/* Slave1 */}
+                  {data.secondary_system && (
+                    <>
+                      <Box sx={{ fontSize: '14px', color: '#C7C7CC' }}>→</Box>
+                      <Box sx={{
+                        display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px',
+                        backgroundColor: isSecondaryActive ? '#FF9500' : '#F5F5F7', borderRadius: '16px',
+                        ...(isRunning && isSecondaryActive && {
+                          animation: 'pulse 2s ease-in-out infinite',
+                          '@keyframes pulse': {
+                            '0%, 100%': { boxShadow: '0 0 0 0 rgba(255, 149, 0, 0.4)' },
+                            '50%': { boxShadow: '0 0 0 8px rgba(255, 149, 0, 0)' },
+                          },
+                        }),
+                      }}>
+                        <Box sx={{ fontSize: '10px', color: isSecondaryActive ? 'rgba(255,255,255,0.8)' : '#AEAEB2', fontWeight: 500 }}>S1</Box>
+                        <Box sx={{ fontSize: '13px', color: isSecondaryActive ? '#fff' : '#86868B', fontWeight: isSecondaryActive ? 600 : 500 }}>{data.secondary_system}</Box>
+                      </Box>
+                    </>
+                  )}
+                  {/* Slave2 */}
+                  {data.tertiary_system && (
+                    <>
+                      <Box sx={{ fontSize: '14px', color: '#C7C7CC' }}>→</Box>
+                      <Box sx={{
+                        display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px',
+                        backgroundColor: isTertiaryActive ? '#FF9500' : '#F5F5F7', borderRadius: '16px',
+                        ...(isRunning && isTertiaryActive && {
+                          animation: 'pulse 2s ease-in-out infinite',
+                          '@keyframes pulse': {
+                            '0%, 100%': { boxShadow: '0 0 0 0 rgba(255, 149, 0, 0.4)' },
+                            '50%': { boxShadow: '0 0 0 8px rgba(255, 149, 0, 0)' },
+                          },
+                        }),
+                      }}>
+                        <Box sx={{ fontSize: '10px', color: isTertiaryActive ? 'rgba(255,255,255,0.8)' : '#AEAEB2', fontWeight: 500 }}>S2</Box>
+                        <Box sx={{ fontSize: '13px', color: isTertiaryActive ? '#fff' : '#86868B', fontWeight: isTertiaryActive ? 600 : 500 }}>{data.tertiary_system}</Box>
+                      </Box>
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </Box>
         </Box>
         <InfoItem label={t('group_name')} value={data.group} />
@@ -590,6 +637,18 @@ const JobHistoryTab = (props) => {
 function JobStatusDetail({ open, onClose, data, mutate }) {
   const { t } = useTranslation();
   const [tabIndex, setTabIndex] = useState(0);
+
+  // Fetch fresh job detail data to get running_system_id (only available in detail API)
+  const { job: jobDetail } = useJobDetailData({ job_id: data?.job_id });
+
+  // Only merge running_system fields from detail API (other fields may be incomplete)
+  // Keep current_state from table data (more real-time) - don't override with stale jobDetail
+  const mergedData = {
+    ...data,
+    running_system_id: jobDetail?.running_system_id,
+    running_system_name: jobDetail?.running_system_name,
+  };
+
   // Get job result data for log viewer
   const {
     jobResultData: logJobResults,
@@ -713,7 +772,7 @@ function JobStatusDetail({ open, onClose, data, mutate }) {
         }}
       >
         {tabIndex === 0 && (
-          <JobDetailTab onClose={onClose} data={data} mutate={mutate} />
+          <JobDetailTab onClose={onClose} data={mergedData} mutate={mutate} />
         )}
         {tabIndex === 1 && <JobHistoryTab data={data} />}
         {tabIndex === 2 && (

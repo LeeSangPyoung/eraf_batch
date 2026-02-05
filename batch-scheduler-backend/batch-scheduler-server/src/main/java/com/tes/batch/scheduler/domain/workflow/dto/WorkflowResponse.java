@@ -49,6 +49,9 @@ public class WorkflowResponse {
     @JsonProperty("priority_groups")
     private List<PriorityGroupResponse> priorityGroups;
 
+    @JsonProperty("assignJobs")
+    private List<AssignedJobResponse> assignJobs;
+
     @Data
     @Builder
     public static class PriorityGroupResponse {
@@ -72,6 +75,25 @@ public class WorkflowResponse {
 
         @JsonProperty("workflow_delay")
         private Integer workflowDelay;
+    }
+
+    @Data
+    @Builder
+    public static class AssignedJobResponse {
+        @JsonProperty("job_id")
+        private String jobId;
+
+        @JsonProperty("job_name")
+        private String jobName;
+
+        @JsonProperty("priority")
+        private Integer priority;
+
+        @JsonProperty("delay")
+        private Integer delay;
+
+        @JsonProperty("ignore_result")
+        private Boolean ignoreResult;
     }
 
     public static WorkflowResponse from(WorkflowVO vo) {

@@ -1,0 +1,142 @@
+# GitLab CI/CD Pipeline for Batch Scheduler Frontend
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  # Container Registry
+  REGISTRY: $CI_REGISTRY
+  FRONTEND_IMAGE: $CI_REGISTRY_IMAGE
+  # Build args
+  VITE_BACKEND_URL: "http://localhost:8080"
+  VITE_WEB_SOCKET_URL: "ws://localhost:8080"
+  VITE_SERVER_LOG_URL: "http://localhost:3100"
+  VITE_SERVER_LOG_DASHBOARD_ID: ""
+
+# Cache node_modules
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+    - .pnpm-store/
+
+stages:
+  - install
+  - lint
+  - test
+  - build
+  - docker-build
+  - deploy
+
+# Install dependencies
+install:dependencies:
+  stage: install
+  image: node:18-alpine
+  script:
+    - echo "Installing dependencies..."
+    - npm install -g pnpm
+    - pnpm install --frozen-lockfile
+  artifacts:
+    paths:
+      - node_modules/
+    expire_in: 1 day
+  only:
+    - main
+    - develop
+    - merge_requests
+
+# Lint code
+lint:code:
+  stage: lint
+  image: node:18-alpine
+  script:
+    - echo "Linting code..."
+    - npm install -g pnpm
+    - pnpm run lint || true
+  dependencies:
+    - install:dependencies
+  only:
+    - merge_requests
+  allow_failure: true
+
+# Build application
+build:app:
+  stage: build
+  image: node:18-alpine
+  script:
+    - echo "Building application..."
+    - npm install -g pnpm
+    - pnpm run build
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 day
+  dependencies:
+    - install:dependencies
+  only:
+    - main
+    - develop
+    - tags
+
+# Build Docker image
+docker:build:
+  stage: docker-build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Building Frontend Docker image..."
+    - docker build
+      --build-arg VITE_BACKEND_URL=$VITE_BACKEND_URL
+      --build-arg VITE_WEB_SOCKET_URL=$VITE_WEB_SOCKET_URL
+      --build-arg VITE_SERVER_LOG_URL=$VITE_SERVER_LOG_URL
+      --build-arg VITE_SERVER_LOG_DASHBOARD_ID=$VITE_SERVER_LOG_DASHBOARD_ID
+      -t $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+      -t $FRONTEND_IMAGE:latest
+      .
+    - docker push $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker push $FRONTEND_IMAGE:latest
+  only:
+    - main
+    - tags
+
+# Tag image for release
+docker:tag:release:
+  stage: docker-build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Tagging release $CI_COMMIT_TAG..."
+    - docker pull $FRONTEND_IMAGE:latest
+    - docker tag $FRONTEND_IMAGE:latest $FRONTEND_IMAGE:$CI_COMMIT_TAG
+    - docker push $FRONTEND_IMAGE:$CI_COMMIT_TAG
+  only:
+    - tags
+
+# Deploy to development
+deploy:dev:
+  stage: deploy
+  image: docker:24-dind
+  script:
+    - echo "Deploying to development environment..."
+    - echo "SSH to dev server and run:"
+    - echo "docker pull $FRONTEND_IMAGE:latest"
+    - echo "docker-compose up -d frontend"
+  only:
+    - develop
+  when: manual
+
+# Deploy to production
+deploy:prod:
+  stage: deploy
+  image: docker:24-dind
+  script:
+    - echo "Deploying to production environment..."
+    - echo "This should be triggered manually after testing"
+  only:
+    - tags
+  when: manual
