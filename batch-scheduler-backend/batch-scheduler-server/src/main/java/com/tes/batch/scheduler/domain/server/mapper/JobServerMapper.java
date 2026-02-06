@@ -48,5 +48,10 @@ public interface JobServerMapper {
             @Param("isHealthy") Boolean isHealthy
     );
 
+    int updateLastDeployTime(
+            @Param("systemId") String systemId,
+            @Param("lastDeployTime") Long lastDeployTime
+    );
+
     int delete(@Param("systemId") String systemId);
 }

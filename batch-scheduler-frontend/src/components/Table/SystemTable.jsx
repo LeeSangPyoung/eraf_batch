@@ -1,8 +1,9 @@
-import { CircularProgress } from '@mui/material';
+import { CircularProgress, Tooltip } from '@mui/material';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useModal from '../../hook/useModal';
@@ -131,8 +132,30 @@ function SystemTable({
                     );
                   }
                   const isHealthy = row.is_healthy === true;
-                  const color = isHealthy ? '#34C759' : '#FF3B30'; // Green / Red
-                  return (
+                  const hasRecentFailures = row.recent_failed_jobs > 0;
+
+                  // Check if server is in initializing state (deployed/started within last 30 seconds)
+                  const now = Date.now();
+                  const deployTime = row.last_deploy_time || 0;
+                  const timeSinceDeployMs = now - deployTime;
+                  const isInitializing = !isHealthy && timeSinceDeployMs < 30000; // 30 seconds
+
+                  // Determine status and color
+                  let status, color;
+                  if (isInitializing) {
+                    status = 'initializing';
+                    color = '#FF9500'; // Orange
+                  } else if (isHealthy && !hasRecentFailures) {
+                    status = 'healthy';
+                    color = '#34C759'; // Green
+                  } else {
+                    status = 'unhealthy';
+                    color = '#FF3B30'; // Red
+                  }
+
+                  const displayHealthy = status === 'healthy';
+
+                  const healthBadge = (
                     <div
                       style={{
                         display: 'inline-flex',
@@ -150,7 +173,7 @@ function SystemTable({
                           borderRadius: '50%',
                           backgroundColor: color,
                           boxShadow: `0 0 6px ${color}60`,
-                          animation: isHealthy ? 'pulse 2s infinite' : 'none',
+                          animation: displayHealthy ? 'pulse 2s infinite' : 'none',
                         }}
                       />
                       <span
@@ -160,12 +183,50 @@ function SystemTable({
                           color: color,
                           fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
                           letterSpacing: '-0.01em',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
                         }}
                       >
-                        {isHealthy ? t('healthy') : t('unhealthy')}
+                        {status === 'healthy' ? t('healthy') :
+                         status === 'initializing' ? t('initializing') : (
+                          <>
+                            {t('unhealthy')}
+                            <WarningAmberIcon sx={{ fontSize: '16px' }} />
+                          </>
+                        )}
                       </span>
                     </div>
                   );
+
+                  // Show warning tooltip if there are recent failures
+                  if (hasRecentFailures) {
+                    const lastFailureDate = row.last_failure_time
+                      ? timestampFormat(row.last_failure_time)
+                      : 'Unknown';
+
+                    return (
+                      <Tooltip
+                        title={
+                          <div style={{ fontSize: '12px', lineHeight: '1.5' }}>
+                            <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                              ⚠️ Recent Agent Issues
+                            </div>
+                            <div>{row.recent_failed_jobs} job(s) failed in last 24h</div>
+                            <div style={{ marginTop: '4px', fontSize: '11px', opacity: 0.9 }}>
+                              Last failure: {lastFailureDate}
+                            </div>
+                          </div>
+                        }
+                        arrow
+                        placement="top"
+                      >
+                        {healthBadge}
+                      </Tooltip>
+                    );
+                  }
+
+                  return healthBadge;
                 })()}
               </TableCell>
               <TableCell style={{ ...styleTableCell, textAlign: 'center' }}>{row.agent_port || '-'}</TableCell>

@@ -33,7 +33,9 @@ public class ServerService {
     @Transactional(readOnly = true)
     public List<JobServerVO> getServers(ServerFilterRequest request) {
         int offset = request.getPage() * request.getSize();
-        return serverMapper.findByFilters(request.getTextSearch(), request.getSize(), offset);
+        List<JobServerVO> servers = serverMapper.findByFilters(request.getTextSearch(), request.getSize(), offset);
+        enrichWithFailureStats(servers);
+        return servers;
     }
 
     @Transactional(readOnly = true)
@@ -43,7 +45,38 @@ public class ServerService {
 
     @Transactional(readOnly = true)
     public List<JobServerVO> getAllServers() {
-        return serverMapper.findAll();
+        List<JobServerVO> servers = serverMapper.findAll();
+        enrichWithFailureStats(servers);
+        return servers;
+    }
+
+    /**
+     * Enrich server list with failure statistics
+     */
+    private void enrichWithFailureStats(List<JobServerVO> servers) {
+        long last24Hours = System.currentTimeMillis() - (24 * 60 * 60 * 1000);
+
+        for (JobServerVO server : servers) {
+            try {
+                // Count recent agent-related failures (last 24 hours)
+                int failureCount = jobRunLogMapper.countRecentAgentFailuresBySystemId(
+                    server.getSystemId(),
+                    last24Hours
+                );
+                server.setRecentFailedJobs(failureCount);
+
+                // Get timestamp of most recent failure
+                Long lastFailureTime = jobRunLogMapper.findLatestAgentFailureTimeBySystemId(
+                    server.getSystemId()
+                );
+                server.setLastFailureTime(lastFailureTime);
+            } catch (Exception e) {
+                log.warn("Failed to get failure stats for server {}: {}",
+                    server.getSystemName(), e.getMessage());
+                server.setRecentFailedJobs(0);
+                server.setLastFailureTime(null);
+            }
+        }
     }
 
     @Transactional(readOnly = true)
@@ -80,6 +113,17 @@ public class ServerService {
             agentPort = 8081 + (Math.abs(queueName.hashCode()) % 919);
         }
 
+        // Automatically append system name to folder path to prevent conflicts
+        String folderPath = request.getFolderPath();
+        if (folderPath != null && !folderPath.isEmpty()) {
+            // Remove trailing slash if exists
+            if (folderPath.endsWith("/")) {
+                folderPath = folderPath.substring(0, folderPath.length() - 1);
+            }
+            // Append system name as subfolder
+            folderPath = folderPath + "/" + request.getSystemName();
+        }
+
         JobServerVO server = JobServerVO.builder()
                 .systemId(systemId)
                 .systemName(request.getSystemName())
@@ -87,7 +131,7 @@ public class ServerService {
                 .hostIpAddr(hostIpAddr)
                 .systemComments(request.getSystemComments())
                 .queueName(queueName)
-                .folderPath(request.getFolderPath())
+                .folderPath(folderPath)
                 .sshUser(sshUser)
                 .sshPassword(request.getSshPassword())
                 .agentPort(agentPort)
@@ -126,6 +170,11 @@ public class ServerService {
             if (hostIpAddr != null && request.getFolderPath() != null) {
                 log.info("Starting agent deployment to {}@{} using {} deployment",
                     sshUser, hostIpAddr, server.getDeploymentType());
+
+                // Reset health and update deploy time BEFORE starting agent
+                long deployTime = System.currentTimeMillis();
+                serverMapper.updateLastDeployTime(server.getSystemId(), deployTime);
+                serverMapper.updateHealthStatus(server.getSystemId(), false);
 
                 // Deploy and start agent using AgentManager (handles both JAR and Docker)
                 agentManager.deployAndStartAgent(server.getSystemId(), null);
@@ -237,6 +286,11 @@ public class ServerService {
         }
 
         try {
+            // Reset health and update deploy time BEFORE starting agent
+            long deployTime = System.currentTimeMillis();
+            serverMapper.updateLastDeployTime(server.getSystemId(), deployTime);
+            serverMapper.updateHealthStatus(server.getSystemId(), false);
+
             // Use AgentManager for deployment-type aware start
             agentManager.startAgent(server.getSystemId(), null);
             serverMapper.updateAgentStatus(server.getSystemId(), "ONLINE");
@@ -293,6 +347,12 @@ public class ServerService {
                     log.warn("Failed to stop agent (may not be running): {}", e.getMessage());
                 }
             }
+
+            // Reset health and update deploy time BEFORE starting agent
+            long deployTime = System.currentTimeMillis();
+            serverMapper.updateLastDeployTime(server.getSystemId(), deployTime);
+            serverMapper.updateHealthStatus(server.getSystemId(), false);
+            log.info("Updated last_deploy_time for {}: {}", systemName, deployTime);
 
             // Deploy and start using AgentManager (deployment-type aware)
             agentManager.deployAndStartAgent(server.getSystemId(), null);

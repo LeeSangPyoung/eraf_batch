@@ -268,9 +268,12 @@
     <update id="markOrphanedLogsAsBroken">
         UPDATE scheduler_job_run_logs
         SET status = 'BROKEN',
-            operation = 'BROKEN',
-            end_time = #{endDate}
-        WHERE status IN ('RUNNING', 'PENDING')
+            operation = 'COMPLETED',
+            end_time = EXTRACT(EPOCH FROM NOW()) * 1000,
+            error = 'Job orphaned: exceeded timeout threshold'
+        WHERE status IN ('RUNNING', 'WAITING')
+          AND start_time &lt; #{endDate}
+          AND start_time IS NOT NULL
     </update>
 
     <!-- Mark RUNNING jobs as BROKEN when agent goes offline -->
@@ -291,6 +294,30 @@
         WHERE task_id = #{taskId}
         ORDER BY log_id DESC
         LIMIT 1
+    </select>
+
+    <!-- Count recent agent-related failures for a specific server -->
+    <!-- Only counts failures after last_deploy_time (if exists), otherwise after sinceTimestamp -->
+    <select id="countRecentAgentFailuresBySystemId" resultType="int">
+        SELECT COUNT(*)
+        FROM scheduler_job_run_logs l
+        LEFT JOIN scheduler_job_servers s ON l.system_id = s.system_id
+        WHERE l.system_id = #{systemId}
+          AND l.status = 'BROKEN'
+          AND (l.error LIKE '%heartbeat%' OR l.error LIKE '%agent%' OR l.error LIKE '%connection%')
+          AND l.end_time >= COALESCE(s.last_deploy_time, #{sinceTimestamp})
+    </select>
+
+    <!-- Find most recent agent-related failure timestamp for a specific server -->
+    <!-- Only considers failures after last_deploy_time (if exists) -->
+    <select id="findLatestAgentFailureTimeBySystemId" resultType="long">
+        SELECT MAX(l.end_time)
+        FROM scheduler_job_run_logs l
+        LEFT JOIN scheduler_job_servers s ON l.system_id = s.system_id
+        WHERE l.system_id = #{systemId}
+          AND l.status = 'BROKEN'
+          AND (l.error LIKE '%heartbeat%' OR l.error LIKE '%agent%' OR l.error LIKE '%connection%')
+          AND (s.last_deploy_time IS NULL OR l.end_time >= s.last_deploy_time)
     </select>
 
 </mapper>

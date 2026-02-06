@@ -39,9 +39,9 @@ public class AgentHealthChecker {
     private final java.util.Map<String, Long> lastSyncAttempt = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
-     * Check agent health every 30 seconds
+     * Check agent health every 3 seconds
      */
-    @Scheduled(fixedRate = 30000)
+    @Scheduled(fixedRate = 3000)
     @Transactional
     public void checkAgentHealth() {
         List<JobServerVO> servers = serverMapper.findAll();

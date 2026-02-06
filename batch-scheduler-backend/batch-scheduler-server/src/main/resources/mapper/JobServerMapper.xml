@@ -18,6 +18,7 @@
         <result property="agentPort" column="agent_port"/>
         <result property="deploymentType" column="deployment_type" typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
         <result property="mountPaths" column="mount_paths"/>
+        <result property="lastDeployTime" column="last_deploy_time"/>
         <result property="frstRegDate" column="frst_reg_date"/>
         <result property="lastChgDate" column="last_chg_date"/>
         <result property="frstRegUserId" column="frst_reg_user_id"/>
@@ -30,7 +31,8 @@
     <sql id="BaseColumns">
         system_id, system_name, host_name, host_ip_addr,
         system_comments, queue_name, folder_path, ssh_user, ssh_password,
-        agent_status, is_healthy, agent_port, deployment_type, mount_paths, frst_reg_date, last_chg_date, frst_reg_user_id, last_reg_user_id
+        agent_status, is_healthy, agent_port, deployment_type, mount_paths, last_deploy_time,
+        frst_reg_date, last_chg_date, frst_reg_user_id, last_reg_user_id
     </sql>
 
     <!-- Find by ID -->
@@ -74,7 +76,7 @@
         SELECT s.system_id, s.system_name, s.host_name, s.host_ip_addr,
                s.system_comments, s.queue_name, s.folder_path, s.ssh_user, s.ssh_password,
                s.agent_status, s.is_healthy, s.agent_port, s.deployment_type, s.mount_paths,
-               s.frst_reg_date, s.last_chg_date, s.frst_reg_user_id, s.last_reg_user_id,
+               s.last_deploy_time, s.frst_reg_date, s.last_chg_date, s.frst_reg_user_id, s.last_reg_user_id,
                u1.user_name as creator,
                u2.user_name as last_modifier
         FROM scheduler_job_servers s
@@ -88,7 +90,7 @@
         SELECT s.system_id, s.system_name, s.host_name, s.host_ip_addr,
                s.system_comments, s.queue_name, s.folder_path, s.ssh_user, s.ssh_password,
                s.agent_status, s.is_healthy, s.agent_port, s.deployment_type, s.mount_paths,
-               s.frst_reg_date, s.last_chg_date, s.frst_reg_user_id, s.last_reg_user_id,
+               s.last_deploy_time, s.frst_reg_date, s.last_chg_date, s.frst_reg_user_id, s.last_reg_user_id,
                u1.user_name as creator,
                u2.user_name as last_modifier
         FROM scheduler_job_servers s
@@ -135,12 +137,12 @@
         INSERT INTO scheduler_job_servers (
             system_id, system_name, host_name, host_ip_addr,
             system_comments, queue_name, folder_path, ssh_user, ssh_password,
-            agent_status, is_healthy, agent_port, deployment_type, mount_paths,
+            agent_status, is_healthy, agent_port, deployment_type, mount_paths, last_deploy_time,
             frst_reg_date, last_chg_date, frst_reg_user_id, last_reg_user_id
         ) VALUES (
             #{systemId}, #{systemName}, #{hostName}, #{hostIpAddr},
             #{systemComments}, #{queueName}, #{folderPath}, #{sshUser}, #{sshPassword},
-            #{agentStatus}, #{isHealthy}, #{agentPort}, #{deploymentType, typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{mountPaths},
+            #{agentStatus}, #{isHealthy}, #{agentPort}, #{deploymentType, typeHandler=org.apache.ibatis.type.EnumTypeHandler}, #{mountPaths}, #{lastDeployTime},
             #{frstRegDate}, #{lastChgDate}, #{frstRegUserId}, #{lastRegUserId}
         )
     </insert>
@@ -174,6 +176,13 @@
     <update id="updateHealthStatus">
         UPDATE scheduler_job_servers
         SET is_healthy = #{isHealthy}
+        WHERE system_id = #{systemId}
+    </update>
+
+    <!-- Update Last Deploy Time (reset agent health status) -->
+    <update id="updateLastDeployTime">
+        UPDATE scheduler_job_servers
+        SET last_deploy_time = #{lastDeployTime}
         WHERE system_id = #{systemId}
     </update>
 

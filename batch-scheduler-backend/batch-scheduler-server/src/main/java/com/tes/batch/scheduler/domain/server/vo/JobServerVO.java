@@ -91,6 +91,14 @@ public class JobServerVO {
     private String mountPaths;
 
     /**
+     * Last deployment timestamp (epoch ms).
+     * Updated when agent is deployed/redeployed.
+     * Used to reset agent health status after redeploy.
+     */
+    @JsonProperty("last_deploy_time")
+    private Long lastDeployTime;
+
+    /**
      * First registration date (epoch ms)
      */
     @JsonProperty("frst_reg_date")
@@ -125,4 +133,18 @@ public class JobServerVO {
      */
     @JsonProperty("last_modifier")
     private String lastModifier;
+
+    /**
+     * Number of failed jobs in the last 24 hours due to agent issues.
+     * Calculated dynamically, not stored in DB.
+     */
+    @JsonProperty("recent_failed_jobs")
+    private Integer recentFailedJobs;
+
+    /**
+     * Timestamp of the most recent agent-related failure (epoch ms).
+     * Calculated dynamically, not stored in DB.
+     */
+    @JsonProperty("last_failure_time")
+    private Long lastFailureTime;
 }

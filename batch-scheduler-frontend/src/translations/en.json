@@ -115,6 +115,7 @@
   "agentStatus": "Agent Status",
   "healthy": "Healthy",
   "unhealthy": "Unhealthy",
+  "initializing": "Initializing",
   "unknownHost": "Unknown host",
   "noAgents": "No agents",
   "online": "Online",

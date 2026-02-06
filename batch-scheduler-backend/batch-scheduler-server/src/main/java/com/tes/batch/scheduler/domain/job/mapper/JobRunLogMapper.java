@@ -126,4 +126,17 @@ public interface JobRunLogMapper {
      * Find log by task ID for real-time log streaming
      */
     JobRunLogVO selectByTaskId(@Param("taskId") String taskId);
+
+    /**
+     * Count recent agent-related failures for a specific server
+     */
+    int countRecentAgentFailuresBySystemId(
+            @Param("systemId") String systemId,
+            @Param("sinceTimestamp") Long sinceTimestamp
+    );
+
+    /**
+     * Find most recent agent-related failure timestamp for a specific server
+     */
+    Long findLatestAgentFailureTimeBySystemId(@Param("systemId") String systemId);
 }
