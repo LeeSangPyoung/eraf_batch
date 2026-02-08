@@ -631,4 +631,44 @@ public class JobService {
         }
         return "unknown";
     }
+
+    /**
+     * Reload all enabled jobs from DB to Quartz scheduler
+     * Use this when jobs are added directly to DB without API
+     */
+    @Transactional
+    public int reloadAllScheduledJobs() {
+        // Admin only
+        if (!securityUtils.isAdmin()) {
+            throw new SecurityException("Access denied: Admin only");
+        }
+
+        log.info("Reloading all enabled jobs from DB to Quartz scheduler...");
+
+        List<JobVO> enabledJobs = jobMapper.findEnabledJobsWithSchedule();
+        int reloadedCount = 0;
+
+        for (JobVO job : enabledJobs) {
+            try {
+                // Calculate and update next_run_date if not set
+                if (job.getNextRunDate() == null && job.getRepeatInterval() != null && !job.getRepeatInterval().isEmpty()) {
+                    Long nextRunDate = schedulerService.calculateNextRunDate(job);
+                    if (nextRunDate != null) {
+                        jobMapper.updateState(job.getJobId(), "SCHEDULED", nextRunDate);
+                        job.setNextRunDate(nextRunDate);
+                    }
+                }
+
+                // Schedule with Quartz
+                schedulerService.scheduleJobWithRRule(job);
+                reloadedCount++;
+                log.debug("Reloaded job: {} ({})", job.getJobName(), job.getJobId());
+            } catch (Exception e) {
+                log.error("Failed to reload job: {} ({})", job.getJobName(), job.getJobId(), e);
+            }
+        }
+
+        log.info("Reloaded {} jobs to Quartz scheduler", reloadedCount);
+        return reloadedCount;
+    }
 }

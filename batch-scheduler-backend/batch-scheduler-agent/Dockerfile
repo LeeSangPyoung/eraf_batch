@@ -19,8 +19,9 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-# Install bash for script execution
-RUN apk add --no-cache bash curl
+# Install bash, python3 for script execution
+RUN apk add --no-cache bash curl python3 \
+    && ln -sf /usr/bin/python3 /usr/bin/python
 
 # Copy the built JAR from builder stage
 COPY --from=builder /app/batch-scheduler-agent/target/batch-scheduler-agent-*.jar agent.jar

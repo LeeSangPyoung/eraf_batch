@@ -189,6 +189,24 @@ public class JobController {
     }
 
     /**
+     * Reload all enabled jobs from DB to Quartz scheduler
+     * Use this when jobs are added directly to DB without going through API
+     * POST /job/reloadScheduler
+     */
+    @PostMapping("/reloadScheduler")
+    public ApiResponse<String> reloadScheduler() {
+        try {
+            int reloadedCount = jobService.reloadAllScheduledJobs();
+            String message = String.format("Successfully reloaded %d jobs to scheduler", reloadedCount);
+            log.info(message);
+            return ApiResponse.success(message);
+        } catch (Exception e) {
+            log.error("Failed to reload scheduler", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
      * Get sample run times for repeat interval
      * POST /job/repeatIntervalSample
      */
