@@ -400,8 +400,26 @@ public class SchedulerService {
             ZonedDateTime nextRun = rruleParser.getNextOccurrence(job.getRepeatInterval(), start, after);
 
             if (nextRun != null) {
-                // If RRULE is not SECONDLY, normalize to :00 seconds for precise scheduling
-                if (!job.getRepeatInterval().contains("FREQ=SECONDLY")) {
+                // If RRULE has BYSECOND, manually apply it (lib-recur doesn't support BYSECOND properly)
+                if (job.getRepeatInterval().contains("BYSECOND=")) {
+                    String rrule = job.getRepeatInterval();
+                    log.info("Detected BYSECOND in RRULE: {}, nextRun before: {}", rrule, nextRun);
+                    int bySecondIndex = rrule.indexOf("BYSECOND=");
+                    if (bySecondIndex >= 0) {
+                        int startIdx = bySecondIndex + 9; // length of "BYSECOND="
+                        int endIdx = rrule.indexOf(";", startIdx);
+                        if (endIdx < 0) endIdx = rrule.length();
+                        try {
+                            int second = Integer.parseInt(rrule.substring(startIdx, endIdx));
+                            log.info("Parsed BYSECOND={}, applying to nextRun", second);
+                            nextRun = nextRun.withSecond(second).withNano(0);
+                            log.info("nextRun after applying BYSECOND: {}", nextRun);
+                        } catch (NumberFormatException e) {
+                            log.warn("Failed to parse BYSECOND value from RRULE: {}", rrule);
+                        }
+                    }
+                } else if (!job.getRepeatInterval().contains("FREQ=SECONDLY")) {
+                    // If RRULE is not SECONDLY and doesn't have BYSECOND, normalize to :00 seconds
                     nextRun = nextRun.withSecond(0).withNano(0);
 
                     // IMPORTANT: After normalization, the time might be in the past or too close to now
@@ -453,8 +471,23 @@ public class SchedulerService {
             ZonedDateTime nextRun = rruleParser.getNextOccurrence(workflow.getRepeatInterval(), start, after);
 
             if (nextRun != null) {
-                // If RRULE is not SECONDLY, normalize to :00 seconds for precise scheduling
-                if (!workflow.getRepeatInterval().contains("FREQ=SECONDLY")) {
+                // If RRULE has BYSECOND, manually apply it (lib-recur doesn't support BYSECOND properly)
+                if (workflow.getRepeatInterval().contains("BYSECOND=")) {
+                    String rrule = workflow.getRepeatInterval();
+                    int bySecondIndex = rrule.indexOf("BYSECOND=");
+                    if (bySecondIndex >= 0) {
+                        int startIdx = bySecondIndex + 9; // length of "BYSECOND="
+                        int endIdx = rrule.indexOf(";", startIdx);
+                        if (endIdx < 0) endIdx = rrule.length();
+                        try {
+                            int second = Integer.parseInt(rrule.substring(startIdx, endIdx));
+                            nextRun = nextRun.withSecond(second).withNano(0);
+                        } catch (NumberFormatException e) {
+                            log.warn("Failed to parse BYSECOND value from RRULE: {}", rrule);
+                        }
+                    }
+                } else if (!workflow.getRepeatInterval().contains("FREQ=SECONDLY")) {
+                    // If RRULE is not SECONDLY and doesn't have BYSECOND, normalize to :00 seconds
                     nextRun = nextRun.withSecond(0).withNano(0);
 
                     // IMPORTANT: After normalization, the time might be in the past or too close to now
