@@ -71,7 +71,11 @@ const BaseDatePicker = ({
                 borderRadius: '10px',
                 fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
                 fontSize: '14px',
+                color: '#1D1D1F',
                 transition: 'all 0.2s ease',
+              },
+              '& .MuiInputBase-input': {
+                color: '#1D1D1F',
               },
               '& .MuiOutlinedInput-root': {
                 '& .MuiOutlinedInput-notchedOutline': {
