@@ -468,6 +468,8 @@ const Dashboard = () => {
                   size: 'small',
                   sx: {
                     '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: '#F5F5F7' },
+                    '& .MuiInputBase-input': { color: '#1D1D1F' },
+                    '& .MuiInputLabel-root': { color: '#86868B' },
                     width: '150px',
                   },
                 },
@@ -483,6 +485,8 @@ const Dashboard = () => {
                   size: 'small',
                   sx: {
                     '& .MuiOutlinedInput-root': { borderRadius: '10px', backgroundColor: '#F5F5F7' },
+                    '& .MuiInputBase-input': { color: '#1D1D1F' },
+                    '& .MuiInputLabel-root': { color: '#86868B' },
                     width: '150px',
                   },
                 },
