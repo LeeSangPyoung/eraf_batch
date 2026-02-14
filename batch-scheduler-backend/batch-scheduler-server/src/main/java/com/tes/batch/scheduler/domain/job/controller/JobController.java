@@ -189,6 +189,47 @@ public class JobController {
     }
 
     /**
+     * Bulk update job status (enable/disable multiple jobs)
+     * POST /job/bulkUpdateJobStatus
+     */
+    @PostMapping("/bulkUpdateJobStatus")
+    public ApiResponse<String> bulkUpdateJobStatus(@RequestBody java.util.Map<String, Object> request) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<String> jobIds = (List<String>) request.get("job_ids");
+            Boolean isEnabled = (Boolean) request.get("is_enabled");
+
+            if (jobIds == null || jobIds.isEmpty()) {
+                return ApiResponse.error("job_ids is required");
+            }
+            if (isEnabled == null) {
+                return ApiResponse.error("is_enabled is required");
+            }
+
+            int successCount = 0;
+            List<String> failedIds = new ArrayList<>();
+            for (String jobId : jobIds) {
+                try {
+                    jobService.updateJobStatus(jobId, isEnabled);
+                    successCount++;
+                } catch (Exception e) {
+                    log.warn("Failed to update job {}: {}", jobId, e.getMessage());
+                    failedIds.add(jobId);
+                }
+            }
+
+            String message = String.format("Updated %d/%d jobs", successCount, jobIds.size());
+            if (!failedIds.isEmpty()) {
+                message += ", failed: " + String.join(", ", failedIds);
+            }
+            return ApiResponse.success(message);
+        } catch (Exception e) {
+            log.error("Failed to bulk update job status", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
      * Reload all enabled jobs from DB to Quartz scheduler
      * Use this when jobs are added directly to DB without going through API
      * POST /job/reloadScheduler

@@ -91,7 +91,7 @@
         LEFT JOIN scheduler_job_groups g ON w.group_id = g.group_id
         <where>
             <if test="workflowName != null and workflowName != ''">
-                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%'))
+                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%')) ESCAPE '\'
             </if>
             <if test="groupId != null and groupId != ''">
                 AND w.group_id = #{groupId}
@@ -100,7 +100,7 @@
                 AND w.latest_status = #{latestStatus}
             </if>
             <if test="textSearch != null and textSearch != ''">
-                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
             </if>
         </where>
         ORDER BY w.workflow_name ASC
@@ -113,7 +113,7 @@
         FROM scheduler_workflow w
         <where>
             <if test="workflowName != null and workflowName != ''">
-                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%'))
+                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%')) ESCAPE '\'
             </if>
             <if test="groupId != null and groupId != ''">
                 AND w.group_id = #{groupId}
@@ -122,7 +122,7 @@
                 AND w.latest_status = #{latestStatus}
             </if>
             <if test="textSearch != null and textSearch != ''">
-                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
             </if>
         </where>
     </select>
@@ -137,7 +137,7 @@
             #{gid}
         </foreach>
         <if test="workflowName != null and workflowName != ''">
-            AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%'))
+            AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%')) ESCAPE '\'
         </if>
         <if test="latestStatus != null and latestStatus != ''">
             AND w.latest_status = #{latestStatus}
@@ -155,7 +155,7 @@
             #{gid}
         </foreach>
         <if test="workflowName != null and workflowName != ''">
-            AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%'))
+            AND LOWER(w.workflow_name) LIKE LOWER(CONCAT('%', #{workflowName}, '%')) ESCAPE '\'
         </if>
         <if test="latestStatus != null and latestStatus != ''">
             AND w.latest_status = #{latestStatus}

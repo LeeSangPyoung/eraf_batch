@@ -44,9 +44,11 @@ const WorkflowTable = ({
   };
 
   useEffect(() => {
-    setTimeout(() => {
+    if (!isLoadingDefault) return;
+    const timer = setTimeout(() => {
       setIsLoadingDefault(false);
     }, 300);
+    return () => clearTimeout(timer);
   }, [isLoadingDefault]);
 
   const data = useDataTransition(workflowData, !workflowData, 300);

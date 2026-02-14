@@ -9,49 +9,75 @@ import com.tes.batch.scheduler.domain.job.vo.JobRunLogVO;
 import com.tes.batch.scheduler.domain.job.vo.JobVO;
 import com.tes.batch.scheduler.scheduler.SchedulerService;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.connection.Message;
-import org.springframework.data.redis.connection.MessageListener;
-import org.springframework.data.redis.listener.ChannelTopic;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.concurrent.TimeUnit;
 
 /**
- * Listens for job results from Agents via Redis
+ * Listens for job results from Agents via Redis List (BRPOP)
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class JobResultListener implements MessageListener {
+public class JobResultListener {
 
-    private final RedisMessageListenerContainer listenerContainer;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final JobMapper jobMapper;
     private final JobRunLogMapper jobRunLogMapper;
     private final ObjectMapper objectMapper;
     private final SchedulerService schedulerService;
+    private final PlatformTransactionManager transactionManager;
 
-    private static final String RESULT_CHANNEL = "job:result";
+    private static final String RESULT_LIST_KEY = "job:result";
+    private Thread consumerThread;
 
     @PostConstruct
-    public void subscribe() {
-        listenerContainer.addMessageListener(this, new ChannelTopic(RESULT_CHANNEL));
-        log.info("Subscribed to job result channel: {}", RESULT_CHANNEL);
+    public void startListening() {
+        TransactionTemplate txTemplate = new TransactionTemplate(transactionManager);
+
+        consumerThread = new Thread(() -> {
+            log.info("Started job result consumer on list: {}", RESULT_LIST_KEY);
+            long backoffMs = 2000;
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Object message = redisTemplate.opsForList().rightPop(RESULT_LIST_KEY, 5, TimeUnit.SECONDS);
+                    if (message != null) {
+                        JobResult result = objectMapper.convertValue(message, JobResult.class);
+                        log.info("Received job result: jobId={}, status={}", result.getJobId(), result.getStatus());
+                        txTemplate.executeWithoutResult(status -> processResult(result));
+                    }
+                    backoffMs = 2000; // [P8] reset on success
+                } catch (Exception e) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        break;
+                    }
+                    log.error("Error consuming job result, retrying in {}ms", backoffMs, e);
+                    try {
+                        Thread.sleep(backoffMs);
+                        backoffMs = Math.min(backoffMs * 2, 30000); // [P8] exponential backoff, max 30s
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+            log.info("Job result consumer stopped");
+        }, "job-result-consumer");
+        consumerThread.setDaemon(true);
+        consumerThread.start();
     }
 
-    @Override
-    @Transactional
-    public void onMessage(Message message, byte[] pattern) {
-        try {
-            String body = new String(message.getBody());
-            log.info("Received job result: {}", body);
-
-            JobResult result = objectMapper.readValue(body, JobResult.class);
-            processResult(result);
-
-        } catch (Exception e) {
-            log.error("Failed to process job result", e);
+    @PreDestroy
+    public void stopListening() {
+        if (consumerThread != null) {
+            consumerThread.interrupt();
+            log.info("Job result consumer shutdown requested");
         }
     }
 
@@ -69,6 +95,15 @@ public class JobResultListener implements MessageListener {
         // Handle RETRY status separately - just update log and retryCount, keep job RUNNING
         if (status == TaskStatus.RETRY) {
             processRetryResult(result, job);
+            return;
+        }
+
+        // [F7] State transition validation - skip if job is already in terminal state
+        String currentState = job.getCurrentState();
+        if ("COMPLETED".equals(currentState) || "DELETED".equals(currentState)) {
+            log.warn("Job {} is already in terminal state {}, ignoring result with status {}",
+                    jobId, currentState, status);
+            updateRunLog(result, status); // still update log for audit
             return;
         }
 

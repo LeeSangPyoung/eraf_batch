@@ -10,5 +10,18 @@ export default defineConfig({
   },
   server: {
     host: true
-  }
+  },
+  // [L8] Disable source maps in production for security
+  build: {
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-mui': ['@mui/material', '@mui/icons-material'],
+          'vendor-charts': ['recharts'],
+        },
+      },
+    },
+  },
 })

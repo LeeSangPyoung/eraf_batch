@@ -1,4 +1,4 @@
-import { Box, CircularProgress } from '@mui/material';
+import { Box, Checkbox, CircularProgress } from '@mui/material';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -36,6 +36,8 @@ function JobStatusTable({
   mutate,
   isLoadingDefault,
   setIsLoadingDefault,
+  selectedJobIds = [],
+  onSelectionChange,
 }) {
   const { t } = useTranslation();
   const { isVisible, openModal, closeModal } = useModal();
@@ -48,10 +50,15 @@ function JobStatusTable({
       );
       setSelectedJob(updatedJob || null);
     }
-    setTimeout(() => {
+  }, [jobsData]);
+
+  useEffect(() => {
+    if (!isLoadingDefault) return;
+    const timer = setTimeout(() => {
       setIsLoadingDefault(false);
     }, 300);
-  }, [jobsData, isLoadingDefault]);
+    return () => clearTimeout(timer);
+  }, [isLoadingDefault]);
 
   const handleModalOpen = (row) => {
     openModal(() => {
@@ -65,6 +72,22 @@ function JobStatusTable({
     <TableWrapper minusHeight="360px">
       <TableHead>
         <TableRow className="bg-white  sticky top-[-1px]">
+          {onSelectionChange && (
+            <TableCell style={{ ...styleHeaderTable, width: '48px', padding: '0 8px' }}>
+              <Checkbox
+                size="small"
+                checked={data?.length > 0 && selectedJobIds.length === data.length}
+                indeterminate={selectedJobIds.length > 0 && selectedJobIds.length < (data?.length || 0)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    onSelectionChange(data.map((row) => row.job_id));
+                  } else {
+                    onSelectionChange([]);
+                  }
+                }}
+              />
+            </TableCell>
+          )}
           <TableCell style={{ ...styleHeaderTable, width: '88px' }}>
             {t('system_name')}
           </TableCell>
@@ -89,7 +112,7 @@ function JobStatusTable({
       <TableBody style={{ maxHeight: '100%', overflowY: 'auto' }}>
         {isLoading ? (
           <TableRow>
-            <TableCell colSpan={15} style={{ textAlign: 'center' }}>
+            <TableCell colSpan={onSelectionChange ? 16 : 15} style={{ textAlign: 'center' }}>
               <CircularProgress size={40} />
             </TableCell>
           </TableRow>
@@ -99,7 +122,24 @@ function JobStatusTable({
               className={`hover:bg-grayLight cursor-pointer ${row.current_state === 'RUNNING' ? 'running-row' : ''}`}
               key={row.job_name}
               onDoubleClick={() => handleModalOpen(row)}
+              selected={selectedJobIds.includes(row.job_id)}
             >
+              {onSelectionChange && (
+                <TableCell style={{ ...styleTableCell, padding: '0 8px' }}>
+                  <Checkbox
+                    size="small"
+                    checked={selectedJobIds.includes(row.job_id)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        onSelectionChange([...selectedJobIds, row.job_id]);
+                      } else {
+                        onSelectionChange(selectedJobIds.filter((id) => id !== row.job_id));
+                      }
+                    }}
+                  />
+                </TableCell>
+              )}
               <TableCell style={{ ...styleTableCell }}>{row.system}</TableCell>
               <TableCell style={styleTableCell}>{row.creator}</TableCell>
               <TableCell style={styleTableCell}>{row.group}</TableCell>
@@ -142,7 +182,7 @@ function JobStatusTable({
           ))
         ) : (
           <TableRow>
-            <TableCell colSpan={15}>
+            <TableCell colSpan={onSelectionChange ? 16 : 15}>
               <TableEmpty />
             </TableCell>
           </TableRow>

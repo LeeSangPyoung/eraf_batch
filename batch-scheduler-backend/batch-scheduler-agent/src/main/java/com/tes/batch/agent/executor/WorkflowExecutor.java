@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.UUID;
+import java.util.concurrent.*;
 
 /**
  * Executes workflows with priority group-based DAG execution
@@ -144,10 +144,41 @@ public class WorkflowExecutor {
             futures.add(future);
         }
 
-        // Wait for all jobs to complete
-        List<JobResult> results = futures.stream()
-                .map(CompletableFuture::join)
-                .toList();
+        // [H8] Wait for all jobs simultaneously using allOf to prevent deadlock
+        // Sequential get() on shared thread pool can deadlock when all threads are waiting
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .get(2, TimeUnit.HOURS);
+        } catch (TimeoutException | ExecutionException | InterruptedException ignored) {
+            // Individual results are checked below
+            if (ignored instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        List<JobResult> results = new ArrayList<>();
+        for (int i = 0; i < futures.size(); i++) {
+            CompletableFuture<JobResult> future = futures.get(i);
+            JobMessage job = group.getJobs().get(i);
+            try {
+                if (future.isDone()) {
+                    results.add(future.get());
+                } else {
+                    future.cancel(true);
+                    log.error("Job {} timed out in workflow (2h limit)", job.getJobId());
+                    JobResult timeoutResult = createFailedResult(job, workflowRunId, "Job execution timed out (2h limit)");
+                    stateReporter.reportResult(timeoutResult);
+                    results.add(timeoutResult);
+                }
+            } catch (ExecutionException e) {
+                log.error("Job {} threw exception in workflow", job.getJobId(), e.getCause());
+                JobResult failResult = createFailedResult(job, workflowRunId, e.getCause().getMessage());
+                stateReporter.reportResult(failResult);
+                results.add(failResult);
+            } catch (Exception e) {
+                results.add(createFailedResult(job, workflowRunId, e.getMessage()));
+            }
+        }
 
         // Check if any job failed (excluding jobs that should be ignored)
         List<JobMessage> jobs = group.getJobs();
@@ -170,8 +201,9 @@ public class WorkflowExecutor {
         return !hasFailure;
     }
 
+    /** [F6] UUID-based task ID to prevent collision in parallel execution */
     private String generateTaskId(String jobId, Long workflowRunId) {
-        return "wf_" + workflowRunId + "_" + jobId + "_" + System.currentTimeMillis();
+        return "wf_" + workflowRunId + "_" + jobId + "_" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     private JobResult createFailedResult(JobMessage job, Long workflowRunId, String error) {

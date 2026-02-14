@@ -23,6 +23,8 @@ const getAuthToken = () => {
 /**
  * Real-time log viewer component with SSE streaming
  */
+const MAX_LOG_LINES = 5000; // [P3] Prevent memory issues from unbounded log growth
+
 const RealtimeLogViewer = ({ taskId, jobId, isRunning = false }) => {
   const { t } = useTranslation();
   const [logs, setLogs] = useState([]);
@@ -121,12 +123,33 @@ const RealtimeLogViewer = ({ taskId, jobId, isRunning = false }) => {
     if (logBufferRef.current.length > 0) {
       const bufferedLogs = [...logBufferRef.current];
       logBufferRef.current = [];
-      setLogs(prev => [...prev, ...bufferedLogs]);
+      setLogs(prev => {
+        const combined = [...prev, ...bufferedLogs];
+        return combined.length > MAX_LOG_LINES ? combined.slice(-MAX_LOG_LINES) : combined;
+      });
     }
     flushTimeoutRef.current = null;
   }, []);
 
-  // Connect to SSE stream
+  // [C7] Parse SSE format from text chunk, returns { events, remaining }
+  const parseSSE = useCallback((text) => {
+    const events = [];
+    const blocks = text.split('\n\n');
+    const remaining = blocks.pop(); // last block may be incomplete
+    for (const block of blocks) {
+      if (!block.trim()) continue;
+      let eventType = 'message';
+      let data = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) eventType = line.substring(6).trim();
+        else if (line.startsWith('data:')) data = line.substring(5).trimStart();
+      }
+      events.push({ type: eventType, data });
+    }
+    return { events, remaining };
+  }, []);
+
+  // [C7] Connect to SSE stream using fetch API (Authorization header instead of token in URL)
   const startStreaming = useCallback(() => {
     if (!taskId || eventSourceRef.current) return;
 
@@ -135,77 +158,90 @@ const RealtimeLogViewer = ({ taskId, jobId, isRunning = false }) => {
     setStoredLogs('');
     receivedLogsRef.current.clear();
     logBufferRef.current = [];
-    jobCompletedRef.current = false; // Reset completed flag on new connection
+    jobCompletedRef.current = false;
 
-    // SSE (EventSource) cannot send Authorization headers, so pass token as query param
     const token = getAuthToken();
-    const sseUrl = token
-      ? `${API_BASE_URL}/api/logs/${taskId}/stream?token=${encodeURIComponent(token)}`
-      : `${API_BASE_URL}/api/logs/${taskId}/stream`;
-    const eventSource = new EventSource(sseUrl);
-    eventSourceRef.current = eventSource;
+    const sseUrl = `${API_BASE_URL}/api/logs/${taskId}/stream`;
+    const abortController = new AbortController();
+    eventSourceRef.current = abortController;
 
-    eventSource.onopen = () => {
-      setIsConnected(true);
-      setIsStreaming(true);
-    };
+    setIsConnected(true);
+    setIsStreaming(true);
 
-    eventSource.addEventListener('connected', (event) => {
-      // Skip connected message - don't show to user
-    });
+    const headers = { 'Accept': 'text/event-stream' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    eventSource.addEventListener('log', (event) => {
-      const logMessage = event.data;
-      // Handle [END] marker - job completed, close connection gracefully
-      if (logMessage === '[END]') {
-        jobCompletedRef.current = true; // Mark as completed to prevent reconnection
-        // Flush any remaining logs before closing
-        if (flushTimeoutRef.current) {
-          clearTimeout(flushTimeoutRef.current);
+    fetch(sseUrl, { headers, signal: abortController.signal })
+      .then(response => {
+        if (!response.ok) throw new Error(`SSE HTTP ${response.status}`);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let sseBuffer = '';
+
+        const processChunk = ({ done, value }) => {
+          if (done || jobCompletedRef.current) {
+            setIsStreaming(false);
+            setIsConnected(false);
+            eventSourceRef.current = null;
+            return;
+          }
+
+          sseBuffer += decoder.decode(value, { stream: true });
+          const { events, remaining } = parseSSE(sseBuffer);
+          sseBuffer = remaining;
+
+          for (const evt of events) {
+            if (evt.type === 'connected') continue;
+            if (evt.type === 'log') {
+              const logMessage = evt.data;
+              if (logMessage === '[END]') {
+                jobCompletedRef.current = true;
+                if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current);
+                if (logBufferRef.current.length > 0) {
+                  const bufferedLogs = [...logBufferRef.current];
+                  logBufferRef.current = [];
+                  setLogs(prev => [...prev, ...bufferedLogs]);
+                }
+                abortController.abort();
+                eventSourceRef.current = null;
+                setIsStreaming(false);
+                setIsConnected(false);
+                return;
+              }
+              if (!receivedLogsRef.current.has(logMessage)) {
+                receivedLogsRef.current.add(logMessage);
+                if (receivedLogsRef.current.size > 10000) {
+                  const arr = Array.from(receivedLogsRef.current);
+                  receivedLogsRef.current = new Set(arr.slice(-5000));
+                }
+                const logType = logMessage.includes('[ERROR]') ? 'error' : 'log';
+                logBufferRef.current.push({ type: logType, message: logMessage });
+                if (!flushTimeoutRef.current) {
+                  flushTimeoutRef.current = setTimeout(flushLogBuffer, 200);
+                }
+              }
+            }
+          }
+
+          return reader.read().then(processChunk);
+        };
+
+        return reader.read().then(processChunk);
+      })
+      .catch(error => {
+        if (error.name !== 'AbortError' && !jobCompletedRef.current) {
+          console.error('SSE connection error:', error);
         }
-        if (logBufferRef.current.length > 0) {
-          const bufferedLogs = [...logBufferRef.current];
-          logBufferRef.current = [];
-          setLogs(prev => [...prev, ...bufferedLogs]);
-        }
-        // Close connection gracefully
-        eventSource.close();
-        eventSourceRef.current = null;
-        setIsStreaming(false);
         setIsConnected(false);
-        return;
-      }
-      // Prevent duplicate logs by checking message content
-      if (!receivedLogsRef.current.has(logMessage)) {
-        receivedLogsRef.current.add(logMessage);
-        const logType = logMessage.includes('[ERROR]') ? 'error' : 'log';
-        // Add to buffer instead of directly to state
-        logBufferRef.current.push({ type: logType, message: logMessage });
-        // Schedule flush if not already scheduled (batch updates every 200ms)
-        if (!flushTimeoutRef.current) {
-          flushTimeoutRef.current = setTimeout(flushLogBuffer, 200);
-        }
-      }
-    });
-
-    eventSource.onerror = (error) => {
-      // Only log error if job didn't complete normally
-      if (!jobCompletedRef.current) {
-        console.error('SSE error:', error);
-      }
-      setIsConnected(false);
-      setIsStreaming(false);
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+        setIsStreaming(false);
         eventSourceRef.current = null;
-      }
-    };
-  }, [taskId, flushLogBuffer]);
+      });
+  }, [taskId, flushLogBuffer, parseSSE]);
 
   // Disconnect from SSE stream
   const stopStreaming = useCallback(() => {
     if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+      eventSourceRef.current.abort();
       eventSourceRef.current = null;
     }
     // Flush any remaining buffered logs

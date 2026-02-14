@@ -69,9 +69,24 @@ public class LogStreamService {
             }
         };
 
-        // Subscribe to Redis channel
-        redisMessageListenerContainer.addMessageListener(listener, new ChannelTopic(channel));
+        // Register cleanup callbacks BEFORE subscribing to prevent listener leaks
         emitterListeners.put(emitter, listener);
+        Runnable cleanup = () -> {
+            MessageListener l = emitterListeners.remove(emitter);
+            if (l != null) {
+                redisMessageListenerContainer.removeMessageListener(l, new ChannelTopic(channel));
+            }
+            log.debug("Cleaned up SSE emitter for taskId: {}", taskId);
+        };
+        emitter.onCompletion(cleanup);
+        emitter.onTimeout(cleanup);
+        emitter.onError(e -> {
+            log.debug("SSE error for taskId {}: {}", taskId, e.getMessage());
+            cleanup.run();
+        });
+
+        // Subscribe to Redis channel (after callbacks are registered)
+        redisMessageListenerContainer.addMessageListener(listener, new ChannelTopic(channel));
 
         // Send initial connection message
         try {
@@ -122,22 +137,6 @@ public class LogStreamService {
             // Emitter already completed
             log.debug("SSE emitter completed during setup: {}", e.getMessage());
         }
-
-        // Cleanup on completion/timeout/error
-        Runnable cleanup = () -> {
-            MessageListener l = emitterListeners.remove(emitter);
-            if (l != null) {
-                redisMessageListenerContainer.removeMessageListener(l, new ChannelTopic(channel));
-            }
-            log.debug("Cleaned up SSE emitter for taskId: {}", taskId);
-        };
-
-        emitter.onCompletion(cleanup);
-        emitter.onTimeout(cleanup);
-        emitter.onError(e -> {
-            log.debug("SSE error for taskId {}: {}", taskId, e.getMessage());
-            cleanup.run();
-        });
 
         log.debug("Created SSE emitter for taskId: {}, channel: {}", taskId, channel);
         return emitter;

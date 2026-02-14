@@ -6,7 +6,7 @@ import { formatDate } from '../utils/helper';
 import useFilterAndPagination from './useFilterAndPagination';
 import useResultFilter from './useResultFilter';
 
-const useJobResult = ({jobId} = {jobId: ''}) => {
+const useJobResult = ({jobId, initialStatus} = {jobId: '', initialStatus: null}) => {
   const {
     job,
     group,
@@ -21,7 +21,7 @@ const useJobResult = ({jobId} = {jobId: ''}) => {
     goToPage
   } = useFilterAndPagination({jobId, groupId: undefined, search: ''});
 
-  const { state, handleValueChange, handleInputChange } = useResultFilter();
+  const { state, handleValueChange, handleInputChange } = useResultFilter(initialStatus);
 
   const [shouldFetchFilters, setShouldFetchFilters] = useState(false);
   const [isLoadingDefault, setIsLoadingDefault] = useState(true);
@@ -52,12 +52,20 @@ const useJobResult = ({jobId} = {jobId: ''}) => {
         const response = await api.post(url, input);
         return response.data;
       } catch (error) {
-        toast.error('Error fetching job results');
+        throw error; // Let SWR handle the error state
       }
     },
     {
       revalidateOnFocus: false,
-      refreshInterval: 10000, // Poll every 10 seconds
+      refreshInterval: 30000, // Poll every 30 seconds (reduced from 10s)
+      // [M17] SWR error handling improvements
+      errorRetryCount: 3,  // Max 3 retries
+      errorRetryInterval: 5000, // 5s between retries
+      onError: (err) => {
+        if (err?.response?.status !== 401) {
+          toast.error('Error fetching job results', { toastId: 'job-result-error' });
+        }
+      },
     },
   );
 

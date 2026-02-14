@@ -188,9 +188,9 @@
             </if>
             <if test="textSearch != null and textSearch != ''">
                 AND (
-                    LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
                 )
             </if>
             <if test="lastStartDateFrom != null">
@@ -232,9 +232,9 @@
             </if>
             <if test="textSearch != null and textSearch != ''">
                 AND (
-                    LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
                 )
             </if>
             <if test="lastStartDateFrom != null">
@@ -289,9 +289,9 @@
         </if>
         <if test="textSearch != null and textSearch != ''">
             AND (
-                LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
             )
         </if>
         ORDER BY j.job_name ASC
@@ -323,9 +323,9 @@
         </if>
         <if test="textSearch != null and textSearch != ''">
             AND (
-                LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                LOWER(j.job_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                OR LOWER(j.job_comments) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                OR LOWER(COALESCE(w.workflow_name, w2.workflow_name, '')) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
             )
         </if>
     </select>

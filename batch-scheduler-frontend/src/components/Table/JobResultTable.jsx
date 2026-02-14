@@ -46,9 +46,11 @@ function JobResultTable({
     });
   };
   useEffect(() => {
-    setTimeout(() => {
+    if (!isLoadingDefault) return;
+    const timer = setTimeout(() => {
       setIsLoadingDefault(false);
     }, 300);
+    return () => clearTimeout(timer);
   }, [isLoadingDefault]);
 
   const data = useDataTransition(jobResultData, !jobResultData, 300);

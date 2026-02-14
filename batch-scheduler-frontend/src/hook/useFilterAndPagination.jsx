@@ -45,6 +45,7 @@ const useFilterAndPagination = ({jobId, groupId, search} = {jobId: '', groupId: 
         break;
       case 'workflow':
         setWorkflow(e.target.value);
+        break;
       default:
         break;
     }

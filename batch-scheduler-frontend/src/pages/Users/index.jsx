@@ -1,7 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import { Box, TablePagination } from '@mui/material';
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import BaseButton from '../../components/CustomInput/BaseButton';
 import UserDialog from '../../components/Dialog/UserDialog';
@@ -33,19 +33,18 @@ function Users() {
     handleFetchData,
   } = useUserData();
 
-  const handleKeyDown = (event) => {
+  const handleKeyDown = useCallback((event) => {
     if (event.key === 'Enter') {
       handleFetchData();
     }
-  };
+  }, [handleFetchData]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [handleKeyDown]);
 
   return (
     <div className="flex flex-col space-y-4">

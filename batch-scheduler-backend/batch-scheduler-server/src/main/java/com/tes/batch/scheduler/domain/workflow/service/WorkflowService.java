@@ -115,13 +115,20 @@ public class WorkflowService {
 
         // Get priority groups
         List<WorkflowPriorityGroupVO> priorityGroups = priorityGroupMapper.findByWorkflowId(workflowId);
+
+        // Batch load all jobs for all priority groups (avoid N+1)
+        Map<String, List<JobVO>> jobsByGroupId = new HashMap<>();
+        for (WorkflowPriorityGroupVO pg : priorityGroups) {
+            jobsByGroupId.put(pg.getId(), jobMapper.findByPriorityGroupId(pg.getId()));
+        }
+
         List<WorkflowResponse.PriorityGroupResponse> groupResponses = new ArrayList<>();
+        List<WorkflowResponse.AssignedJobResponse> assignedJobs = new ArrayList<>();
 
         for (WorkflowPriorityGroupVO pg : priorityGroups) {
             WorkflowResponse.PriorityGroupResponse pgResponse = WorkflowResponse.fromPriorityGroup(pg);
+            List<JobVO> jobs = jobsByGroupId.getOrDefault(pg.getId(), List.of());
 
-            // Get jobs in this priority group
-            List<JobVO> jobs = jobMapper.findByPriorityGroupId(pg.getId());
             List<WorkflowResponse.JobInGroupResponse> jobResponses = jobs.stream()
                     .map(job -> WorkflowResponse.JobInGroupResponse.builder()
                             .jobId(job.getJobId())
@@ -132,16 +139,8 @@ public class WorkflowService {
 
             pgResponse.setJobs(jobResponses);
             groupResponses.add(pgResponse);
-        }
 
-        // Sort by priority
-        groupResponses.sort(Comparator.comparing(WorkflowResponse.PriorityGroupResponse::getPriority));
-        response.setPriorityGroups(groupResponses);
-
-        // Flatten all jobs into assignJobs for frontend compatibility
-        List<WorkflowResponse.AssignedJobResponse> assignedJobs = new ArrayList<>();
-        for (WorkflowPriorityGroupVO pg : priorityGroups) {
-            List<JobVO> jobs = jobMapper.findByPriorityGroupId(pg.getId());
+            // Flatten for frontend compatibility
             for (JobVO job : jobs) {
                 assignedJobs.add(WorkflowResponse.AssignedJobResponse.builder()
                         .jobId(job.getJobId())
@@ -152,6 +151,10 @@ public class WorkflowService {
                         .build());
             }
         }
+
+        // Sort by priority
+        groupResponses.sort(Comparator.comparing(WorkflowResponse.PriorityGroupResponse::getPriority));
+        response.setPriorityGroups(groupResponses);
         response.setAssignJobs(assignedJobs);
 
         return ApiResponse.success(response);

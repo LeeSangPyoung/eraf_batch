@@ -53,5 +53,10 @@ public interface JobServerMapper {
             @Param("lastDeployTime") Long lastDeployTime
     );
 
+    int updateSshPassword(
+            @Param("systemId") String systemId,
+            @Param("sshPassword") String sshPassword
+    );
+
     int delete(@Param("systemId") String systemId);
 }

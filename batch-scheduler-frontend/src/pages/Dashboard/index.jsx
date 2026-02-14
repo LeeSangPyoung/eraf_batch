@@ -124,8 +124,9 @@ const StatusBadge = ({ status }) => {
 };
 
 // List Item Component with enhanced styling
-const ListItem = ({ name, status, time, type }) => (
+const ListItem = ({ name, status, time, type, jobId, onClick }) => (
   <Box
+    onClick={onClick}
     sx={{
       display: 'flex',
       alignItems: 'center',
@@ -134,6 +135,7 @@ const ListItem = ({ name, status, time, type }) => (
       borderRadius: '12px',
       backgroundColor: '#F5F5F7',
       transition: 'all 0.2s ease',
+      cursor: onClick ? 'pointer' : 'default',
       '&:hover': { backgroundColor: '#EEEEF0' },
     }}
   >
@@ -175,31 +177,31 @@ const AgentCard = ({ agent, t }) => {
   const isHealthy = isOnline && agent.is_healthy;
   return (
     <Box sx={{
-      padding: '16px 18px',
-      borderRadius: '14px',
+      padding: '10px 12px',
+      borderRadius: '10px',
       backgroundColor: '#F5F5F7',
       transition: 'all 0.2s ease',
       '&:hover': { backgroundColor: '#EEEEF0' },
     }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-        <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#1D1D1F' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#1D1D1F' }}>
           {agent.name}
         </Typography>
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          padding: '3px 10px',
-          borderRadius: '20px',
+          gap: '4px',
+          padding: '2px 8px',
+          borderRadius: '12px',
           backgroundColor: isHealthy ? 'rgba(52, 199, 89, 0.12)' : 'rgba(255, 59, 48, 0.12)',
         }}>
-          <Box sx={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isHealthy ? '#34C759' : '#FF3B30' }} />
-          <Typography sx={{ fontSize: '11px', fontWeight: 600, color: isHealthy ? '#34C759' : '#FF3B30' }}>
+          <Box sx={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: isHealthy ? '#34C759' : '#FF3B30' }} />
+          <Typography sx={{ fontSize: '10px', fontWeight: 600, color: isHealthy ? '#34C759' : '#FF3B30' }}>
             {isHealthy ? t('healthy') : t('unhealthy')}
           </Typography>
         </Box>
       </Box>
-      <Typography sx={{ fontSize: '12px', color: '#86868B', fontWeight: 500 }}>{agent.host_name || t('unknownHost')}</Typography>
+      <Typography sx={{ fontSize: '11px', color: '#86868B', fontWeight: 500, marginTop: '2px' }}>{agent.host_name || t('unknownHost')}</Typography>
     </Box>
   );
 };
@@ -275,7 +277,7 @@ const Dashboard = () => {
         .filter(log => log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT')
         .sort((a, b) => (b.req_start_date || 0) - (a.req_start_date || 0))
         .slice(0, 5)
-        .map(log => ({ name: log.job_name, status: log.status, time: formatTime(log.req_start_date), type: log.group_name }));
+        .map(log => ({ name: log.job_name, jobId: log.job_id, status: log.status, time: formatTime(log.req_start_date), type: log.group_name }));
       setRecentFailed(failed);
 
       // Currently running
@@ -283,7 +285,7 @@ const Dashboard = () => {
         .filter(log => log.status === 'RUNNING')
         .sort((a, b) => (b.req_start_date || 0) - (a.req_start_date || 0))
         .slice(0, 5)
-        .map(log => ({ name: log.job_name, status: log.status, time: formatTime(log.req_start_date), type: log.group_name }));
+        .map(log => ({ name: log.job_name, jobId: log.job_id, status: log.status, time: formatTime(log.req_start_date), type: log.group_name }));
       setRunningItems(running);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -362,26 +364,36 @@ const Dashboard = () => {
     return Object.values(dayMap);
   }, [logs, startDate, endDate]);
 
-  // Process data for pie chart - show all statuses individually
+  // Process data for pie chart - group similar statuses
   const pieData = useMemo(() => {
     const statusCounts = {};
 
+    // Group similar statuses together
+    const statusGroupMap = {
+      'SUCCESS': 'SUCCESS',
+      'COMPLETED': 'SUCCESS',
+      'FAILED': 'FAILED',
+      'FAILURE': 'FAILED',
+      'BROKEN': 'FAILED',
+      'TIMEOUT': 'FAILED',
+      'RUNNING': 'RUNNING',
+      'PENDING': 'PENDING',
+      'STARTED': 'RUNNING',
+      'SKIPPED': 'SKIPPED',
+      'REVOKED': 'REVOKED',
+    };
+
     logs.forEach(log => {
-      const status = log.status || 'UNKNOWN';
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
+      const rawStatus = log.status || 'UNKNOWN';
+      const grouped = statusGroupMap[rawStatus] || rawStatus;
+      statusCounts[grouped] = (statusCounts[grouped] || 0) + 1;
     });
 
-    // Define colors for each status
-    const statusColors = {
+    const groupColors = {
       'SUCCESS': CHART_COLORS.success,
-      'COMPLETED': CHART_COLORS.success,
       'FAILED': CHART_COLORS.failed,
-      'FAILURE': CHART_COLORS.failed,
-      'BROKEN': '#FF6B6B',
-      'TIMEOUT': '#FF9500',
       'RUNNING': CHART_COLORS.running,
       'PENDING': '#A0A0A5',
-      'STARTED': '#5AC8FA',
       'SKIPPED': '#C7C7CC',
       'REVOKED': '#AF52DE',
     };
@@ -390,10 +402,10 @@ const Dashboard = () => {
       .map(([status, count]) => ({
         name: status,
         value: count,
-        color: statusColors[status] || '#86868B',
+        color: groupColors[status] || '#86868B',
       }))
       .filter(d => d.value > 0)
-      .sort((a, b) => b.value - a.value); // Sort by count descending
+      .sort((a, b) => b.value - a.value);
   }, [logs]);
 
   // Find peak hour
@@ -561,7 +573,7 @@ const Dashboard = () => {
                   cy="50%"
                   innerRadius={50}
                   outerRadius={80}
-                  paddingAngle={2}
+                  paddingAngle={0}
                   dataKey="value"
                 >
                   {pieData.map((entry, index) => (
@@ -593,22 +605,22 @@ const Dashboard = () => {
           <ChartCard
             title={t('runningNow')}
             rightContent={
-              <Box
-                sx={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: '#FF9500',
-                  animation: 'pulse 2s ease-in-out infinite',
-                  '@keyframes pulse': { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0.4 } },
-                }}
-              />
+              <Typography
+                onClick={() => navigate('/job-results?status=RUNNING')}
+                sx={{ fontSize: '13px', color: '#0071E3', cursor: 'pointer', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
+              >
+                {t('viewAll')}
+              </Typography>
             }
           >
             {runningItems.length > 0 ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {runningItems.map((item, index) => (
-                  <ListItem key={index} {...item} />
+                  <ListItem
+                    key={index}
+                    {...item}
+                    onClick={() => navigate(`/job-results?status=RUNNING&job=${item.jobId}`)}
+                  />
                 ))}
               </Box>
             ) : (
@@ -623,7 +635,7 @@ const Dashboard = () => {
             title={t('recentFailed')}
             rightContent={
               <Typography
-                onClick={() => navigate('/job-results')}
+                onClick={() => navigate('/job-results?status=FAILED')}
                 sx={{ fontSize: '13px', color: '#0071E3', cursor: 'pointer', fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
               >
                 {t('viewAll')}
@@ -633,7 +645,11 @@ const Dashboard = () => {
             {recentFailed.length > 0 ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {recentFailed.map((item, index) => (
-                  <ListItem key={index} {...item} />
+                  <ListItem
+                    key={index}
+                    {...item}
+                    onClick={() => navigate(`/job-results?status=FAILED&job=${item.jobId}`)}
+                  />
                 ))}
               </Box>
             ) : (
@@ -653,8 +669,18 @@ const Dashboard = () => {
             }
           >
             {agents.length > 0 ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {agents.slice(0, 4).map((agent, index) => (
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                maxHeight: '280px',
+                overflowY: 'auto',
+                paddingRight: '4px',
+                '&::-webkit-scrollbar': { width: '6px' },
+                '&::-webkit-scrollbar-track': { backgroundColor: '#F5F5F7', borderRadius: '3px' },
+                '&::-webkit-scrollbar-thumb': { backgroundColor: '#C7C7CC', borderRadius: '3px', '&:hover': { backgroundColor: '#AEAEB2' } },
+              }}>
+                {agents.map((agent, index) => (
                   <AgentCard key={index} agent={agent} t={t} />
                 ))}
               </Box>

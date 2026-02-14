@@ -103,7 +103,7 @@ const SideBar = () => {
         </Typography>
 
         {/* Navigation Links */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <nav aria-label="Main navigation" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {/* Dashboard */}
           <Link
             to={dashboardLink.to}
@@ -280,7 +280,11 @@ const SideBar = () => {
           }}
         />
         <Box
+          role="button"
+          aria-label="View my info"
+          tabIndex={0}
           onClick={openModal}
+          onKeyDown={(e) => e.key === 'Enter' && openModal()}
           sx={{
           display: 'flex',
           alignItems: 'center',

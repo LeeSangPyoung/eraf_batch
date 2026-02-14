@@ -163,29 +163,33 @@ public class SchedulerService {
      * Schedule a job using RRULE - calculates next run time and schedules with Quartz
      */
     public void scheduleJobWithRRule(JobVO job) {
+        log.info("scheduleJobWithRRule called for job: {}, workflowId: {}, isEnabled: {}, currentState: {}",
+                 job.getJobName(), job.getWorkflowId(), job.getIsEnabled(), job.getCurrentState());
+
         if (job.getRepeatInterval() == null || job.getRepeatInterval().isEmpty()) {
-            log.debug("Job {} has no repeat interval, skipping schedule", job.getJobId());
+            log.info("Job {} has no repeat interval, skipping schedule", job.getJobId());
             return;
         }
 
         if (!Boolean.TRUE.equals(job.getIsEnabled())) {
-            log.debug("Job {} is disabled, skipping schedule", job.getJobId());
+            log.info("Job {} is disabled, skipping schedule", job.getJobId());
             return;
         }
 
         // Skip jobs that belong to a workflow - they are managed by the workflow scheduler
         if (job.getWorkflowId() != null && !job.getWorkflowId().isEmpty()) {
-            log.debug("Job {} belongs to workflow {}, skipping individual schedule", job.getJobId(), job.getWorkflowId());
+            log.info("Job {} belongs to workflow {}, skipping individual schedule", job.getJobId(), job.getWorkflowId());
             return;
         }
 
         // Skip jobs in terminal states (DELETED, COMPLETED)
         String currentState = job.getCurrentState();
         if ("DELETED".equals(currentState) || "COMPLETED".equals(currentState)) {
-            log.debug("Job {} is in terminal state {}, skipping schedule", job.getJobId(), currentState);
+            log.info("Job {} is in terminal state {}, skipping schedule", job.getJobId(), currentState);
             return;
         }
 
+        log.info("About to call calculateNextRunDate for job: {}", job.getJobName());
         Long nextRunDate = calculateNextRunDate(job);
         if (nextRunDate == null) {
             log.debug("No next run date for job {}", job.getJobId());
@@ -398,6 +402,8 @@ public class SchedulerService {
             ZonedDateTime after = ZonedDateTime.ofInstant(Instant.ofEpochMilli(now), zoneId);
 
             ZonedDateTime nextRun = rruleParser.getNextOccurrence(job.getRepeatInterval(), start, after);
+
+            log.info("calculateNextRunDate for job {}: rrule={}, nextRun={}", job.getJobName(), job.getRepeatInterval(), nextRun);
 
             if (nextRun != null) {
                 // If RRULE has BYSECOND, manually apply it (lib-recur doesn't support BYSECOND properly)

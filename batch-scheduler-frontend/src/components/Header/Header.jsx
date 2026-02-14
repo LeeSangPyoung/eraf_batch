@@ -21,6 +21,8 @@ const Header = () => {
 
   return (
     <header
+      role="banner"
+      aria-label="Main header"
       style={{
         height: '64px',
         backgroundColor: 'rgba(255, 255, 255, 0.72)',
@@ -38,7 +40,11 @@ const Header = () => {
     >
       {/* Logo */}
       <Box
-        onClick={() => navigate('/job-status')}
+        role="link"
+        aria-label="Go to dashboard"
+        tabIndex={0}
+        onClick={() => navigate('/dashboard')}
+        onKeyDown={(e) => e.key === 'Enter' && navigate('/dashboard')}
         sx={{
           cursor: 'pointer',
           display: 'flex',
@@ -133,6 +139,7 @@ const Header = () => {
 
         {/* Language Selector */}
         <Select
+          aria-label="Select language"
           onChange={(e) => i18n.changeLanguage(e.target.value)}
           value={i18n.language}
           size="small"
@@ -216,6 +223,7 @@ const Header = () => {
 
         {/* Logout Button */}
         <BaseButton
+          aria-label="Logout"
           theme="ghost"
           size="small"
           onClick={() => logout()}

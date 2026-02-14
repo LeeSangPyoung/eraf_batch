@@ -1,1 +1,10 @@
 .idea
+*.tar
+*.tar.gz
+*.gz
+node_modules/
+nul
+.claude/
+docker-images/
+batch-scheduler-backend/**/target/
+batch-scheduler-backend/batch-scheduler-server/.env

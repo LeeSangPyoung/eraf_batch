@@ -47,8 +47,9 @@ public class JobServerVO {
     /**
      * SSH password for password-based authentication.
      * If null, SSH key-based authentication will be used.
+     * WRITE_ONLY: accepted on input but never returned in API responses.
      */
-    @JsonProperty("ssh_password")
+    @JsonProperty(value = "ssh_password", access = JsonProperty.Access.WRITE_ONLY)
     private String sshPassword;
 
     /**

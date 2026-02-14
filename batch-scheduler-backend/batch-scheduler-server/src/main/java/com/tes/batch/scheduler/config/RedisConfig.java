@@ -44,9 +44,10 @@ public class RedisConfig {
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
 
-        // Use a dedicated thread pool for subscription tasks
-        container.setSubscriptionExecutor(Executors.newFixedThreadPool(2));
-        container.setTaskExecutor(Executors.newFixedThreadPool(4));
+        // Reduced thread pool - only used for log streaming (Pub/Sub)
+        // Job/Workflow results now use Redis List (BRPOP) polling
+        container.setSubscriptionExecutor(Executors.newFixedThreadPool(1));
+        container.setTaskExecutor(Executors.newFixedThreadPool(2));
 
         // Enable automatic reconnection on subscription failure
         container.setRecoveryInterval(5000L); // Retry every 5 seconds on connection loss

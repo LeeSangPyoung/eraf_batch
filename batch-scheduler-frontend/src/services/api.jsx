@@ -4,23 +4,26 @@ import useAuthStore from '../hook/store/useAuthStore';
 const api = axios.create({
   // @ts-ignore
   baseURL: import.meta.env.VITE_BACKEND_URL,
+  headers: {
+    'X-Requested-With': 'XMLHttpRequest', // [C8] CSRF protection - custom header requires CORS preflight
+  },
 });
 
 // Add a request interceptor
 api.interceptors.request.use(
   (config) => {
-    const auth = localStorage.getItem('auth');
-    if (auth) {
-      try {
-        const token = JSON.parse(auth).state.token;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      } catch (e) {
-        // Invalid auth data, continue without token
-      }
+    // [H12] Read token directly from Zustand store to avoid race condition with localStorage
+    const store = useAuthStore.getState();
+
+    // [F9] Check token expiry before every request
+    if (store.token && !store.checkAuth()) {
+      return Promise.reject(new Error('Token expired'));
     }
-    return config; // Always return config
+
+    if (store.token) {
+      config.headers.Authorization = `Bearer ${store.token}`;
+    }
+    return config;
   },
   (error) => Promise.reject(error),
 );

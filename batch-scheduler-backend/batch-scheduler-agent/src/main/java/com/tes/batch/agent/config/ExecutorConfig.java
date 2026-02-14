@@ -3,7 +3,9 @@ package com.tes.batch.agent.config;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -16,19 +18,22 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class ExecutorConfig {
 
     private final AgentConfig agentConfig;
+    private ExecutorService executorServiceRef;
 
-    @Bean(name = "taskExecutor")
-    public ThreadPoolTaskExecutor taskExecutor() {
+    @Bean(name = "jobTaskExecutor")
+    public ThreadPoolTaskExecutor jobTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(agentConfig.getExecutor().getCorePoolSize());
         executor.setMaxPoolSize(agentConfig.getExecutor().getMaxPoolSize());
         executor.setQueueCapacity(agentConfig.getExecutor().getQueueCapacity());
         executor.setThreadNamePrefix(agentConfig.getExecutor().getThreadNamePrefix());
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(60);
         executor.initialize();
@@ -37,7 +42,25 @@ public class ExecutorConfig {
 
     @Bean
     public ExecutorService jobExecutorService() {
-        return Executors.newFixedThreadPool(agentConfig.getExecutor().getMaxPoolSize());
+        executorServiceRef = Executors.newFixedThreadPool(agentConfig.getExecutor().getMaxPoolSize());
+        return executorServiceRef;
+    }
+
+    @PreDestroy
+    public void shutdownExecutorService() {
+        if (executorServiceRef != null) {
+            log.info("Shutting down jobExecutorService...");
+            executorServiceRef.shutdown();
+            try {
+                if (!executorServiceRef.awaitTermination(60, TimeUnit.SECONDS)) {
+                    executorServiceRef.shutdownNow();
+                    log.warn("jobExecutorService forced shutdown");
+                }
+            } catch (InterruptedException e) {
+                executorServiceRef.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     @Bean

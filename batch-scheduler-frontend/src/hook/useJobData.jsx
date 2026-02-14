@@ -53,14 +53,20 @@ const useJobData = () => {
         const response = await api.post(url, filterInput);
         return response.data;
       } catch (error) {
-        toast.error('Error fetching job');
-        return [];
+        throw error; // Let SWR handle the error state
       }
     },
     {
-      revalidateOnFocus: true,
-      refreshInterval: 5000, // Poll every 5 seconds for real-time updates
-      dedupingInterval: 2000, // Dedupe requests within 2 seconds
+      revalidateOnFocus: false,
+      refreshInterval: 30000, // Poll every 30 seconds (reduced from 5s for performance)
+      dedupingInterval: 5000,
+      errorRetryCount: 3,
+      errorRetryInterval: 10000,
+      onError: (err) => {
+        if (err?.response?.status !== 401) {
+          toast.error('Error fetching jobs', { toastId: 'job-data-error' });
+        }
+      },
     },
   );
 

@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.net.InetAddress;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +53,10 @@ public class RestApiExecutor {
         HttpMethod method = determineMethod(action);
         String url = stripMethodPrefix(action);
 
-        log.info("Executing REST API call: {} {} (timeout: {}, logChannel: {})", method, url, timeout, logChannel);
+        // [S2] SSRF prevention - validate URL
+        validateUrl(url);
+
+        log.info("Executing REST API call: {} {} (timeout: {})", method, url, timeout);
 
         try {
             WebClient webClient = webClientBuilder.build();
@@ -65,8 +70,18 @@ public class RestApiExecutor {
             if (headersJson != null && !headersJson.isEmpty()) {
                 Map<String, String> headers = parseHeaders(headersJson);
                 for (Map.Entry<String, String> entry : headers.entrySet()) {
-                    requestSpec = (WebClient.RequestBodySpec) requestSpec.header(entry.getKey(), entry.getValue());
-                    log.debug("Added header: {} = {}", entry.getKey(), entry.getValue());
+                    // [M8] Prevent CRLF header injection
+                    String key = entry.getKey();
+                    String value = entry.getValue();
+                    if (key != null && (key.contains("\r") || key.contains("\n"))) {
+                        log.warn("Blocked header with CRLF injection attempt: {}", key.replaceAll("[\\r\\n]", ""));
+                        continue;
+                    }
+                    if (value != null && (value.contains("\r") || value.contains("\n"))) {
+                        value = value.replaceAll("[\\r\\n]", " ");
+                    }
+                    requestSpec = (WebClient.RequestBodySpec) requestSpec.header(key, value);
+                    log.debug("Added header: {} = {}", key, isSensitiveHeader(key) ? "****" : value);
                 }
             }
 
@@ -76,10 +91,20 @@ public class RestApiExecutor {
                 responseMono = requestSpec
                         .bodyValue(body)
                         .retrieve()
+                        .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                                clientResponse -> clientResponse.bodyToMono(String.class)
+                                        .defaultIfEmpty("")
+                                        .flatMap(errorBody -> Mono.error(new RuntimeException(
+                                                "HTTP " + clientResponse.statusCode().value() + ": " + truncateForLog(errorBody, 500)))))
                         .bodyToMono(String.class);
             } else {
                 responseMono = requestSpec
                         .retrieve()
+                        .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
+                                clientResponse -> clientResponse.bodyToMono(String.class)
+                                        .defaultIfEmpty("")
+                                        .flatMap(errorBody -> Mono.error(new RuntimeException(
+                                                "HTTP " + clientResponse.statusCode().value() + ": " + truncateForLog(errorBody, 500)))))
                         .bodyToMono(String.class);
             }
 
@@ -91,7 +116,7 @@ public class RestApiExecutor {
                         }
                         return Mono.error(e);
                     })
-                    .block();
+                    .block(timeout.plus(Duration.ofSeconds(5)));
 
             log.info("REST API call completed successfully: {} {}", method, url);
             // Publish response (truncated if too long)
@@ -135,6 +160,65 @@ public class RestApiExecutor {
         } catch (Exception e) {
             log.warn("Failed to publish log to Redis: {}", e.getMessage());
         }
+    }
+
+    /** Cloud metadata IP addresses that must be blocked */
+    private static final java.util.Set<String> BLOCKED_IPS = java.util.Set.of(
+            "169.254.169.254", // AWS/GCP/Azure metadata
+            "100.100.100.200", // Alibaba Cloud metadata
+            "fd00:ec2::254"    // AWS IMDSv2 IPv6
+    );
+
+    /** [C5] Validate URL to prevent SSRF attacks (DNS rebinding, IPv6, scheme, metadata) */
+    private void validateUrl(String url) {
+        try {
+            URI uri = URI.create(url);
+
+            // 1. Scheme validation - only HTTP/HTTPS allowed
+            String scheme = uri.getScheme();
+            if (scheme == null || (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https"))) {
+                throw new SecurityException("SSRF blocked: only http/https schemes allowed, got: " + scheme);
+            }
+
+            String host = uri.getHost();
+            if (host == null || host.isEmpty()) {
+                throw new SecurityException("Invalid URL: no host specified");
+            }
+
+            // 2. Block cloud metadata endpoints by hostname
+            if (BLOCKED_IPS.contains(host)) {
+                throw new SecurityException("SSRF blocked: cloud metadata endpoint not allowed: " + host);
+            }
+
+            // 3. Resolve all addresses and check each one
+            InetAddress[] addresses = InetAddress.getAllByName(host);
+            for (InetAddress addr : addresses) {
+                String hostAddr = addr.getHostAddress();
+
+                // Block cloud metadata IPs
+                if (BLOCKED_IPS.contains(hostAddr)) {
+                    throw new SecurityException("SSRF blocked: cloud metadata IP not allowed: " + hostAddr);
+                }
+
+                // Block private/internal addresses
+                if (addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress()
+                        || addr.isMulticastAddress() || addr.isAnyLocalAddress()) {
+                    throw new SecurityException("SSRF blocked: internal/private IP address not allowed: " + hostAddr + " (resolved from " + host + ")");
+                }
+            }
+        } catch (SecurityException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SecurityException("URL validation failed: " + e.getMessage(), e);
+        }
+    }
+
+    private static final java.util.Set<String> SENSITIVE_HEADERS = java.util.Set.of(
+            "authorization", "x-api-key", "x-auth-token", "cookie", "proxy-authorization"
+    );
+
+    private boolean isSensitiveHeader(String headerName) {
+        return headerName != null && SENSITIVE_HEADERS.contains(headerName.toLowerCase());
     }
 
     /**

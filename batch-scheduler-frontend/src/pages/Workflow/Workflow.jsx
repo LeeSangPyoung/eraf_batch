@@ -1,7 +1,7 @@
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import SearchIcon from '@mui/icons-material/Search';
 import { Box, Button } from '@mui/material';
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   WF_MODE,
@@ -48,11 +48,11 @@ const Workflow = () => {
   const setGroup = useGroupsStore((state) => state.setGroup);
   const { setIsWorkflow } = useFilterData();
 
-  const handleKeyDown = (event) => {
+  const handleKeyDown = useCallback((event) => {
     if (event.key === 'Enter') {
       handleFetchData();
     }
-  };
+  }, [handleFetchData]);
 
   const [mode, setMode] = useState(WF_MODE.CREATE);
 
@@ -61,7 +61,7 @@ const Workflow = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  });
+  }, [handleKeyDown]);
 
   return (
     <Box className="flex flex-col space-y-5">

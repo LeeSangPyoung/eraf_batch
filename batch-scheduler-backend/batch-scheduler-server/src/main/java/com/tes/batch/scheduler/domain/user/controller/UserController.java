@@ -8,11 +8,15 @@ import com.tes.batch.scheduler.domain.user.dto.UserInfoResponse;
 import com.tes.batch.scheduler.domain.user.dto.UserRequest;
 import com.tes.batch.scheduler.domain.user.service.UserService;
 import com.tes.batch.scheduler.security.SecurityUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @RestController
@@ -23,18 +27,32 @@ public class UserController {
     private final UserService userService;
     private final SecurityUtils securityUtils;
 
+    /** [S9] Simple login rate limiter: max 5 attempts per IP per minute */
+    private static final int MAX_LOGIN_ATTEMPTS = 5;
+    private static final long RATE_LIMIT_WINDOW_MS = 60_000L;
+    private static final ConcurrentHashMap<String, long[]> loginAttempts = new ConcurrentHashMap<>();
+
     /**
      * User login
      * POST /user/login
      */
     @PostMapping("/login")
-    public ApiResponse<LoginResponse> login(@RequestBody LoginRequest request) {
+    public ApiResponse<LoginResponse> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        // [S9] Rate limiting
+        String clientIp = getClientIp(httpRequest);
+        if (isRateLimited(clientIp)) {
+            log.warn("Login rate limited for IP: {}", clientIp);
+            return ApiResponse.error("Too many login attempts. Please try again later.");
+        }
+
         try {
             LoginResponse response = userService.login(request);
             return ApiResponse.success(response);
         } catch (IllegalArgumentException | IllegalStateException e) {
-            log.warn("Login failed for user {}: {}", request.getUserId(), e.getMessage());
-            return ApiResponse.error(e.getMessage());
+            // [H4] Don't log user ID to prevent user enumeration in logs
+            log.warn("Login failed: {}", e.getMessage());
+            // Return generic error to prevent user enumeration via response
+            return ApiResponse.error("Invalid credentials or account locked");
         }
     }
 
@@ -237,5 +255,27 @@ public class UserController {
             log.error("Failed to lock/unlock account", e);
             return ApiResponse.error(e.getMessage());
         }
+    }
+
+    /** [S9] Check if IP is rate limited (sliding window) */
+    private boolean isRateLimited(String ip) {
+        long now = System.currentTimeMillis();
+        long[] window = loginAttempts.compute(ip, (k, v) -> {
+            if (v == null || now - v[1] > RATE_LIMIT_WINDOW_MS) {
+                return new long[]{1, now};
+            }
+            v[0]++;
+            return v;
+        });
+        return window[0] > MAX_LOGIN_ATTEMPTS;
+    }
+
+    /** Extract client IP from request */
+    private String getClientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isEmpty()) {
+            return xff.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

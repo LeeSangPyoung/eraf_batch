@@ -86,11 +86,15 @@ public class SecurityUtils {
      * Get current JWT token from request
      */
     private String getCurrentToken() {
-        ServletRequestAttributes attributes =
-            (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (attributes != null) {
-            String bearerToken = attributes.getRequest().getHeader("Authorization");
-            return jwtTokenProvider.resolveToken(bearerToken);
+        try {
+            ServletRequestAttributes attributes =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attributes != null && attributes.getRequest() != null) {
+                String bearerToken = attributes.getRequest().getHeader("Authorization");
+                return jwtTokenProvider.resolveToken(bearerToken);
+            }
+        } catch (Exception e) {
+            // Can occur when called outside HTTP request context (scheduler, async, etc.)
         }
         return null;
     }

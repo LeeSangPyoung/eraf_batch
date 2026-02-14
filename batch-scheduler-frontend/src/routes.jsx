@@ -3,6 +3,7 @@ import { Navigate, useRoutes } from 'react-router-dom';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import ProtectedRoute from './layout';
+import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 
 const LoadingComponent = () => (
   <Box
@@ -70,7 +71,11 @@ const Routes = () => {
     { path: '*', element: <NotFoundPage /> },
   ]);
 
-  return <Suspense fallback={<LoadingComponent />}>{routes}</Suspense>;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingComponent />}>{routes}</Suspense>
+    </ErrorBoundary>
+  );
 };
 
 export default Routes;

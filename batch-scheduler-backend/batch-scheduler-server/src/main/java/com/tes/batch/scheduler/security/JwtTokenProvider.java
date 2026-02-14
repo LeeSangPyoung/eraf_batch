@@ -32,7 +32,13 @@ public class JwtTokenProvider {
 
     @PostConstruct
     protected void init() {
-        this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException(
+                "JWT secret key must be at least 32 bytes (256 bits) for HMAC-SHA256, got " + keyBytes.length
+                + " bytes. Please set a stronger jwt.secret value.");
+        }
+        this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
     /**

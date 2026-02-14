@@ -2,57 +2,89 @@ package com.tes.batch.agent.listener;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tes.batch.agent.config.AgentConfig;
-import com.tes.batch.agent.executor.WorkflowExecutor;
 import com.tes.batch.common.dto.WorkflowMessage;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.connection.Message;
-import org.springframework.data.redis.connection.MessageListener;
-import org.springframework.data.redis.listener.ChannelTopic;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.TimeUnit;
+
 /**
- * Listens for workflow messages from Redis and executes them
+ * Listens for workflow messages from Redis List (BRPOP) and delegates to AsyncWorkflowRunner
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class WorkflowMessageListener implements MessageListener {
+public class WorkflowMessageListener {
 
-    private final RedisMessageListenerContainer listenerContainer;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final AgentConfig agentConfig;
-    private final WorkflowExecutor workflowExecutor;
     private final ObjectMapper objectMapper;
+    private final AsyncWorkflowRunner asyncWorkflowRunner;
+
+    private Thread consumerThread;
+    private volatile boolean running = true;
 
     @PostConstruct
-    public void subscribe() {
-        String channel = "workflow:queue:" + agentConfig.getQueueName();
-        listenerContainer.addMessageListener(this, new ChannelTopic(channel));
-        log.info("Subscribed to workflow queue: {}", channel);
+    public void startListening() {
+        String listKey = "workflow:queue:" + agentConfig.getQueueName();
+
+        consumerThread = new Thread(() -> {
+            log.info("Started workflow queue consumer on list: {}", listKey);
+            long backoffMs = 2000;
+            while (running && !Thread.currentThread().isInterrupted()) {
+                try {
+                    Object message = redisTemplate.opsForList().rightPop(listKey, 5, TimeUnit.SECONDS);
+                    if (message != null) {
+                        try {
+                            WorkflowMessage workflowMessage = objectMapper.convertValue(message, WorkflowMessage.class);
+                            log.info("Received workflow message: workflowId={}, runId={}",
+                                    workflowMessage.getWorkflowId(), workflowMessage.getWorkflowRunId());
+                            asyncWorkflowRunner.executeWorkflowAsync(workflowMessage);
+                        } catch (Exception processingError) {
+                            log.error("Failed to process workflow message, sending to dead-letter queue", processingError);
+                            try {
+                                redisTemplate.opsForList().leftPush(listKey + ":dead-letter", message);
+                            } catch (Exception dlqError) {
+                                log.error("Failed to send to dead-letter queue", dlqError);
+                            }
+                        }
+                    }
+                    backoffMs = 2000;
+                } catch (Exception e) {
+                    if (!running || Thread.currentThread().isInterrupted()) {
+                        break;
+                    }
+                    log.error("Error consuming workflow queue, retrying in {}ms", backoffMs, e);
+                    try {
+                        Thread.sleep(backoffMs);
+                        backoffMs = Math.min(backoffMs * 2, 30000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+            log.info("Workflow queue consumer stopped");
+        }, "workflow-queue-consumer");
+        consumerThread.setDaemon(false);
+        consumerThread.start();
     }
 
-    @Override
-    public void onMessage(Message message, byte[] pattern) {
-        try {
-            String body = new String(message.getBody());
-            log.info("Received workflow message: {}", body);
-
-            WorkflowMessage workflowMessage = objectMapper.readValue(body, WorkflowMessage.class);
-            executeWorkflowAsync(workflowMessage);
-
-        } catch (Exception e) {
-            log.error("Failed to process workflow message", e);
+    @PreDestroy
+    public void stopListening() {
+        running = false;
+        if (consumerThread != null) {
+            consumerThread.interrupt();
+            try {
+                consumerThread.join(30000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            log.info("Workflow queue consumer shutdown completed");
         }
-    }
-
-    @Async("jobExecutor")
-    public void executeWorkflowAsync(WorkflowMessage workflowMessage) {
-        log.info("Starting workflow execution: {} (runId: {})",
-                workflowMessage.getWorkflowName(), workflowMessage.getWorkflowRunId());
-
-        workflowExecutor.executeWorkflow(workflowMessage);
     }
 }

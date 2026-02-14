@@ -5,20 +5,6 @@ const useLogSocketIO = () => {
   const logSocket = switchNamespace(LOGS_NSP);
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [shouldConnection, setShouldConnection] = useState(false);
-  function onConnect() {
-    console.log('Socket Connected');
-    setIsConnected(true);
-  }
-
-  function onDisconnect() {
-    console.log('Socket Disconnected');
-    setIsConnected(false);
-  }
-
-  function offEvent() {
-    logSocket.off('connect', onConnect);
-    logSocket.off('disconnect', onDisconnect);
-  }
 
   // Join Room to listen log event from server.
   function joinRoom(jobId) {
@@ -27,16 +13,35 @@ const useLogSocketIO = () => {
     }
   }
 
+  // [H10] Register listeners inside useEffect with proper cleanup to prevent memory leaks
+  useEffect(() => {
+    function onConnect() {
+      setIsConnected(true);
+    }
+    function onDisconnect() {
+      setIsConnected(false);
+    }
+
+    logSocket.on('connect', onConnect);
+    logSocket.on('disconnect', onDisconnect);
+
+    return () => {
+      logSocket.off('connect', onConnect);
+      logSocket.off('disconnect', onDisconnect);
+    };
+  }, [logSocket]);
+
   useEffect(() => {
     if (shouldConnection) {
       logSocket.connect();
     } else {
       logSocket.disconnect();
     }
-  }, [shouldConnection]);
+  }, [shouldConnection, logSocket]);
 
-  logSocket.on('connect', onConnect);
-  logSocket.on('disconnect', onDisconnect);
+  function offEvent() {
+    // No-op: cleanup is handled by useEffect
+  }
 
   return {
     socket: logSocket,

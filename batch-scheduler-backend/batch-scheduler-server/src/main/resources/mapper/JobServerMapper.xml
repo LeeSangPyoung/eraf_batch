@@ -99,9 +99,9 @@
         <where>
             <if test="textSearch != null and textSearch != ''">
                 AND (
-                    LOWER(s.system_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(s.host_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(s.host_ip_addr) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    LOWER(s.system_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(s.host_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(s.host_ip_addr) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
                 )
             </if>
         </where>
@@ -116,9 +116,9 @@
         <where>
             <if test="textSearch != null and textSearch != ''">
                 AND (
-                    LOWER(system_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(host_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(host_ip_addr) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    LOWER(system_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(host_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(host_ip_addr) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
                 )
             </if>
         </where>
@@ -183,6 +183,13 @@
     <update id="updateLastDeployTime">
         UPDATE scheduler_job_servers
         SET last_deploy_time = #{lastDeployTime}
+        WHERE system_id = #{systemId}
+    </update>
+
+    <!-- Update SSH Password -->
+    <update id="updateSshPassword">
+        UPDATE scheduler_job_servers
+        SET ssh_password = #{sshPassword}
         WHERE system_id = #{systemId}
     </update>
 

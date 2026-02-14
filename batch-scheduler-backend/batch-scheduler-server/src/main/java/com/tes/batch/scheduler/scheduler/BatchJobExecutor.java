@@ -67,6 +67,12 @@ public class BatchJobExecutor implements Job {
                 return;
             }
 
+            // [F1] Prevent concurrent execution - skip if already RUNNING
+            if ("RUNNING".equals(job.getCurrentState())) {
+                log.warn("Job {} is already RUNNING, skipping duplicate execution", jobId);
+                return;
+            }
+
             // Skip jobs that belong to a workflow - they are executed via workflow scheduler
             if (job.getWorkflowId() != null && !job.getWorkflowId().isEmpty()) {
                 log.info("Job {} belongs to workflow, skipping individual execution", jobId);

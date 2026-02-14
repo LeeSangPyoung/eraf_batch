@@ -46,9 +46,11 @@ function WorkflowRunTable({
     });
   };
   useEffect(() => {
-    setTimeout(() => {
+    if (!isLoadingDefault) return;
+    const timer = setTimeout(() => {
       setIsLoadingDefault(false);
     }, 300);
+    return () => clearTimeout(timer);
   }, [isLoadingDefault]);
 
   const data = useDataTransition(workflowRunData, !workflowRunData, 300);

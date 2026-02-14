@@ -2,44 +2,74 @@ package com.tes.batch.scheduler.workflow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.connection.Message;
-import org.springframework.data.redis.connection.MessageListener;
-import org.springframework.data.redis.listener.ChannelTopic;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Listens for workflow execution results from Agent via Redis
+ * Listens for workflow execution results from Agent via Redis List (BRPOP)
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class WorkflowResultListener implements MessageListener {
+public class WorkflowResultListener {
 
-    private final RedisMessageListenerContainer listenerContainer;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final WorkflowExecutionService workflowExecutionService;
     private final ObjectMapper objectMapper;
 
-    private static final String RESULT_CHANNEL = "workflow:result";
+    private static final String RESULT_LIST_KEY = "workflow:result";
+    private Thread consumerThread;
 
     @PostConstruct
-    public void subscribe() {
-        listenerContainer.addMessageListener(this, new ChannelTopic(RESULT_CHANNEL));
-        log.info("Subscribed to workflow result channel: {}", RESULT_CHANNEL);
+    public void startListening() {
+        consumerThread = new Thread(() -> {
+            log.info("Started workflow result consumer on list: {}", RESULT_LIST_KEY);
+            long backoffMs = 2000;
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Object message = redisTemplate.opsForList().rightPop(RESULT_LIST_KEY, 5, TimeUnit.SECONDS);
+                    if (message != null) {
+                        processMessage(message);
+                    }
+                    backoffMs = 2000; // [P8] reset on success
+                } catch (Exception e) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        break;
+                    }
+                    log.error("Error consuming workflow result, retrying in {}ms", backoffMs, e);
+                    try {
+                        Thread.sleep(backoffMs);
+                        backoffMs = Math.min(backoffMs * 2, 30000); // [P8] exponential backoff, max 30s
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+            log.info("Workflow result consumer stopped");
+        }, "workflow-result-consumer");
+        consumerThread.setDaemon(true);
+        consumerThread.start();
     }
 
-    @Override
-    public void onMessage(Message message, byte[] pattern) {
-        try {
-            String body = new String(message.getBody());
-            log.debug("Received workflow result message: {}", body);
+    @PreDestroy
+    public void stopListening() {
+        if (consumerThread != null) {
+            consumerThread.interrupt();
+            log.info("Workflow result consumer shutdown requested");
+        }
+    }
 
+    private void processMessage(Object message) {
+        try {
             @SuppressWarnings("unchecked")
-            Map<String, Object> resultMap = objectMapper.readValue(body, Map.class);
+            Map<String, Object> resultMap = objectMapper.convertValue(message, Map.class);
 
             String workflowId = (String) resultMap.get("workflowId");
             Long workflowRunId = resultMap.get("workflowRunId") != null
@@ -58,6 +88,8 @@ public class WorkflowResultListener implements MessageListener {
                     : null;
 
             if (workflowRunId != null) {
+                log.debug("Received workflow result: workflowId={}, runId={}, status={}",
+                        workflowId, workflowRunId, status);
                 workflowExecutionService.handleWorkflowResult(
                         workflowId, workflowRunId, status, errorMessage, startTime, endTime, durationMs
                 );

@@ -1,16 +1,24 @@
 package com.tes.batch.scheduler.ssh;
 
 import com.jcraft.jsch.*;
+import com.tes.batch.scheduler.crypto.CryptoService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SshService {
+
+    private final CryptoService cryptoService;
+
+    private static final Pattern SAFE_PATH_PATTERN = Pattern.compile("^/[a-zA-Z0-9._/@-]+$");
 
     @Value("${ssh.keys-path:./keys}")
     private String sshKeysPath;
@@ -47,8 +55,11 @@ public class SshService {
     public Session createSession(String host, String username, String password) throws JSchException {
         JSch jsch = new JSch();
 
+        // Decrypt password if encrypted
+        String decryptedPassword = cryptoService.decrypt(password);
+
         // Check if password authentication should be used
-        boolean usePassword = password != null && !password.isEmpty();
+        boolean usePassword = decryptedPassword != null && !decryptedPassword.isEmpty();
 
         if (!usePassword) {
             // Try to load private key
@@ -78,10 +89,10 @@ public class SshService {
 
         // Set password if using password authentication
         if (usePassword) {
-            session.setPassword(password);
+            session.setPassword(decryptedPassword);
         }
 
-        session.setConfig("StrictHostKeyChecking", "no");
+        session.setConfig("StrictHostKeyChecking", "accept-new");
         session.setConfig("PreferredAuthentications", "publickey,keyboard-interactive,password");
         session.setTimeout(30000);
 
@@ -197,6 +208,8 @@ public class SshService {
         String username = userHost[0];
         String host = userHost[1];
 
+        validatePath(folderPath);
+
         log.info("========== Starting Agent Deployment ==========");
         log.info("Target: {}@{}:{}", username, host, folderPath);
         log.info("Queue Name: {}", queueName);
@@ -209,7 +222,7 @@ public class SshService {
 
             // 1. Create agent folder
             log.info("Step 1: Creating directory {}", folderPath);
-            String mkdirCmd = String.format("mkdir -p %s", folderPath);
+            String mkdirCmd = String.format("mkdir -p '%s'", folderPath);
             SshResult mkdirResult = executeCommand(session, mkdirCmd);
             if (!mkdirResult.success()) {
                 throw new RuntimeException("Failed to create directory: " + mkdirResult.error());
@@ -273,7 +286,7 @@ public class SshService {
                     redis:
                       host: %s
                       port: %d
-                      timeout: 5000ms
+                      timeout: 15000ms
 
                 agent:
                   queue-name: %s
@@ -281,6 +294,12 @@ public class SshService {
                   heartbeat:
                     interval: 10000
                     timeout: 60000
+                  executor:
+                    core-pool-size: 5
+                    max-pool-size: 20
+                    queue-capacity: 100
+                    max-concurrent-jobs: 10
+                    thread-name-prefix: job-executor-
 
                 scheduler:
                   api-url: %s
@@ -488,17 +507,37 @@ public class SshService {
         String username = userHost[0];
         String host = userHost[1];
 
+        validatePath(folderPath);
+
         log.info("Cleaning agent folder at {}@{}:{}", username, host, folderPath);
 
         Session session = createSession(host, username);
         try {
             session.connect();
 
-            String cleanCmd = String.format("rm -rf %s", folderPath);
+            String cleanCmd = String.format("rm -rf '%s'", folderPath);
             executeCommand(session, cleanCmd);
 
         } finally {
             session.disconnect();
+        }
+    }
+
+    /** [S6][H3] Validate remote path to prevent path traversal and dangerous operations */
+    private void validatePath(String path) {
+        if (path == null || path.isEmpty()) {
+            throw new SecurityException("Path must not be empty");
+        }
+        if (path.contains("..")) {
+            throw new SecurityException("Path traversal detected: " + path);
+        }
+        if (!SAFE_PATH_PATTERN.matcher(path).matches()) {
+            throw new SecurityException("Invalid path characters: " + path);
+        }
+        // [H3] Minimum depth check - prevent operations on root-level dirs
+        long depth = path.chars().filter(c -> c == '/').count();
+        if (depth < 2) {
+            throw new SecurityException("Path too shallow (minimum 2 levels required): " + path);
         }
     }
 

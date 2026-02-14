@@ -1,6 +1,7 @@
 package com.tes.batch.scheduler.domain.server.service;
 
 import com.tes.batch.common.enums.DeploymentType;
+import com.tes.batch.scheduler.crypto.CryptoService;
 import com.tes.batch.scheduler.domain.job.mapper.JobMapper;
 import com.tes.batch.scheduler.domain.job.mapper.JobRunLogMapper;
 import com.tes.batch.scheduler.domain.server.dto.ServerFilterRequest;
@@ -15,8 +16,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -29,6 +34,12 @@ public class ServerService {
     private final SecurityUtils securityUtils;
     private final SshService sshService;
     private final AgentManager agentManager;
+    private final CryptoService cryptoService;
+
+    // [M4] Pattern for valid IP or hostname (supports user@host format)
+    private static final Pattern HOST_PATTERN = Pattern.compile(
+            "^([a-zA-Z0-9._-]+@)?[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$"
+    );
 
     @Transactional(readOnly = true)
     public List<JobServerVO> getServers(ServerFilterRequest request) {
@@ -51,28 +62,47 @@ public class ServerService {
     }
 
     /**
-     * Enrich server list with failure statistics
+     * [P1] Enrich server list with failure statistics using batch queries (N+1 → 2 queries)
      */
     private void enrichWithFailureStats(List<JobServerVO> servers) {
+        if (servers == null || servers.isEmpty()) return;
+
         long last24Hours = System.currentTimeMillis() - (24 * 60 * 60 * 1000);
+        List<String> systemIds = servers.stream()
+                .map(JobServerVO::getSystemId)
+                .collect(Collectors.toList());
 
-        for (JobServerVO server : servers) {
-            try {
-                // Count recent agent-related failures (last 24 hours)
-                int failureCount = jobRunLogMapper.countRecentAgentFailuresBySystemId(
-                    server.getSystemId(),
-                    last24Hours
-                );
-                server.setRecentFailedJobs(failureCount);
+        try {
+            // Batch query: failure counts for all servers
+            Map<String, Integer> failureCounts = new HashMap<>();
+            List<Map<String, Object>> countResults = jobRunLogMapper.batchCountRecentAgentFailures(systemIds, last24Hours);
+            if (countResults != null) {
+                for (Map<String, Object> row : countResults) {
+                    String sysId = (String) row.get("system_id");
+                    Number count = (Number) row.get("failure_count");
+                    failureCounts.put(sysId, count != null ? count.intValue() : 0);
+                }
+            }
 
-                // Get timestamp of most recent failure
-                Long lastFailureTime = jobRunLogMapper.findLatestAgentFailureTimeBySystemId(
-                    server.getSystemId()
-                );
-                server.setLastFailureTime(lastFailureTime);
-            } catch (Exception e) {
-                log.warn("Failed to get failure stats for server {}: {}",
-                    server.getSystemName(), e.getMessage());
+            // Batch query: latest failure times for all servers
+            Map<String, Long> failureTimes = new HashMap<>();
+            List<Map<String, Object>> timeResults = jobRunLogMapper.batchFindLatestAgentFailureTime(systemIds);
+            if (timeResults != null) {
+                for (Map<String, Object> row : timeResults) {
+                    String sysId = (String) row.get("system_id");
+                    Number time = (Number) row.get("last_failure_time");
+                    failureTimes.put(sysId, time != null ? time.longValue() : null);
+                }
+            }
+
+            // Apply to servers
+            for (JobServerVO server : servers) {
+                server.setRecentFailedJobs(failureCounts.getOrDefault(server.getSystemId(), 0));
+                server.setLastFailureTime(failureTimes.get(server.getSystemId()));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get batch failure stats: {}", e.getMessage());
+            for (JobServerVO server : servers) {
                 server.setRecentFailedJobs(0);
                 server.setLastFailureTime(null);
             }
@@ -88,6 +118,11 @@ public class ServerService {
     public JobServerVO createServer(ServerRequest request) {
         // Sanitize request fields (trim whitespace)
         sanitizeRequest(request);
+
+        // [M4] Validate host IP/hostname format
+        if (request.getHostIpAddr() != null && !HOST_PATTERN.matcher(request.getHostIpAddr()).matches()) {
+            throw new IllegalArgumentException("Invalid host IP address or hostname: " + request.getHostIpAddr());
+        }
 
         if (serverMapper.existsBySystemName(request.getSystemName())) {
             throw new IllegalArgumentException("System name already exists: " + request.getSystemName());
@@ -133,7 +168,7 @@ public class ServerService {
                 .queueName(queueName)
                 .folderPath(folderPath)
                 .sshUser(sshUser)
-                .sshPassword(request.getSshPassword())
+                .sshPassword(cryptoService.encrypt(request.getSshPassword()))
                 .agentPort(agentPort)
                 .deploymentType(request.getDeploymentType())
                 .mountPaths(request.getMountPaths())
@@ -215,7 +250,10 @@ public class ServerService {
         existing.setSystemComments(request.getSystemComments());
         existing.setFolderPath(request.getFolderPath());
         existing.setSshUser(request.getSshUser());
-        existing.setSshPassword(request.getSshPassword());
+        // Only update password if a new one is provided (WRITE_ONLY means frontend can't read it)
+        if (request.getSshPassword() != null && !request.getSshPassword().isEmpty()) {
+            existing.setSshPassword(cryptoService.encrypt(request.getSshPassword()));
+        }
         if (request.getAgentPort() != null && request.getAgentPort() >= 1024) {
             existing.setAgentPort(request.getAgentPort());
         }

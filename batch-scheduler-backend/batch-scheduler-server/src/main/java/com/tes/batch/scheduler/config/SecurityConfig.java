@@ -3,6 +3,8 @@ package com.tes.batch.scheduler.config;
 import com.tes.batch.scheduler.security.JwtAccessDeniedHandler;
 import com.tes.batch.scheduler.security.JwtAuthenticationEntryPoint;
 import com.tes.batch.scheduler.security.JwtAuthenticationFilter;
+import com.tes.batch.scheduler.security.MdcFilter;
+import com.tes.batch.scheduler.security.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -34,6 +36,8 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final RateLimitFilter rateLimitFilter;
+    private final MdcFilter mdcFilter;
 
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
@@ -77,6 +81,10 @@ public class SecurityConfig {
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
             )
+            // MDC request tracking (first in chain)
+            .addFilterBefore(mdcFilter, RateLimitFilter.class)
+            // [L5] Add rate limiting before JWT authentication
+            .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -88,8 +96,8 @@ public class SecurityConfig {
         // Use configured allowed origins instead of allowing all
         configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Requested-With", "X-Request-ID"));
+        configuration.setExposedHeaders(Arrays.asList("Authorization", "X-Request-ID"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

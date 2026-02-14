@@ -21,10 +21,10 @@ public class RedisMessagePublisher {
      * Publish job to specific queue
      */
     public void publishJob(String queueName, JobMessage message) {
-        String channel = "job:queue:" + queueName;
+        String listKey = "job:queue:" + queueName;
         try {
-            redisTemplate.convertAndSend(channel, message);
-            log.info("Published job to {}: {}", channel, message.getJobId());
+            redisTemplate.opsForList().leftPush(listKey, message);
+            log.info("Published job to {}: {}", listKey, message.getJobId());
         } catch (Exception e) {
             log.error("Failed to publish job: {}", message.getJobId(), e);
             throw new RuntimeException("Failed to publish job to Redis", e);
@@ -35,10 +35,10 @@ public class RedisMessagePublisher {
      * Publish workflow to specific queue
      */
     public void publishWorkflow(String queueName, WorkflowMessage message) {
-        String channel = "workflow:queue:" + queueName;
+        String listKey = "workflow:queue:" + queueName;
         try {
-            redisTemplate.convertAndSend(channel, message);
-            log.info("Published workflow to {}: {}", channel, message.getWorkflowId());
+            redisTemplate.opsForList().leftPush(listKey, message);
+            log.info("Published workflow to {}: {}", listKey, message.getWorkflowId());
         } catch (Exception e) {
             log.error("Failed to publish workflow: {}", message.getWorkflowId(), e);
             throw new RuntimeException("Failed to publish workflow to Redis", e);
@@ -56,6 +56,10 @@ public class RedisMessagePublisher {
                 return false;
             }
 
+            if (!(lastHeartbeat instanceof Number)) {
+                log.warn("Unexpected heartbeat type for queue {}: {}", queueName, lastHeartbeat.getClass());
+                return false;
+            }
             long timestamp = ((Number) lastHeartbeat).longValue();
             long now = System.currentTimeMillis();
 

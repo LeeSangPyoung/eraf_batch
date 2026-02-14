@@ -44,9 +44,11 @@ function SystemTable({
   };
 
   useEffect(() => {
-    setTimeout(() => {
+    if (!isLoadingDefault) return;
+    const timer = setTimeout(() => {
       setIsLoadingDefault(false);
     }, 300);
+    return () => clearTimeout(timer);
   }, [isLoadingDefault]);
 
   return (
@@ -140,12 +142,12 @@ function SystemTable({
                   const timeSinceDeployMs = now - deployTime;
                   const isInitializing = !isHealthy && timeSinceDeployMs < 30000; // 30 seconds
 
-                  // Determine status and color
+                  // Determine status and color based on current health only
                   let status, color;
                   if (isInitializing) {
                     status = 'initializing';
                     color = '#FF9500'; // Orange
-                  } else if (isHealthy && !hasRecentFailures) {
+                  } else if (isHealthy) {
                     status = 'healthy';
                     color = '#34C759'; // Green
                   } else {

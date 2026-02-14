@@ -20,11 +20,14 @@ public class LogService {
     private final JobRunLogMapper logMapper;
     private final SecurityUtils securityUtils;
 
+    private static final int MAX_PAGE_SIZE = 500;
+
     @Transactional(readOnly = true)
     public List<JobRunLogVO> getLogs(LogFilterRequest request) {
         // Frontend uses 1-indexed page_number
         int page = request.getPage() > 0 ? request.getPage() - 1 : 0;
-        int offset = page * request.getSize();
+        int pageSize = Math.min(request.getSize(), MAX_PAGE_SIZE);
+        int offset = page * pageSize;
 
         if (securityUtils.isAdmin()) {
             return logMapper.findByFilters(
@@ -35,7 +38,7 @@ public class LogService {
                     request.getStatus(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo(),
-                    request.getSize(),
+                    pageSize,
                     offset
             );
         } else {
@@ -51,7 +54,7 @@ public class LogService {
                     request.getStatus(),
                     request.getReqStartDateFrom(),
                     request.getReqStartDateTo(),
-                    request.getSize(),
+                    pageSize,
                     offset
             );
         }
@@ -88,7 +91,18 @@ public class LogService {
 
     @Transactional(readOnly = true)
     public JobRunLogVO getLog(Long logId) {
-        return logMapper.findById(logId);
+        JobRunLogVO logVO = logMapper.findById(logId);
+        if (logVO == null) {
+            return null;
+        }
+        // Access control: non-admin users can only view logs from their groups
+        if (!securityUtils.isAdmin() && logVO.getGroupId() != null) {
+            Set<String> groupIds = securityUtils.getCurrentGroupIds();
+            if (!groupIds.contains(logVO.getGroupId())) {
+                return null;
+            }
+        }
+        return logVO;
     }
 
     @Transactional(readOnly = true)

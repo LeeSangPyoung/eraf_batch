@@ -320,4 +320,34 @@
           AND (s.last_deploy_time IS NULL OR l.end_time >= s.last_deploy_time)
     </select>
 
+    <!-- [P1] Batch: count recent agent failures for multiple servers -->
+    <select id="batchCountRecentAgentFailures" resultType="map">
+        SELECT l.system_id as system_id, COUNT(*) as failure_count
+        FROM scheduler_job_run_logs l
+        LEFT JOIN scheduler_job_servers s ON l.system_id = s.system_id
+        WHERE l.system_id IN
+        <foreach collection="systemIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+          AND l.status = 'BROKEN'
+          AND (l.error LIKE '%heartbeat%' OR l.error LIKE '%agent%' OR l.error LIKE '%connection%')
+          AND l.end_time >= COALESCE(s.last_deploy_time, #{sinceTimestamp})
+        GROUP BY l.system_id
+    </select>
+
+    <!-- [P1] Batch: find latest agent failure time for multiple servers -->
+    <select id="batchFindLatestAgentFailureTime" resultType="map">
+        SELECT l.system_id as system_id, MAX(l.end_time) as last_failure_time
+        FROM scheduler_job_run_logs l
+        LEFT JOIN scheduler_job_servers s ON l.system_id = s.system_id
+        WHERE l.system_id IN
+        <foreach collection="systemIds" item="sid" open="(" separator="," close=")">
+            #{sid}
+        </foreach>
+          AND l.status = 'BROKEN'
+          AND (l.error LIKE '%heartbeat%' OR l.error LIKE '%agent%' OR l.error LIKE '%connection%')
+          AND (s.last_deploy_time IS NULL OR l.end_time >= s.last_deploy_time)
+        GROUP BY l.system_id
+    </select>
+
 </mapper>

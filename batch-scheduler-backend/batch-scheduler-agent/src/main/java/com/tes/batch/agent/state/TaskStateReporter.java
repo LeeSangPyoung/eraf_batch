@@ -18,17 +18,31 @@ public class TaskStateReporter {
     private final RedisTemplate<String, Object> redisTemplate;
     private final AgentConfig agentConfig;
 
-    private static final String RESULT_CHANNEL = "job:result";
+    private static final String RESULT_LIST_KEY = "job:result";
+
+    private static final int MAX_RETRIES = 3;
+    private static final long RETRY_DELAY_MS = 1000;
 
     /**
-     * Report job execution result to Scheduler
+     * Report job execution result to Scheduler via Redis List (with retry)
      */
     public void reportResult(JobResult result) {
-        try {
-            redisTemplate.convertAndSend(RESULT_CHANNEL, result);
-            log.info("Reported job result: {} - {}", result.getJobId(), result.getStatus());
-        } catch (Exception e) {
-            log.error("Failed to report job result: {}", result.getJobId(), e);
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                redisTemplate.opsForList().leftPush(RESULT_LIST_KEY, result);
+                log.info("Reported job result: {} - {}", result.getJobId(), result.getStatus());
+                return;
+            } catch (Exception e) {
+                if (attempt < MAX_RETRIES) {
+                    log.warn("Failed to report job result (attempt {}/{}): {}", attempt, MAX_RETRIES, result.getJobId());
+                    try { Thread.sleep(RETRY_DELAY_MS * attempt); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                } else {
+                    log.error("Failed to report job result after {} attempts: {}", MAX_RETRIES, result.getJobId(), e);
+                }
+            }
         }
     }
 
@@ -46,45 +60,57 @@ public class TaskStateReporter {
     }
 
     /**
-     * Report workflow execution result (simple)
+     * Report workflow execution result (simple, with retry)
      */
     public void reportWorkflowResult(Long workflowRunId, String status, String errorMessage) {
-        try {
-            String channel = "workflow:result";
-            java.util.Map<String, Object> message = java.util.Map.of(
-                    "workflowRunId", workflowRunId,
-                    "status", status,
-                    "errorMessage", errorMessage != null ? errorMessage : "",
-                    "endTime", System.currentTimeMillis()
-            );
-            redisTemplate.convertAndSend(channel, message);
-            log.info("Reported workflow result: {} - {}", workflowRunId, status);
-        } catch (Exception e) {
-            log.error("Failed to report workflow result: {}", workflowRunId, e);
-        }
+        String listKey = "workflow:result";
+        java.util.Map<String, Object> message = java.util.Map.of(
+                "workflowRunId", workflowRunId,
+                "status", status,
+                "errorMessage", errorMessage != null ? errorMessage : "",
+                "endTime", System.currentTimeMillis()
+        );
+        pushWithRetry(listKey, message, "workflow " + workflowRunId);
     }
 
     /**
-     * Report workflow execution result (detailed)
+     * Report workflow execution result (detailed, with retry)
      */
     public void reportWorkflowResult(String workflowId, Long workflowRunId,
                                       com.tes.batch.common.enums.TaskStatus status,
                                       String errorMessage, long startTime, long endTime) {
-        try {
-            String channel = "workflow:result";
-            java.util.Map<String, Object> message = new java.util.HashMap<>();
-            message.put("workflowId", workflowId);
-            message.put("workflowRunId", workflowRunId);
-            message.put("status", status.name());
-            message.put("errorMessage", errorMessage != null ? errorMessage : "");
-            message.put("startTime", startTime);
-            message.put("endTime", endTime);
-            message.put("durationMs", endTime - startTime);
+        String listKey = "workflow:result";
+        java.util.Map<String, Object> message = new java.util.HashMap<>();
+        message.put("workflowId", workflowId);
+        message.put("workflowRunId", workflowRunId);
+        message.put("status", status.name());
+        message.put("errorMessage", errorMessage != null ? errorMessage : "");
+        message.put("startTime", startTime);
+        message.put("endTime", endTime);
+        message.put("durationMs", endTime - startTime);
+        pushWithRetry(listKey, message, "workflow " + workflowId + " (runId: " + workflowRunId + ")");
+    }
 
-            redisTemplate.convertAndSend(channel, message);
-            log.info("Reported workflow result: {} (runId: {}) - {}", workflowId, workflowRunId, status);
-        } catch (Exception e) {
-            log.error("Failed to report workflow result: {} (runId: {})", workflowId, workflowRunId, e);
+    /**
+     * Push to Redis List with retry logic
+     */
+    private void pushWithRetry(String listKey, Object message, String description) {
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                redisTemplate.opsForList().leftPush(listKey, message);
+                log.info("Reported result for {}", description);
+                return;
+            } catch (Exception e) {
+                if (attempt < MAX_RETRIES) {
+                    log.warn("Failed to report result (attempt {}/{}): {}", attempt, MAX_RETRIES, description);
+                    try { Thread.sleep(RETRY_DELAY_MS * attempt); } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                } else {
+                    log.error("Failed to report result after {} attempts: {}", MAX_RETRIES, description, e);
+                }
+            }
         }
     }
 }

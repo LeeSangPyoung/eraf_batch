@@ -40,11 +40,23 @@ public class JobService {
     @Lazy
     private final SchedulerService schedulerService;
 
+    private static final int MAX_PAGE_SIZE = 500;
+    private static final long MAX_DURATION_SECONDS = 86400L; // 24 hours
+
+    /** Escape SQL LIKE wildcard characters to prevent wildcard injection */
+    static String escapeLikeWildcards(String input) {
+        if (input == null) return null;
+        return input.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
     @Transactional(readOnly = true)
     public List<JobVO> getJobs(JobFilterRequest request) {
+        // C1: Escape LIKE wildcards in text search
+        request.setTextSearch(escapeLikeWildcards(request.getTextSearch()));
         // Frontend uses 1-indexed page_number
         int page = request.getPage() > 0 ? request.getPage() - 1 : 0;
-        int offset = page * request.getSize();
+        int pageSize = Math.min(request.getSize(), MAX_PAGE_SIZE);
+        int offset = page * pageSize;
 
         List<JobVO> jobs;
         if (securityUtils.isAdmin()) {
@@ -59,7 +71,7 @@ public class JobService {
                     request.getLastResult(),
                     request.getLastStartDateFrom(),
                     request.getLastStartDateTo(),
-                    request.getSize(),
+                    pageSize,
                     offset
             );
         } else {
@@ -83,7 +95,7 @@ public class JobService {
                     request.getIsEnabled(),
                     request.getCurrentState(),
                     request.getTextSearch(),
-                    request.getSize(),
+                    pageSize,
                     offset
             );
         }
@@ -150,6 +162,33 @@ public class JobService {
         return 3600L; // Default 1 hour
     }
 
+    /** [H2] Validate job creation/update request inputs */
+    private void validateJobRequest(JobRequest request) {
+        if (request.getJobName() == null || request.getJobName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Job name is required");
+        }
+        if (request.getJobName().length() > 255) {
+            throw new IllegalArgumentException("Job name must be 255 characters or fewer");
+        }
+        if (request.getJobType() == null || request.getJobType().trim().isEmpty()) {
+            throw new IllegalArgumentException("Job type is required");
+        }
+        // Validate job action for REST_API type
+        if ("REST_API".equals(request.getJobType()) && request.getJobAction() != null) {
+            String action = request.getJobAction().trim();
+            if (!action.isEmpty() && !action.matches("(?i)^(GET|POST|PUT|DELETE|PATCH)?[:\\s]?https?://.*$")) {
+                throw new IllegalArgumentException("REST API job action must be a valid HTTP/HTTPS URL");
+            }
+        }
+        // Validate maxRunDuration range
+        if (request.getMaxRunDuration() != null && !request.getMaxRunDuration().isEmpty()) {
+            Long durationSeconds = parseMaxDuration(request.getMaxRunDuration());
+            if (durationSeconds <= 0 || durationSeconds > MAX_DURATION_SECONDS) {
+                throw new IllegalArgumentException("maxRunDuration must be between 1 and " + MAX_DURATION_SECONDS + " seconds");
+            }
+        }
+    }
+
     @Transactional(readOnly = true)
     public long countJobs(JobFilterRequest request) {
         if (securityUtils.isAdmin()) {
@@ -197,6 +236,12 @@ public class JobService {
             return null;
         }
 
+        // C4: Group-based access control for non-admin users
+        if (!securityUtils.isAdmin() && job.getGroupId() != null
+                && !securityUtils.hasGroupAccess(job.getGroupId())) {
+            throw new SecurityException("Access denied: You don't have access to this job's group");
+        }
+
         // If job is RUNNING or WAITING, find the actual running server from the latest job run log
         if ("RUNNING".equals(job.getCurrentState()) || "WAITING".equals(job.getCurrentState())) {
             // Find the latest RUNNING or PENDING job run log for this job
@@ -232,6 +277,9 @@ public class JobService {
         if (jobMapper.existsByJobName(request.getJobName())) {
             throw new IllegalArgumentException("Job name already exists: " + request.getJobName());
         }
+
+        // [H2] Validate job inputs
+        validateJobRequest(request);
 
         // Validate server and group
         if (request.getSystemId() != null && serverMapper.findById(request.getSystemId()) == null) {
@@ -437,6 +485,12 @@ public class JobService {
         JobVO job = jobMapper.findByIdWithRelations(jobId);
         if (job == null) {
             throw new IllegalArgumentException("Job not found: " + jobId);
+        }
+
+        // C4: Group-based access control for non-admin users
+        if (!securityUtils.isAdmin() && job.getGroupId() != null
+                && !securityUtils.hasGroupAccess(job.getGroupId())) {
+            throw new SecurityException("Access denied: You don't have access to run this job");
         }
 
         // Block manual execution if job is disabled

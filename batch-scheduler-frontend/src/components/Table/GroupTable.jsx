@@ -43,9 +43,11 @@ function GroupTable({
   };
 
   useEffect(() => {
-    setTimeout(() => {
+    if (!isLoadingDefault) return;
+    const timer = setTimeout(() => {
       setIsLoadingDefault(false);
     }, 300);
+    return () => clearTimeout(timer);
   }, [isLoadingDefault]);
 
   return (

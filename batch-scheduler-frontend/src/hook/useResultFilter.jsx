@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
 
-const useResultFilter = () => {
+const useResultFilter = (initialStatus = null) => {
   const [state, setState] = useState({
     operation: null,
     operationInput: '',
-    status : null,
-    statusInput: '',
+    status : initialStatus,
+    statusInput: initialStatus || '',
     from: null,
     to: null
   });

@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * Executor for EXECUTABLE type jobs (shell commands)
@@ -26,20 +27,29 @@ public class ExecutableExecutor {
     private static final int LOG_BUFFER_MAX_SIZE = 1000;  // Keep last 1000 lines
     private static final int LOG_BUFFER_TTL_HOURS = 24;   // Expire after 24 hours
     private static final int OUTPUT_SUMMARY_LINES = 10;   // Only save last N lines as output
+    private static final int MAX_OUTPUT_BYTES = 10 * 1024 * 1024; // [P6] 10MB max output buffer
+    private static final int MAX_LINE_LENGTH = 10_000; // [H6] Max chars per line
 
-    /**
-     * Execute shell command with real-time log streaming
-     *
-     * @param message Job message containing command
-     * @return Command output
-     */
+    // [S1] Dangerous shell metacharacters that indicate injection attempts
+    private static final Pattern INJECTION_PATTERN = Pattern.compile(
+            "[;`]|&&|\\|\\||\\$\\(|\\$\\{|\\beval\\b|\\bexec\\b|>/dev/|\\brm\\s+-rf\\s+/"
+    );
+
+    // [S12] Patterns to mask sensitive data in logs
+    private static final Pattern SENSITIVE_PATTERN = Pattern.compile(
+            "(?i)(password|passwd|secret|token|api[_-]?key|authorization|credential)\\s*[=:]\\s*\\S+"
+    );
+
     public String execute(JobMessage message) {
         String command = message.getJobAction();
         String taskId = message.getTaskId();
         Duration timeout = message.getMaxDuration() != null ? message.getMaxDuration() : Duration.ofMinutes(5);
         String logChannel = LOG_CHANNEL_PREFIX + taskId;
 
-        log.info("Executing command: {} (timeout: {}, logChannel: {})", command, timeout, logChannel);
+        // [S1] Validate command
+        validateCommand(command);
+        // [S12] Mask sensitive data in log
+        log.info("Executing command: {} (timeout: {})", maskSensitiveData(command), timeout);
 
         ProcessBuilder processBuilder = new ProcessBuilder();
 
@@ -58,14 +68,23 @@ public class ExecutableExecutor {
 
             // Read output in a separate thread to prevent blocking
             StringBuilder output = new StringBuilder();
+            final boolean[] outputTruncated = {false};
             Thread outputReader = new Thread(() -> {
                 try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(process.getInputStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        // Append to output buffer
-                        output.append(line).append("\n");
-                        // Publish to Redis for real-time streaming
+                        // [H6] Truncate extremely long lines
+                        if (line.length() > MAX_LINE_LENGTH) {
+                            line = line.substring(0, MAX_LINE_LENGTH) + "... (truncated)";
+                        }
+                        // [P6] Check output buffer size limit
+                        if (output.length() < MAX_OUTPUT_BYTES) {
+                            output.append(line).append("\n");
+                        } else if (!outputTruncated[0]) {
+                            outputTruncated[0] = true;
+                            log.warn("Output buffer exceeded {}MB limit, truncating", MAX_OUTPUT_BYTES / 1024 / 1024);
+                        }
                         publishLog(logChannel, line);
                     }
                 } catch (IOException e) {
@@ -79,24 +98,38 @@ public class ExecutableExecutor {
             boolean completed = process.waitFor(timeout.toSeconds(), TimeUnit.SECONDS);
 
             if (!completed) {
+                // [H5] Kill entire process tree (children first, then parent)
+                try {
+                    process.toHandle().descendants().forEach(ph -> {
+                        try { ph.destroyForcibly(); } catch (Exception ignored) {}
+                    });
+                } catch (Exception ignored) {}
+                // Close streams before destroying process to unblock output reader
+                try { process.getInputStream().close(); } catch (Exception ignored) {}
+                try { process.getOutputStream().close(); } catch (Exception ignored) {}
+                try { process.getErrorStream().close(); } catch (Exception ignored) {}
                 process.destroyForcibly();
+                outputReader.join(10000);
                 publishLog(logChannel, "[END]");
                 throw new JobTimeoutException("Command timed out after " + timeout);
             }
 
             // Wait for output reader to finish
-            outputReader.join(5000);
+            outputReader.join(30000);
+            if (outputReader.isAlive()) {
+                outputReader.interrupt();
+            }
 
             int exitCode = process.exitValue();
             String result = output.toString().trim();
 
             if (exitCode != 0) {
-                log.warn("Command exited with code {}: {}", exitCode, command);
+                log.warn("Command exited with code {}: {}", exitCode, maskSensitiveData(command));
                 publishLog(logChannel, "[END]");
                 throw new RuntimeException("Command failed with exit code " + exitCode + ": " + result);
             }
 
-            log.info("Command completed successfully: {}", command);
+            log.info("Command completed successfully: {}", maskSensitiveData(command));
             publishLog(logChannel, "[END]");
 
             // Return only last N lines as summary (full log is in Redis buffer)
@@ -109,7 +142,7 @@ public class ExecutableExecutor {
             publishLog(logChannel, "[END]");
             throw new RuntimeException("Command execution interrupted", e);
         } catch (Exception e) {
-            log.error("Command execution failed: {}", command, e);
+            log.error("Command execution failed: {}", maskSensitiveData(command), e);
             publishLog(logChannel, "[END]");
             throw new RuntimeException("Command execution failed: " + e.getMessage(), e);
         }
@@ -137,9 +170,23 @@ public class ExecutableExecutor {
         return sb.toString();
     }
 
-    /**
-     * Publish log line to Redis channel and buffer for late subscribers
-     */
+    /** [S1] Validate command for potential injection patterns */
+    private void validateCommand(String command) {
+        if (command == null || command.isBlank()) {
+            throw new IllegalArgumentException("Command cannot be empty");
+        }
+        if (INJECTION_PATTERN.matcher(command).find()) {
+            log.warn("Potentially dangerous command blocked: {}", maskSensitiveData(command));
+            throw new SecurityException("Command contains disallowed shell metacharacters");
+        }
+    }
+
+    /** [S12] Mask sensitive data in strings (passwords, tokens, keys) */
+    private String maskSensitiveData(String input) {
+        if (input == null) return null;
+        return SENSITIVE_PATTERN.matcher(input).replaceAll("$1=****");
+    }
+
     private void publishLog(String channel, String message) {
         try {
             // Publish to Pub/Sub for real-time subscribers (raw output without timestamp)

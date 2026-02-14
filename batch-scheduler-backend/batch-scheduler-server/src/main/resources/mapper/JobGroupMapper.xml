@@ -85,8 +85,8 @@
         <where>
             <if test="textSearch != null and textSearch != ''">
                 AND (
-                    LOWER(g.group_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(g.group_description) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    LOWER(g.group_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(g.group_description) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
                 )
             </if>
         </where>
@@ -101,8 +101,8 @@
         <where>
             <if test="textSearch != null and textSearch != ''">
                 AND (
-                    LOWER(group_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(group_description) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    LOWER(group_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(group_description) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
                 )
             </if>
         </where>

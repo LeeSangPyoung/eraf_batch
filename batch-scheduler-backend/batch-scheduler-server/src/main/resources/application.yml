@@ -5,6 +5,12 @@ spring:
   application:
     name: batch-scheduler-server
 
+  # [L4] File upload size limits
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   # Database Configuration
   datasource:
     url: ${SPRING_DATASOURCE_URL}
@@ -29,12 +35,15 @@ spring:
     redis:
       host: ${SPRING_DATA_REDIS_HOST}
       port: ${SPRING_DATA_REDIS_PORT}
-      timeout: 5000ms
+      timeout: 15000ms
       lettuce:
         pool:
-          max-active: 10
-          max-idle: 5
-          min-idle: 1
+          # [L3] Optimized pool settings for high throughput
+          max-active: 20  # Allow more concurrent connections
+          max-idle: 10    # Keep more idle connections ready
+          min-idle: 3     # Maintain baseline of ready connections
+          max-wait: 5000ms  # Wait up to 5s for a connection
+        shutdown-timeout: 3000ms  # Graceful shutdown
 
   # Quartz Configuration (RAM-based - jobs loaded from app DB at startup)
   quartz:
@@ -48,6 +57,8 @@ spring:
             instanceId: AUTO
           jobStore:
             class: org.quartz.simpl.RAMJobStore
+            # [L1] Misfire handling - retry misfired jobs immediately
+            misfireThreshold: 60000  # 60 seconds
           threadPool:
             class: org.quartz.simpl.SimpleThreadPool
             threadCount: 10
@@ -65,7 +76,7 @@ mybatis:
 
 # JWT Configuration
 jwt:
-  secret: your-256-bit-secret-key-for-jwt-token-generation-min-32-chars
+  secret: ${JWT_SECRET}
   expiration: 86400000  # 24 hours in milliseconds
 
 # Application Configuration
@@ -84,6 +95,8 @@ app:
     redis-port: ${REDIS_PORT}
   session:
     timeout: 3600  # 1 hour in seconds
+  encryption:
+    key: ${APP_ENCRYPTION_KEY:}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS}
 
@@ -120,5 +133,5 @@ logging:
   file:
     name: ${LOG_PATH:/app/logs}/server.log
   pattern:
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
-    console: "%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{requestId:-}] %logger{36} - %msg%n"
+    console: "%d{HH:mm:ss.SSS} %-5level [%thread] [%X{requestId:-}] %logger{36} - %msg%n"

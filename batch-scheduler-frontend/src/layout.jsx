@@ -8,10 +8,12 @@ import useAuthStore from './hook/store/useAuthStore';
 
 const ProtectedRoute = ({ element }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const checkAuth = useAuthStore((state) => state.checkAuth);
   const user = useAuthStore((state) => state.user);
   const location = useLocation()
 
-  if (!isAuthenticated) {
+  // [H11] Re-verify token validity on every route change
+  if (!isAuthenticated || !checkAuth()) {
     return <Navigate to="/sign-in" replace />;
   }
 

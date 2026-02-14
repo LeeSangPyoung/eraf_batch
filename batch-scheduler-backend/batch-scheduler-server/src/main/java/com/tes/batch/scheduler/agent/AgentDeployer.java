@@ -2,6 +2,7 @@ package com.tes.batch.scheduler.agent;
 
 import com.jcraft.jsch.*;
 import com.tes.batch.common.enums.DeploymentType;
+import com.tes.batch.scheduler.crypto.CryptoService;
 import com.tes.batch.scheduler.domain.server.vo.JobServerVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /**
  * Deploys Agent to remote servers via SSH/SCP
@@ -19,6 +21,8 @@ import java.util.Properties;
 @Service
 @RequiredArgsConstructor
 public class AgentDeployer {
+
+    private final CryptoService cryptoService;
 
     @Value("${app.agent.jar-path:./batch-scheduler-agent.jar}")
     private String agentJarPath;
@@ -46,6 +50,7 @@ public class AgentDeployer {
 
     private static final int SSH_PORT = 22;
     private static final int TIMEOUT = 30000;
+    private static final Pattern SAFE_PATH_PATTERN = Pattern.compile("^/[a-zA-Z0-9._/@-]+$");
 
     /**
      * Validate server requirements before deployment (e.g., Java for JAR, port availability)
@@ -191,6 +196,7 @@ public class AgentDeployer {
             if (targetDir == null || targetDir.isEmpty()) {
                 targetDir = "/opt/batch-agent";
             }
+            validatePath(targetDir);
 
             executeCommand(session, "mkdir -p " + targetDir);
 
@@ -283,6 +289,7 @@ public class AgentDeployer {
             if (targetDir == null || targetDir.isEmpty()) {
                 targetDir = "/opt/batch-agent";
             }
+            validatePath(targetDir);
 
             executeCommand(session, "mkdir -p " + targetDir);
 
@@ -570,13 +577,29 @@ public class AgentDeployer {
 
     // ========== COMMON HELPER METHODS ==========
 
+    /** [S6] Validate remote path to prevent path traversal */
+    private void validatePath(String path) {
+        if (path == null || path.isEmpty()) {
+            throw new SecurityException("Path must not be empty");
+        }
+        if (path.contains("..")) {
+            throw new SecurityException("Path traversal detected: " + path);
+        }
+        if (!SAFE_PATH_PATTERN.matcher(path).matches()) {
+            throw new SecurityException("Invalid path characters: " + path);
+        }
+    }
+
     private Session createSession(JobServerVO server, String privateKeyPath) throws JSchException {
         JSch jsch = new JSch();
 
         String user = server.getSshUser() != null ? server.getSshUser() : defaultSshUsername;
 
+        // Decrypt password if encrypted
+        String decryptedPassword = cryptoService.decrypt(server.getSshPassword());
+
         // Check if password authentication is configured
-        boolean usePassword = server.getSshPassword() != null && !server.getSshPassword().isEmpty();
+        boolean usePassword = decryptedPassword != null && !decryptedPassword.isEmpty();
 
         if (usePassword) {
             // Use password authentication
@@ -618,11 +641,11 @@ public class AgentDeployer {
 
         // Set password if using password authentication
         if (usePassword) {
-            session.setPassword(server.getSshPassword());
+            session.setPassword(decryptedPassword);
         }
 
         Properties config = new Properties();
-        config.put("StrictHostKeyChecking", "no");
+        config.put("StrictHostKeyChecking", "accept-new");
         if (usePassword) {
             config.put("PreferredAuthentications", "password,keyboard-interactive");
         } else {
@@ -824,7 +847,7 @@ public class AgentDeployer {
                     redis:
                       host: ${REDIS_HOST}
                       port: ${REDIS_PORT}
-                      timeout: 5000ms
+                      timeout: 15000ms
 
                 agent:
                   queue-name: ${AGENT_QUEUE_NAME}
@@ -832,6 +855,12 @@ public class AgentDeployer {
                   heartbeat:
                     interval: 10000
                     timeout: 60000
+                  executor:
+                    core-pool-size: 5
+                    max-pool-size: 20
+                    queue-capacity: 100
+                    max-concurrent-jobs: 10
+                    thread-name-prefix: job-executor-
 
                 scheduler:
                   api-url: ${SCHEDULER_API_URL}
@@ -1010,10 +1039,20 @@ networks:
     private String generateDockerStartScript(String targetDir) {
         return """
                 #!/bin/bash
+                set -e
                 cd %s
 
                 # Create logs directory if not exists
                 mkdir -p %s/logs
+
+                # Stop existing compose containers
+                docker compose down 2>/dev/null || true
+
+                # Force remove any container with the same name (handles manually created containers)
+                CONTAINER_NAME=$(grep 'container_name:' docker-compose.yml 2>/dev/null | awk '{print $2}' | tr -d '"' | tr -d "'")
+                if [ -n "$CONTAINER_NAME" ]; then
+                    docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+                fi
 
                 echo "Starting agent container..."
                 docker compose up -d
@@ -1021,8 +1060,14 @@ networks:
                 echo "Waiting for agent to be healthy..."
                 sleep 5
 
-                docker compose ps
-                echo "Agent started successfully"
+                if docker compose ps 2>/dev/null | grep -q "Up"; then
+                    docker compose ps
+                    echo "Agent started successfully"
+                else
+                    docker compose ps
+                    echo "Agent failed to start" >&2
+                    exit 1
+                fi
                 """.formatted(targetDir, targetDir);
     }
 
@@ -1032,7 +1077,13 @@ networks:
                 cd %s
 
                 echo "Stopping agent container..."
-                docker compose down
+                docker compose down 2>/dev/null || true
+
+                # Force remove container if it exists (handles manually created containers)
+                CONTAINER_NAME=$(grep 'container_name:' docker-compose.yml 2>/dev/null | awk '{print $2}' | tr -d '"' | tr -d "'")
+                if [ -n "$CONTAINER_NAME" ]; then
+                    docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+                fi
 
                 echo "Agent stopped successfully"
                 """.formatted(targetDir);

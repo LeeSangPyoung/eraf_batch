@@ -74,8 +74,8 @@
         <where>
             <if test="textSearch != null and textSearch != ''">
                 AND (
-                    LOWER(u.user_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(u.user_id) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    LOWER(u.user_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(u.user_id) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
                 )
             </if>
             <if test="userStatus != null">
@@ -99,8 +99,8 @@
         <where>
             <if test="textSearch != null and textSearch != ''">
                 AND (
-                    LOWER(u.user_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
-                    OR LOWER(u.user_id) LIKE LOWER(CONCAT('%', #{textSearch}, '%'))
+                    LOWER(u.user_name) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
+                    OR LOWER(u.user_id) LIKE LOWER(CONCAT('%', #{textSearch}, '%')) ESCAPE '\'
                 )
             </if>
             <if test="userStatus != null">
@@ -170,10 +170,11 @@
         WHERE id = #{id}
     </update>
 
-    <!-- Increment Login Fail Count -->
+    <!-- [H1] Atomic increment fail count + auto-lock if threshold reached -->
     <update id="incrementLoginFailCount">
         UPDATE scheduler_users
-        SET login_fail_count = login_fail_count + 1
+        SET login_fail_count = login_fail_count + 1,
+            user_status = CASE WHEN login_fail_count + 1 >= 5 THEN false ELSE user_status END
         WHERE id = #{id}
     </update>
 

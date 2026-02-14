@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Mapper
@@ -139,4 +140,19 @@ public interface JobRunLogMapper {
      * Find most recent agent-related failure timestamp for a specific server
      */
     Long findLatestAgentFailureTimeBySystemId(@Param("systemId") String systemId);
+
+    /**
+     * [P1] Batch: count recent agent failures for multiple servers in one query
+     */
+    List<Map<String, Object>> batchCountRecentAgentFailures(
+            @Param("systemIds") List<String> systemIds,
+            @Param("sinceTimestamp") Long sinceTimestamp
+    );
+
+    /**
+     * [P1] Batch: find latest agent failure time for multiple servers in one query
+     */
+    List<Map<String, Object>> batchFindLatestAgentFailureTime(
+            @Param("systemIds") List<String> systemIds
+    );
 }

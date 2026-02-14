@@ -114,13 +114,13 @@ const useUserForm = (userData, onClose) => {
         globalMutate((key) => Array.isArray(key) && key[0] === '/user/filter');
         onClose();
       } else {
-        response.data.error_msg.forEach((noti) => {
-          toast.error(noti, { autoClose: false });
+        const msgs = Array.isArray(response.data.error_msg) ? response.data.error_msg : [response.data.error_msg];
+        msgs.forEach((noti) => {
+          toast.error(String(noti), { autoClose: false });
         });
       }
     } catch (error) {
       toast.error(error.message);
-      console.log(error);
     }
   };
 
