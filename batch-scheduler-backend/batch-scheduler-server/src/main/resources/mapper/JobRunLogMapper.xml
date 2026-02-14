@@ -264,6 +264,15 @@
         DELETE FROM scheduler_job_run_logs WHERE job_id = #{jobId}
     </delete>
 
+    <!-- Find job IDs of orphaned logs before marking them -->
+    <select id="findOrphanedJobIds" resultType="string">
+        SELECT DISTINCT job_id
+        FROM scheduler_job_run_logs
+        WHERE status IN ('RUNNING', 'WAITING')
+          AND start_time &lt; #{endDate}
+          AND start_time IS NOT NULL
+    </select>
+
     <!-- Mark orphaned logs as BROKEN on server startup -->
     <update id="markOrphanedLogsAsBroken">
         UPDATE scheduler_job_run_logs

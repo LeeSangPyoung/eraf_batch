@@ -81,11 +81,10 @@ public class SecurityConfig {
                 // All other endpoints require authentication
                 .anyRequest().authenticated()
             )
-            // MDC request tracking (first in chain)
-            .addFilterBefore(mdcFilter, RateLimitFilter.class)
-            // [L5] Add rate limiting before JWT authentication
+            // Register filters bottom-up: each filter must reference an already-registered filter
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(mdcFilter, RateLimitFilter.class);
 
         return http.build();
     }

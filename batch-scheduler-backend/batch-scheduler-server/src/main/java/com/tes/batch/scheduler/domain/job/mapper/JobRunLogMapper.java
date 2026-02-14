@@ -115,6 +115,11 @@ public interface JobRunLogMapper {
     int markOrphanedLogsAsBroken(@Param("endDate") Long endDate);
 
     /**
+     * Find job IDs of orphaned logs (RUNNING/WAITING older than cutoff)
+     */
+    List<String> findOrphanedJobIds(@Param("endDate") Long endDate);
+
+    /**
      * Mark all RUNNING jobs for a specific server as BROKEN when agent goes offline
      */
     int markRunningJobsAsBrokenBySystemId(
