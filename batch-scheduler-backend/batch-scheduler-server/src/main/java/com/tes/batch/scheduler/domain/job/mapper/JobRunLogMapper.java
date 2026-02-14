@@ -160,4 +160,38 @@ public interface JobRunLogMapper {
     List<Map<String, Object>> batchFindLatestAgentFailureTime(
             @Param("systemIds") List<String> systemIds
     );
+
+    /**
+     * Dashboard: aggregate log counts by day within date range
+     */
+    List<Map<String, Object>> aggregateByDay(
+            @Param("from") Long from,
+            @Param("to") Long to
+    );
+
+    /**
+     * Dashboard: aggregate log counts by hour for today
+     */
+    List<Map<String, Object>> aggregateByHour(
+            @Param("dayStart") Long dayStart,
+            @Param("dayEnd") Long dayEnd
+    );
+
+    /**
+     * Dashboard: get recent failed/running logs (limited)
+     */
+    List<JobRunLogVO> findRecentByStatuses(
+            @Param("statuses") List<String> statuses,
+            @Param("from") Long from,
+            @Param("to") Long to,
+            @Param("limit") int limit
+    );
+
+    /**
+     * Dashboard: status distribution for pie chart
+     */
+    List<Map<String, Object>> aggregateByStatus(
+            @Param("from") Long from,
+            @Param("to") Long to
+    );
 }

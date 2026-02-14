@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Typography, CircularProgress, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -220,8 +220,10 @@ const Dashboard = () => {
   const [viewMode, setViewMode] = useState('hourly'); // 'hourly' or 'daily'
   const [startDate, setStartDate] = useState(dayjs().subtract(7, 'day'));
   const [endDate, setEndDate] = useState(dayjs());
-  const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({ totalJobs: 0, runningJobs: 0, failedToday: 0, successToday: 0 });
+  const [hourlyData, setHourlyData] = useState([]);
+  const [dailyData, setDailyData] = useState([]);
+  const [pieData, setPieData] = useState([]);
   const [recentFailed, setRecentFailed] = useState([]);
   const [runningItems, setRunningItems] = useState([]);
   const [agents, setAgents] = useState([]);
@@ -238,15 +240,12 @@ const Dashboard = () => {
       const jobsRes = await api.post('/job/getFilter', { page_size: 10000, page_number: 1 });
       const jobs = jobsRes.data?.data || [];
 
-      // Fetch job logs for the selected date range
-      const logsRes = await api.post('/logs/filter', {
-        page_size: 10000,
-        page_number: 1,
-        req_start_date_from: startDate.startOf('day').valueOf(),
-        req_start_date_to: endDate.endOf('day').valueOf(),
+      // Fetch dashboard aggregation data (pre-aggregated by backend)
+      const dashRes = await api.post('/logs/dashboard', {
+        from: startDate.startOf('day').valueOf(),
+        to: endDate.endOf('day').valueOf(),
       });
-      const logData = logsRes.data?.data || [];
-      setLogs(logData);
+      const dashData = dashRes.data?.data || {};
 
       // Fetch agents (servers)
       let agentList = [];
@@ -258,35 +257,78 @@ const Dashboard = () => {
       }
       setAgents(agentList);
 
-      // Calculate today's stats
-      const today = dayjs().startOf('day').valueOf();
-      const todayLogs = logData.filter(log => log.req_start_date >= today);
-      const runningJobs = todayLogs.filter(log => log.status === 'RUNNING').length;
-      const failedToday = todayLogs.filter(log => log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT').length;
-      const successToday = todayLogs.filter(log => log.status === 'SUCCESS' || log.status === 'COMPLETED').length;
+      // Process hourly data - fill all 24 hours
+      const hourlyMap = {};
+      (dashData.hourly || []).forEach(h => { hourlyMap[h.hour] = h; });
+      setHourlyData(Array.from({ length: 24 }, (_, i) => ({
+        hour: `${i.toString().padStart(2, '0')}:00`,
+        total: Number(hourlyMap[i]?.total || 0),
+        success: Number(hourlyMap[i]?.success || 0),
+        failed: Number(hourlyMap[i]?.failed || 0),
+      })));
 
+      // Process daily data - fill all dates in range
+      const dailyMap = {};
+      (dashData.daily || []).forEach(d => { dailyMap[d.day] = d; });
+      const processedDaily = [];
+      let current = startDate.startOf('day');
+      const end = endDate.endOf('day');
+      while (current.isBefore(end) || current.isSame(end, 'day')) {
+        const key = current.format('MM/DD');
+        processedDaily.push({
+          date: key,
+          total: Number(dailyMap[key]?.total || 0),
+          success: Number(dailyMap[key]?.success || 0),
+          failed: Number(dailyMap[key]?.failed || 0),
+        });
+        current = current.add(1, 'day');
+      }
+      setDailyData(processedDaily);
+
+      // Process pie data - group similar statuses
+      const statusGroupMap = {
+        'SUCCESS': 'SUCCESS', 'COMPLETED': 'SUCCESS',
+        'FAILED': 'FAILED', 'FAILURE': 'FAILED', 'BROKEN': 'FAILED', 'TIMEOUT': 'FAILED',
+        'RUNNING': 'RUNNING', 'PENDING': 'PENDING', 'STARTED': 'RUNNING',
+        'SKIPPED': 'SKIPPED', 'REVOKED': 'REVOKED',
+      };
+      const groupColors = {
+        'SUCCESS': CHART_COLORS.success, 'FAILED': CHART_COLORS.failed,
+        'RUNNING': CHART_COLORS.running, 'PENDING': '#A0A0A5',
+        'SKIPPED': '#C7C7CC', 'REVOKED': '#AF52DE',
+      };
+      const groupedCounts = {};
+      (dashData.statusDistribution || []).forEach(item => {
+        const grouped = statusGroupMap[item.status] || item.status;
+        groupedCounts[grouped] = (groupedCounts[grouped] || 0) + Number(item.count || 0);
+      });
+      setPieData(Object.entries(groupedCounts)
+        .map(([status, count]) => ({ name: status, value: count, color: groupColors[status] || '#86868B' }))
+        .filter(d => d.value > 0)
+        .sort((a, b) => b.value - a.value));
+
+      // Today's stats from todayStats (aggregated by backend)
+      const todayStatusMap = {};
+      (dashData.todayStats || []).forEach(item => {
+        const grouped = statusGroupMap[item.status] || item.status;
+        todayStatusMap[grouped] = (todayStatusMap[grouped] || 0) + Number(item.count || 0);
+      });
       setStats({
         totalJobs: jobs.length,
-        runningJobs,
-        failedToday,
-        successToday,
+        runningJobs: todayStatusMap['RUNNING'] || 0,
+        failedToday: todayStatusMap['FAILED'] || 0,
+        successToday: todayStatusMap['SUCCESS'] || 0,
       });
 
-      // Recent failed
-      const failed = logData
-        .filter(log => log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT')
-        .sort((a, b) => (b.req_start_date || 0) - (a.req_start_date || 0))
-        .slice(0, 5)
-        .map(log => ({ name: log.job_name, jobId: log.job_id, status: log.status, time: formatTime(log.req_start_date), type: log.group_name }));
-      setRecentFailed(failed);
-
-      // Currently running
-      const running = logData
-        .filter(log => log.status === 'RUNNING')
-        .sort((a, b) => (b.req_start_date || 0) - (a.req_start_date || 0))
-        .slice(0, 5)
-        .map(log => ({ name: log.job_name, jobId: log.job_id, status: log.status, time: formatTime(log.req_start_date), type: log.group_name }));
-      setRunningItems(running);
+      // Recent failed and running - from dashboard response
+      setRecentFailed((dashData.recentFailed || []).map(log => ({
+        name: log.job_name, jobId: log.job_id, status: log.status,
+        time: formatTime(log.req_start_date), type: log.group_name,
+      })));
+      setRunningItems((dashData.recentRunning || []).map(log => ({
+        name: log.job_name, jobId: log.job_id, status: log.status,
+        time: formatTime(log.req_start_date), type: log.group_name,
+      })));
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -299,117 +341,8 @@ const Dashboard = () => {
     return dayjs(timestamp).format('MM/DD HH:mm');
   };
 
-  // Process data for hourly chart (today only, all 24 hours)
-  const hourlyData = useMemo(() => {
-    const todayStart = dayjs().startOf('day').valueOf();
-    const todayEnd = dayjs().endOf('day').valueOf();
-
-    // Show all 24 hours
-    const hourCounts = Array.from({ length: 24 }, (_, i) => ({
-      hour: `${i.toString().padStart(2, '0')}:00`,
-      total: 0,
-      success: 0,
-      failed: 0,
-    }));
-
-    // Filter to today's logs only
-    const todayLogs = logs.filter(log => {
-      const timestamp = log.req_start_date || log.actual_start_date;
-      return timestamp && timestamp >= todayStart && timestamp <= todayEnd;
-    });
-
-    todayLogs.forEach(log => {
-      const timestamp = log.req_start_date || log.actual_start_date;
-      if (!timestamp) return;
-      const hour = dayjs(timestamp).hour();
-      if (hourCounts[hour]) {
-        hourCounts[hour].total++;
-        if (log.status === 'SUCCESS' || log.status === 'COMPLETED') {
-          hourCounts[hour].success++;
-        } else if (log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT') {
-          hourCounts[hour].failed++;
-        }
-      }
-    });
-
-    return hourCounts;
-  }, [logs]);
-
-  // Process data for daily chart
-  const dailyData = useMemo(() => {
-    const dayMap = {};
-    let current = startDate.startOf('day');
-    const end = endDate.endOf('day');
-
-    while (current.isBefore(end) || current.isSame(end, 'day')) {
-      const key = current.format('MM/DD');
-      dayMap[key] = { date: key, total: 0, success: 0, failed: 0 };
-      current = current.add(1, 'day');
-    }
-
-    logs.forEach(log => {
-      const timestamp = log.req_start_date || log.actual_start_date;
-      if (!timestamp) return;
-      const key = dayjs(timestamp).format('MM/DD');
-      if (dayMap[key]) {
-        dayMap[key].total++;
-        if (log.status === 'SUCCESS' || log.status === 'COMPLETED') {
-          dayMap[key].success++;
-        } else if (log.status === 'FAILED' || log.status === 'FAILURE' || log.status === 'BROKEN' || log.status === 'TIMEOUT') {
-          dayMap[key].failed++;
-        }
-      }
-    });
-
-    return Object.values(dayMap);
-  }, [logs, startDate, endDate]);
-
-  // Process data for pie chart - group similar statuses
-  const pieData = useMemo(() => {
-    const statusCounts = {};
-
-    // Group similar statuses together
-    const statusGroupMap = {
-      'SUCCESS': 'SUCCESS',
-      'COMPLETED': 'SUCCESS',
-      'FAILED': 'FAILED',
-      'FAILURE': 'FAILED',
-      'BROKEN': 'FAILED',
-      'TIMEOUT': 'FAILED',
-      'RUNNING': 'RUNNING',
-      'PENDING': 'PENDING',
-      'STARTED': 'RUNNING',
-      'SKIPPED': 'SKIPPED',
-      'REVOKED': 'REVOKED',
-    };
-
-    logs.forEach(log => {
-      const rawStatus = log.status || 'UNKNOWN';
-      const grouped = statusGroupMap[rawStatus] || rawStatus;
-      statusCounts[grouped] = (statusCounts[grouped] || 0) + 1;
-    });
-
-    const groupColors = {
-      'SUCCESS': CHART_COLORS.success,
-      'FAILED': CHART_COLORS.failed,
-      'RUNNING': CHART_COLORS.running,
-      'PENDING': '#A0A0A5',
-      'SKIPPED': '#C7C7CC',
-      'REVOKED': '#AF52DE',
-    };
-
-    return Object.entries(statusCounts)
-      .map(([status, count]) => ({
-        name: status,
-        value: count,
-        color: groupColors[status] || '#86868B',
-      }))
-      .filter(d => d.value > 0)
-      .sort((a, b) => b.value - a.value);
-  }, [logs]);
-
-  // Find peak hour
-  const peakHour = useMemo(() => {
+  // Find peak hour from hourlyData
+  const peakHour = (() => {
     let maxHour = 0;
     let maxCount = 0;
     hourlyData.forEach((h, i) => {
@@ -419,7 +352,7 @@ const Dashboard = () => {
       }
     });
     return { hour: maxHour, count: maxCount };
-  }, [hourlyData]);
+  })();
 
   if (loading) {
     return (

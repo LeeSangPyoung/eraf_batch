@@ -359,4 +359,52 @@
         GROUP BY l.system_id
     </select>
 
+    <!-- Dashboard: aggregate by day -->
+    <select id="aggregateByDay" resultType="map">
+        SELECT
+            TO_CHAR(TO_TIMESTAMP(scheduled_time / 1000), 'MM/DD') AS day,
+            COUNT(*) AS total,
+            COUNT(CASE WHEN status IN ('SUCCESS', 'COMPLETED') THEN 1 END) AS success,
+            COUNT(CASE WHEN status IN ('FAILED', 'FAILURE', 'BROKEN', 'TIMEOUT') THEN 1 END) AS failed
+        FROM scheduler_job_run_logs
+        WHERE scheduled_time >= #{from} AND scheduled_time &lt;= #{to}
+        GROUP BY TO_CHAR(TO_TIMESTAMP(scheduled_time / 1000), 'MM/DD'),
+                 DATE_TRUNC('day', TO_TIMESTAMP(scheduled_time / 1000))
+        ORDER BY DATE_TRUNC('day', TO_TIMESTAMP(scheduled_time / 1000))
+    </select>
+
+    <!-- Dashboard: aggregate by hour for a given day -->
+    <select id="aggregateByHour" resultType="map">
+        SELECT
+            EXTRACT(HOUR FROM TO_TIMESTAMP(scheduled_time / 1000))::int AS hour,
+            COUNT(*) AS total,
+            COUNT(CASE WHEN status IN ('SUCCESS', 'COMPLETED') THEN 1 END) AS success,
+            COUNT(CASE WHEN status IN ('FAILED', 'FAILURE', 'BROKEN', 'TIMEOUT') THEN 1 END) AS failed
+        FROM scheduler_job_run_logs
+        WHERE scheduled_time >= #{dayStart} AND scheduled_time &lt;= #{dayEnd}
+        GROUP BY EXTRACT(HOUR FROM TO_TIMESTAMP(scheduled_time / 1000))
+        ORDER BY hour
+    </select>
+
+    <!-- Dashboard: recent logs by statuses -->
+    <select id="findRecentByStatuses" resultMap="JobRunLogResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_job_run_logs
+        WHERE status IN
+        <foreach collection="statuses" item="s" open="(" separator="," close=")">
+            #{s}
+        </foreach>
+          AND scheduled_time >= #{from} AND scheduled_time &lt;= #{to}
+        ORDER BY log_id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- Dashboard: status distribution -->
+    <select id="aggregateByStatus" resultType="map">
+        SELECT status, COUNT(*) AS count
+        FROM scheduler_job_run_logs
+        WHERE scheduled_time >= #{from} AND scheduled_time &lt;= #{to}
+        GROUP BY status
+    </select>
+
 </mapper>
