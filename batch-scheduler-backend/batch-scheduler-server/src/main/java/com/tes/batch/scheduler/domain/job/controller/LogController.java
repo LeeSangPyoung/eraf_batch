@@ -82,10 +82,11 @@ public class LogController {
                 return ApiResponse.error("from and to are required");
             }
 
-            // Calculate today's range (server timezone)
-            java.time.ZonedDateTime now = java.time.ZonedDateTime.now();
-            long todayStart = now.toLocalDate().atStartOfDay(now.getZone()).toInstant().toEpochMilli();
-            long todayEnd = now.toLocalDate().plusDays(1).atStartOfDay(now.getZone()).toInstant().toEpochMilli() - 1;
+            // Calculate today's range (Asia/Seoul timezone)
+            java.time.ZoneId seoulZone = java.time.ZoneId.of("Asia/Seoul");
+            java.time.ZonedDateTime now = java.time.ZonedDateTime.now(seoulZone);
+            long todayStart = now.toLocalDate().atStartOfDay(seoulZone).toInstant().toEpochMilli();
+            long todayEnd = now.toLocalDate().plusDays(1).atStartOfDay(seoulZone).toInstant().toEpochMilli() - 1;
 
             Map<String, Object> result = new HashMap<>();
 

@@ -362,27 +362,27 @@
     <!-- Dashboard: aggregate by day -->
     <select id="aggregateByDay" resultType="map">
         SELECT
-            TO_CHAR(TO_TIMESTAMP(scheduled_time / 1000), 'MM/DD') AS day,
+            TO_CHAR(TO_TIMESTAMP(scheduled_time / 1000) AT TIME ZONE 'Asia/Seoul', 'MM/DD') AS day,
             COUNT(*) AS total,
             COUNT(CASE WHEN status IN ('SUCCESS', 'COMPLETED') THEN 1 END) AS success,
             COUNT(CASE WHEN status IN ('FAILED', 'FAILURE', 'BROKEN', 'TIMEOUT') THEN 1 END) AS failed
         FROM scheduler_job_run_logs
         WHERE scheduled_time >= #{from} AND scheduled_time &lt;= #{to}
-        GROUP BY TO_CHAR(TO_TIMESTAMP(scheduled_time / 1000), 'MM/DD'),
-                 DATE_TRUNC('day', TO_TIMESTAMP(scheduled_time / 1000))
-        ORDER BY DATE_TRUNC('day', TO_TIMESTAMP(scheduled_time / 1000))
+        GROUP BY TO_CHAR(TO_TIMESTAMP(scheduled_time / 1000) AT TIME ZONE 'Asia/Seoul', 'MM/DD'),
+                 DATE_TRUNC('day', TO_TIMESTAMP(scheduled_time / 1000) AT TIME ZONE 'Asia/Seoul')
+        ORDER BY DATE_TRUNC('day', TO_TIMESTAMP(scheduled_time / 1000) AT TIME ZONE 'Asia/Seoul')
     </select>
 
     <!-- Dashboard: aggregate by hour for a given day -->
     <select id="aggregateByHour" resultType="map">
         SELECT
-            EXTRACT(HOUR FROM TO_TIMESTAMP(scheduled_time / 1000))::int AS hour,
+            EXTRACT(HOUR FROM TO_TIMESTAMP(scheduled_time / 1000) AT TIME ZONE 'Asia/Seoul')::int AS hour,
             COUNT(*) AS total,
             COUNT(CASE WHEN status IN ('SUCCESS', 'COMPLETED') THEN 1 END) AS success,
             COUNT(CASE WHEN status IN ('FAILED', 'FAILURE', 'BROKEN', 'TIMEOUT') THEN 1 END) AS failed
         FROM scheduler_job_run_logs
         WHERE scheduled_time >= #{dayStart} AND scheduled_time &lt;= #{dayEnd}
-        GROUP BY EXTRACT(HOUR FROM TO_TIMESTAMP(scheduled_time / 1000))
+        GROUP BY EXTRACT(HOUR FROM TO_TIMESTAMP(scheduled_time / 1000) AT TIME ZONE 'Asia/Seoul')
         ORDER BY hour
     </select>
 

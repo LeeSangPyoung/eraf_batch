@@ -1,0 +1,3 @@
+com\tes\batch\testjob\BatchJobConfig.class
+com\tes\batch\testjob\BatchJobListener.class
+com\tes\batch\testjob\BatchTestJobApplication.class
