@@ -1,111 +1,122 @@
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import React from 'react';
 import useAuth from '../../hook/useAuth';
 import TextInput from '../../components/CustomInput/TextInput';
 import CustomPwInput from '../../components/CustomInput/CustomPwInput';
 import BaseButton from '../../components/CustomInput/BaseButton';
 
+// System font stack for proper bold rendering (Pretendard only has weight 400)
+const systemFont = "'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif";
+
 function SignIn() {
   const { handleSubmit, control, onSubmit, reset } = useAuth();
 
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F7 100%)',
-        padding: '24px',
-      }}
-    >
-      {/* Logo - Top Left */}
-      <Typography
-        sx={{
-          position: 'fixed',
-          top: '24px',
-          left: '32px',
-          fontSize: '24px',
-          fontWeight: 700,
-          color: '#1D1D1F',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-          letterSpacing: '-0.02em',
+    <div className="login-page" style={{ minHeight: '100vh', display: 'flex', fontFamily: systemFont }}>
+      {/* Left Panel - Dark Navy Branding */}
+      <div
+        style={{
+          flex: 1,
+          background: '#001529',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 60,
         }}
       >
-        ERAF
-      </Typography>
+        <div style={{ textAlign: 'center', color: '#fff' }}>
+          <div
+            style={{
+              fontSize: 72,
+              fontWeight: 800,
+              letterSpacing: 8,
+              marginBottom: 20,
+              color: '#fff',
+            }}
+          >
+            ERAF
+          </div>
+          <div
+            style={{
+              fontSize: 16,
+              color: 'rgba(255,255,255,0.75)',
+              letterSpacing: 2,
+              marginBottom: 8,
+            }}
+          >
+            Enterprise Reusable Asset Factory
+          </div>
+          <div
+            style={{
+              fontSize: 14,
+              color: 'rgba(255,255,255,0.5)',
+            }}
+          >
+            Batch Scheduler
+          </div>
+        </div>
+      </div>
 
-      {/* Main Card */}
-      <Box
-        sx={{
-          width: '100%',
-          maxWidth: '400px',
-          backgroundColor: '#FFFFFF',
-          borderRadius: '20px',
-          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.12)',
-          padding: '48px 40px',
+      {/* Right Panel - Login Form */}
+      <div
+        style={{
+          width: 480,
+          background: '#fff',
+          padding: '80px 60px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
         }}
       >
         {/* Header */}
-        <Box sx={{ textAlign: 'center', marginBottom: '40px' }}>
-          <Typography
-            sx={{
-              fontSize: '28px',
+        <div style={{ marginBottom: 48 }}>
+          <div
+            style={{
+              fontSize: 24,
               fontWeight: 600,
-              color: '#1D1D1F',
-              marginBottom: '8px',
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-              letterSpacing: '-0.02em',
+              marginBottom: 4,
+              color: 'rgba(0, 0, 0, 0.88)',
+              lineHeight: 1.3,
             }}
           >
-            ERAF Scheduler
-          </Typography>
-        </Box>
+            로그인
+          </div>
+          <div style={{ color: '#666', fontSize: 13 }}>
+            ERAF Batch Scheduler
+          </div>
+        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {/* ID Field */}
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: '#1D1D1F',
-                  marginBottom: '8px',
-                  fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                }}
-              >
-                ID
-              </Typography>
+            <div>
+              <div style={{ fontSize: 14, color: 'rgba(0, 0, 0, 0.88)', marginBottom: 8 }}>
+                <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>아이디
+              </div>
               <TextInput
                 control={control}
                 name="user_id"
-                placeholder="Enter your ID"
+                placeholder="아이디를 입력하세요"
                 isBackgroundGray={false}
+                height="40px"
               />
-            </Box>
+            </div>
 
             {/* Password Field */}
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: '#1D1D1F',
-                  marginBottom: '8px',
-                  fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-                }}
-              >
-                Password <span style={{ color: '#FF3B30' }}>*</span>
-              </Typography>
+            <div>
+              <div style={{ fontSize: 14, color: 'rgba(0, 0, 0, 0.88)', marginBottom: 8 }}>
+                <span style={{ color: '#ff4d4f', marginRight: 4 }}>*</span>비밀번호
+              </div>
               <CustomPwInput
                 isBackgroundGray={false}
                 control={control}
-                placeholder="Enter your password"
+                placeholder="비밀번호를 입력하세요"
                 name="password"
+                height="40px"
               />
-            </Box>
+            </div>
 
             {/* Submit Button */}
             <BaseButton
@@ -114,46 +125,32 @@ function SignIn() {
               size="large"
               sx={{
                 width: '100%',
-                marginTop: '12px',
-                height: '50px',
+                height: '40px',
                 fontSize: '16px',
                 fontWeight: 600,
+                borderRadius: '8px !important',
+                backgroundColor: '#1677ff !important',
+                '&:hover': {
+                  backgroundColor: '#4096ff !important',
+                  boxShadow: '0 2px 0 rgba(5, 145, 255, 0.1)',
+                },
               }}
             >
-              Sign In
+              로그인
             </BaseButton>
-          </Box>
+          </div>
         </form>
 
         {/* Notice Section */}
-        <Box
-          sx={{
-            marginTop: '32px',
-            padding: '16px',
-            backgroundColor: '#F5F5F7',
-            borderRadius: '12px',
-          }}
-        >
-          <Typography
-            sx={{
-              fontSize: '12px',
-              color: '#86868B',
-              lineHeight: 1.6,
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-            }}
-          >
-            <Box component="span" sx={{ display: 'block', marginBottom: '8px' }}>
-              • 비밀번호 5회 실패로 로그인 불가 시 TANGO-EC에 문의 바랍니다.
-            </Box>
-            <Box component="span" sx={{ display: 'block' }}>
-              • 부당한 방법으로 허가없이 전산망에 접속하거나 전산시스템의 자료를
-              삭제, 변경, 유출하는 자는 국가 법령 및 관련 규정에 의해 처벌을
-              받게 됩니다.
-            </Box>
-          </Typography>
-        </Box>
-      </Box>
-    </Box>
+        <div style={{ marginTop: 24, fontSize: 12, color: '#999', lineHeight: 1.8 }}>
+          • 비밀번호 5회 실패로 로그인 불가 시 TANGO-EC에 문의 바랍니다.
+          <br />
+          • 부당한 방법으로 허가없이 전산망에 접속하거나 전산시스템의 자료를
+          삭제, 변경, 유출하는 자는 국가 법령 및 관련 규정에 의해 처벌을
+          받게 됩니다.
+        </div>
+      </div>
+    </div>
   );
 }
 
