@@ -176,6 +176,10 @@ public class TimeoutCheckScheduler {
                 log.warn("Detected stuck workflow run {} (workflow: {}). All {} jobs completed but workflow still RUNNING. Marking as {}",
                         run.getWorkflowRunId(), run.getWorkflowId(), workflowLogs.size(), finalStatus);
 
+                // Calculate next run date for rescheduling
+                var workflow = workflowMapper.findById(run.getWorkflowId());
+                Long nextRunDate = workflow != null ? schedulerService.calculateNextRunDate(workflow) : null;
+
                 workflowRunMapper.updateStatus(
                         run.getWorkflowRunId(),
                         finalStatus,
@@ -184,10 +188,16 @@ public class TimeoutCheckScheduler {
                         "Auto-completed: Agent did not send workflow result"
                 );
 
-                workflowMapper.updateStatus(run.getWorkflowId(), finalStatus, now, null);
+                workflowMapper.updateStatus(run.getWorkflowId(), finalStatus, now, nextRunDate);
 
                 // Reset workflow jobs to SCHEDULED
                 resetWorkflowJobsToScheduled(run.getWorkflowId());
+
+                // Reschedule workflow for next run
+                if (nextRunDate != null) {
+                    schedulerService.scheduleWorkflow(run.getWorkflowId(), nextRunDate);
+                    log.info("Rescheduled workflow {} for next run at {}", run.getWorkflowId(), nextRunDate);
+                }
 
                 stuckCount++;
             }
