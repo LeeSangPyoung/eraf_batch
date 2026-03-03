@@ -52,7 +52,23 @@ const useServerForm = (serverData, onClose, mutateSystem, jobForm, onError) => {
     agent_port: Yup.number()
       .required('Required')
       .min(1024, 'Port must be >= 1024')
-      .max(65535, 'Port must be <= 65535'),
+      .max(65535, 'Port must be <= 65535')
+      .test({
+        name: 'port-duplicate-check',
+        message: t('portAlreadyInUse') || 'This port is already in use on this host',
+        test: async function (value) {
+          const { host_ip_addr } = this.parent;
+          if (!value || !host_ip_addr) return true;
+          try {
+            const params = new URLSearchParams({ hostIpAddr: host_ip_addr, agentPort: value });
+            if (serverData?.id) params.append('excludeSystemId', serverData.id);
+            const response = await api.get(`/server/checkPort?${params}`);
+            return response.data.data === true;
+          } catch {
+            return true;
+          }
+        },
+      }),
     deployment_type: Yup.string()
       .oneOf(['JAR', 'DOCKER'], 'Invalid deployment type')
       .required('Required'),

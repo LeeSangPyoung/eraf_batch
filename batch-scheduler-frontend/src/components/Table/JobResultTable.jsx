@@ -73,6 +73,9 @@ function JobResultTable({
             <TableCell style={styleHeaderTable}>{t('job_name')}</TableCell>
           )}
           <TableCell style={styleHeaderTable}>{t('batchType')}</TableCell>
+          {!isShort && (
+            <TableCell style={styleHeaderTable}>{t('workflowName')}</TableCell>
+          )}
           <TableCell style={styleHeaderTable}>{t('operation')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('status')}</TableCell>
           <TableCell style={styleHeaderTable}>{t('retryCount')}</TableCell>
@@ -128,6 +131,11 @@ function JobResultTable({
                   <TableCell style={styleTableCell}>{row.job_name}</TableCell>
                 )}
                 <TableCell style={styleTableCell}>{row.batch_type}</TableCell>
+                {!isShort && (
+                  <TableCell style={styleTableCell}>
+                    {row.workflow_name || ''}
+                  </TableCell>
+                )}
                 <TableCell style={styleTableCell}>
                   {capitalizeFirst(row.operation)}
                 </TableCell>

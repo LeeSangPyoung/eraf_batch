@@ -114,6 +114,16 @@ public class ServerService {
         return serverMapper.findById(systemId);
     }
 
+    /**
+     * Check if agent port is available on the given host
+     */
+    @Transactional(readOnly = true)
+    public boolean isPortAvailable(String hostIpAddr, Integer agentPort, String excludeSystemId) {
+        JobServerVO existing = serverMapper.findByHostAndPort(hostIpAddr, agentPort);
+        if (existing == null) return true;
+        return excludeSystemId != null && existing.getSystemId().equals(excludeSystemId);
+    }
+
     @Transactional
     public JobServerVO createServer(ServerRequest request) {
         // Sanitize request fields (trim whitespace)
@@ -255,6 +265,17 @@ public class ServerService {
             existing.setSshPassword(cryptoService.encrypt(request.getSshPassword()));
         }
         if (request.getAgentPort() != null && request.getAgentPort() >= 1024) {
+            // Check for duplicate agent port on the same host when port is changed
+            if (!request.getAgentPort().equals(existing.getAgentPort())) {
+                String hostIp = request.getHostIpAddr() != null ? request.getHostIpAddr() : existing.getHostIpAddr();
+                JobServerVO conflicting = serverMapper.findByHostAndPort(hostIp, request.getAgentPort());
+                if (conflicting != null && !conflicting.getSystemId().equals(existing.getSystemId())) {
+                    throw new IllegalArgumentException(
+                        String.format("Agent port %d is already in use on host %s by server '%s'. Please use a different port.",
+                            request.getAgentPort(), hostIp, conflicting.getSystemName())
+                    );
+                }
+            }
             existing.setAgentPort(request.getAgentPort());
         }
         if (request.getDeploymentType() != null) {
@@ -352,19 +373,27 @@ public class ServerService {
      */
     @Transactional
     public void redeployServer(String systemName) {
-        redeployServer(systemName, null);
+        redeployServer(systemName, null, null);
     }
 
     /**
      * Redeploy worker with deployment type transition support
      * @param systemName Server system name
      * @param previousDeploymentType Previous deployment type (for cleanup during type transition)
+     * @param newDeploymentType New deployment type to switch to (null = no change)
      */
     @Transactional
-    public void redeployServer(String systemName, DeploymentType previousDeploymentType) {
+    public void redeployServer(String systemName, DeploymentType previousDeploymentType, DeploymentType newDeploymentType) {
         JobServerVO server = serverMapper.findBySystemName(systemName);
         if (server == null) {
             throw new IllegalArgumentException("Server not found: " + systemName);
+        }
+
+        // Update deployment type in DB if a new type is provided
+        if (newDeploymentType != null && newDeploymentType != server.getDeploymentType()) {
+            log.info("Updating deployment type for {}: {} -> {}", systemName, server.getDeploymentType(), newDeploymentType);
+            server.setDeploymentType(newDeploymentType);
+            serverMapper.update(server);
         }
 
         try {

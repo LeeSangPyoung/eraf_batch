@@ -58,16 +58,7 @@ function SignIn() {
               letterSpacing: '-0.02em',
             }}
           >
-            Welcome back
-          </Typography>
-          <Typography
-            sx={{
-              fontSize: '15px',
-              color: '#86868B',
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Pretendard", sans-serif',
-            }}
-          >
-            Sign in to ERAF Scheduler
+            ERAF Scheduler
           </Typography>
         </Box>
 

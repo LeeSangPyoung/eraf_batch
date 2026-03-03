@@ -119,6 +119,12 @@ public class JobRunLogVO {
     private String additionalInfo;
 
     /**
+     * Workflow name (joined from workflow_runs)
+     */
+    @JsonProperty("workflow_name")
+    private String workflowName;
+
+    /**
      * Workflow run ID if part of a workflow
      */
     @JsonProperty("workflow_run_id")

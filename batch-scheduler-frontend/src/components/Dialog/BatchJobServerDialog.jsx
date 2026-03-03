@@ -3,16 +3,10 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  Radio,
-  RadioGroup,
 } from '@mui/material';
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
-import { Controller } from 'react-hook-form';
 import useModal from '../../hook/useModal';
 import useServerForm from '../../hook/useServerForm';
 import api from '../../services/api';
@@ -34,28 +28,16 @@ const BatchJobServerDialog = ({
   const user = useAuthStore((state) => state.user);
   const { t } = useTranslation();
   const [errorMessage, setErrorMessage] = useState('');
-  const { handleSubmit, control, onSubmit, reset, formState, watch } = useServerForm(
+  const { handleSubmit, control, onSubmit, reset, formState } = useServerForm(
     data,
     onClose,
     mutateSystem,
     jobForm,
     setErrorMessage,
   );
-  const deploymentType = watch('deployment_type');
   const [loading, setLoading] = useState({ loading: false, button: '' });
   const [disable, setDisable] = useState(false);
   const [agentStatus, setAgentStatus] = useState(data?.agent_status);
-
-  // Track original deployment type for transition detection
-  const [originalDeploymentType, setOriginalDeploymentType] = useState(null);
-  const deploymentTypeChanged = data && originalDeploymentType && deploymentType !== originalDeploymentType;
-
-  // Set original deployment type when dialog opens
-  useEffect(() => {
-    if (open && data?.deployment_type) {
-      setOriginalDeploymentType(data.deployment_type);
-    }
-  }, [open, data?.deployment_type]);
   const {
     isVisible: isDeleteConfirm,
     openModal: openDeleteConfirmModal,
@@ -144,17 +126,10 @@ const BatchJobServerDialog = ({
         system_name: data.name,
       };
 
-      // If deployment type changed, pass the previous type for cleanup
-      if (deploymentTypeChanged) {
-        requestBody.previous_deployment_type = originalDeploymentType;
-      }
-
       const response = await api.post('/server/redeploy', requestBody);
       if (response.data.success) {
         toast.success(t('agentRedeployedSuccess'));
         setAgentStatus('ONLINE');
-        // Reset original deployment type to current after successful redeploy
-        setOriginalDeploymentType(deploymentType);
         mutateSystem();
       } else {
         toast.error(response.data.error_msg, { autoClose: false });
@@ -238,19 +213,17 @@ const BatchJobServerDialog = ({
             <div className="flex space-x-2">
               <ButtonWithLoading
                 onClick={openStopConfirmModal}
-                disabled={disable || user?.user_type !== 0 || deploymentTypeChanged}
+                disabled={disable || user?.user_type !== 0}
                 loading={loading.loading && loading.button === 'stop'}
                 className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold"
-                title={deploymentTypeChanged ? t('redeployRequiredForTypeChange') : ''}
               >
                 {t('stop')}
               </ButtonWithLoading>
               <ButtonWithLoading
                 onClick={openStartConfirmModal}
-                disabled={disable || user?.user_type !== 0 || deploymentTypeChanged}
+                disabled={disable || user?.user_type !== 0}
                 loading={loading.loading && loading.button === 'start'}
                 className="bg-green-500 hover:bg-green-600 text-white font-semibold"
-                title={deploymentTypeChanged ? t('redeployRequiredForTypeChange') : ''}
               >
                 {t('start')}
               </ButtonWithLoading>
@@ -258,19 +231,15 @@ const BatchJobServerDialog = ({
                 onClick={openRedeployConfirmModal}
                 disabled={disable || user?.user_type !== 0}
                 loading={loading.loading && loading.button === 'redeploy'}
-                className={deploymentTypeChanged
-                  ? "bg-orange-500 hover:bg-orange-600 text-white font-semibold animate-pulse"
-                  : "bg-blue-500 hover:bg-blue-600 text-white font-semibold"
-                }
+                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold"
               >
                 {t('redeploy')}
               </ButtonWithLoading>
               <ButtonWithLoading
                 onClick={openDeleteConfirmModal}
-                disabled={disable || user?.user_type !== 0 || deploymentTypeChanged}
+                disabled={disable || user?.user_type !== 0}
                 loading={loading.loading && loading.button === 'delete'}
                 className="bg-red-500 hover:bg-red-600 text-white font-semibold"
-                title={deploymentTypeChanged ? t('redeployRequiredForTypeChange') : ''}
               >
                 {t('delete')}
               </ButtonWithLoading>
@@ -308,23 +277,9 @@ const BatchJobServerDialog = ({
                 callback={() => handleRedeploy()}
               >
                 <div className="w-full text-lg">
-                  {deploymentTypeChanged ? (
-                    <>
-                      <p className="text-orange-600 font-bold mb-2">
-                        {t('deploymentTypeChangeWarning')}
-                      </p>
-                      <p className="mb-2">
-                        {originalDeploymentType} → {deploymentType}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {t('deploymentTypeChangeDescription')}
-                      </p>
-                    </>
-                  ) : (
-                    <p>
-                      <strong>{t('doYouWantToRedeployAgent')}</strong>
-                    </p>
-                  )}
+                  <p>
+                    <strong>{t('doYouWantToRedeployAgent')}</strong>
+                  </p>
                 </div>
               </ConfirmDialog>
               <ConfirmDialog
@@ -420,138 +375,11 @@ const BatchJobServerDialog = ({
             <Box className="w-full" />
           </Box>
 
-          <FormControl component="fieldset" fullWidth>
-            <FormLabel
-              component="legend"
-              sx={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: '#1C1C1C',
-                marginBottom: '8px',
-              }}
-            >
-              {t('deploymentType')}
-            </FormLabel>
-            <Controller
-              name="deployment_type"
-              control={control}
-              defaultValue="JAR"
-              render={({ field }) => (
-                <RadioGroup
-                  {...field}
-                  row
-                  sx={{ gap: 2 }}
-                >
-                  <FormControlLabel
-                    value="JAR"
-                    control={
-                      <Radio
-                        sx={{
-                          '&.Mui-checked': {
-                            color: '#1C1C1C',
-                          },
-                        }}
-                      />
-                    }
-                    label={
-                      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                          JAR
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '0.75rem',
-                            color: '#8E8E93',
-                            marginTop: '2px',
-                          }}
-                        >
-                          {t('jarDeploymentDescription')}
-                        </span>
-                      </Box>
-                    }
-                    sx={{
-                      border: field.value === 'JAR' ? '2px solid #1C1C1C' : '1px solid #E5E5EA',
-                      borderRadius: '8px',
-                      padding: '12px 16px',
-                      margin: 0,
-                      flex: 1,
-                      backgroundColor: field.value === 'JAR' ? '#F5F5F7' : 'white',
-                      '&:hover': {
-                        backgroundColor: '#F5F5F7',
-                      },
-                    }}
-                  />
-                  <FormControlLabel
-                    value="DOCKER"
-                    control={
-                      <Radio
-                        sx={{
-                          '&.Mui-checked': {
-                            color: '#1C1C1C',
-                          },
-                        }}
-                      />
-                    }
-                    label={
-                      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                          Docker
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '0.75rem',
-                            color: '#8E8E93',
-                            marginTop: '2px',
-                          }}
-                        >
-                          {t('dockerDeploymentDescription')}
-                        </span>
-                      </Box>
-                    }
-                    sx={{
-                      border: field.value === 'DOCKER' ? '2px solid #1C1C1C' : '1px solid #E5E5EA',
-                      borderRadius: '8px',
-                      padding: '12px 16px',
-                      margin: 0,
-                      flex: 1,
-                      backgroundColor: field.value === 'DOCKER' ? '#F5F5F7' : 'white',
-                      '&:hover': {
-                        backgroundColor: '#F5F5F7',
-                      },
-                    }}
-                  />
-                </RadioGroup>
-              )}
-            />
-          </FormControl>
-
-          {deploymentType === 'DOCKER' && (
-            <TextInput
-              control={control}
-              name="mount_paths"
-              content={t('mountPaths')}
-              placeholder="/workspace,/home/user/scripts"
-              helperText={t('mountPathsHelper')}
-            />
-          )}
-
           <BaseTextArea
             control={control}
             name="system_comments"
             content={t('comments')}
           />
-          {/* Warning message when deployment type changed */}
-          {deploymentTypeChanged && (
-            <div className="col-span-2 p-3 bg-orange-100 border border-orange-300 rounded-lg mb-2">
-              <p className="text-orange-700 font-semibold text-sm">
-                ⚠️ {t('deploymentTypeChangedWarning')}
-              </p>
-              <p className="text-orange-600 text-xs mt-1">
-                {t('clickRedeployToApplyChanges')}
-              </p>
-            </div>
-          )}
-
           <Box className="col-span-2 ml-auto space-x-2">
             <BaseButton
               onClick={handleCancel}
@@ -569,11 +397,10 @@ const BatchJobServerDialog = ({
             </BaseButton>
             <ButtonWithLoading
               type="button"
-              disabled={formState.isSubmitting || !formState.isDirty || deploymentTypeChanged}
+              disabled={formState.isSubmitting || !formState.isDirty}
               loading={formState.isSubmitting}
               className="bg-black text-white"
               onClick={openSaveConfirmModal}
-              title={deploymentTypeChanged ? t('redeployRequiredForTypeChange') : ''}
             >
               {t('save')}
             </ButtonWithLoading>

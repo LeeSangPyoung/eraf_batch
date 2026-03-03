@@ -14,9 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
- * Scheduled task to clean up orphaned jobs.
+ * Scheduled task to clean up orphaned jobs and recover BROKEN jobs.
  * Jobs stuck in RUNNING/WAITING status are marked as BROKEN in run logs,
  * and their parent scheduler_jobs.current_state is reset to SCHEDULED.
+ *
+ * Also periodically recovers BROKEN jobs by rescheduling them.
  */
 @Slf4j
 @Component
@@ -40,6 +42,7 @@ public class OrphanedJobCleanupScheduler {
     public void cleanupOnStartup() {
         log.info("Running orphaned job cleanup on server startup...");
         cleanupOrphanedJobs();
+        recoverBrokenJobs();
     }
 
     /**
@@ -49,6 +52,72 @@ public class OrphanedJobCleanupScheduler {
     public void scheduledCleanup() {
         log.debug("Running scheduled orphaned job cleanup...");
         cleanupOrphanedJobs();
+    }
+
+    /**
+     * Recover BROKEN jobs every 1 minute.
+     * Jobs can get stuck in BROKEN state when:
+     * - Agent goes unhealthy and AgentHealthChecker marks them BROKEN
+     * - Server restarts and resetRunningJobs() marks them BROKEN
+     * - Orphan detection marks them BROKEN
+     * In all cases, the next_run_date is not recalculated and no Quartz trigger is created,
+     * so the job is permanently stuck. This method recovers them.
+     */
+    @Scheduled(fixedDelay = 60 * 1000, initialDelay = 30 * 1000)
+    public void scheduledBrokenJobRecovery() {
+        recoverBrokenJobs();
+    }
+
+    /**
+     * Find all BROKEN enabled jobs and reschedule them.
+     * This ensures jobs are never permanently stuck in BROKEN state.
+     */
+    @Transactional
+    public void recoverBrokenJobs() {
+        try {
+            List<JobVO> brokenJobs = jobMapper.findBrokenEnabledJobs();
+
+            if (brokenJobs.isEmpty()) {
+                log.debug("No BROKEN jobs to recover");
+                return;
+            }
+
+            log.warn("Found {} BROKEN job(s) to recover", brokenJobs.size());
+
+            int recoveredCount = 0;
+            for (JobVO job : brokenJobs) {
+                try {
+                    // Skip workflow jobs - they are managed by workflow scheduler
+                    if (job.getWorkflowId() != null && !job.getWorkflowId().isEmpty()) {
+                        // Just reset to SCHEDULED so workflow can pick it up
+                        jobMapper.updateState(job.getJobId(), "SCHEDULED", null);
+                        log.info("Reset BROKEN workflow job {} ({}) to SCHEDULED", job.getJobId(), job.getJobName());
+                        recoveredCount++;
+                        continue;
+                    }
+
+                    // For standalone jobs with schedule, recalculate next run and create Quartz trigger
+                    if (job.getRepeatInterval() != null && !job.getRepeatInterval().isEmpty()) {
+                        schedulerService.scheduleJobWithRRule(job);
+                        log.info("Recovered BROKEN job {} ({}) - rescheduled", job.getJobId(), job.getJobName());
+                        recoveredCount++;
+                    } else {
+                        // One-time job with no schedule - just reset to SCHEDULED
+                        jobMapper.updateState(job.getJobId(), "SCHEDULED", null);
+                        log.info("Reset BROKEN one-time job {} ({}) to SCHEDULED", job.getJobId(), job.getJobName());
+                        recoveredCount++;
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to recover BROKEN job {} ({})", job.getJobId(), job.getJobName(), e);
+                }
+            }
+
+            if (recoveredCount > 0) {
+                log.warn("Recovered {} BROKEN job(s)", recoveredCount);
+            }
+        } catch (Exception e) {
+            log.error("Failed to recover BROKEN jobs", e);
+        }
     }
 
     /**
@@ -70,13 +139,13 @@ public class OrphanedJobCleanupScheduler {
                 log.warn("Marked {} orphaned job log(s) as BROKEN (older than {} minutes)",
                     cleanedCount, ORPHAN_TIMEOUT_MS / 60000);
 
-                // Reset scheduler_jobs.current_state for affected jobs
+                // Reset scheduler_jobs.current_state for affected jobs and reschedule
                 for (String jobId : orphanedJobIds) {
                     try {
                         JobVO job = jobMapper.findById(jobId);
-                        if (job != null && "RUNNING".equals(job.getCurrentState())) {
+                        if (job != null && ("RUNNING".equals(job.getCurrentState()) || "BROKEN".equals(job.getCurrentState()))) {
                             schedulerService.rescheduleJobAfterExecution(job);
-                            log.warn("Reset orphaned job {} ({}) from RUNNING and rescheduled",
+                            log.warn("Reset orphaned job {} ({}) and rescheduled",
                                     jobId, job.getJobName());
                         }
                     } catch (Exception e) {

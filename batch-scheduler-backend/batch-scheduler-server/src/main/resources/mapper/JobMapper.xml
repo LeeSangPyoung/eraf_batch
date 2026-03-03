@@ -468,4 +468,22 @@
           AND current_state IN ('RUNNING', 'WAITING', 'BROKEN')
     </update>
 
+    <!-- Find all enabled jobs that are stuck and need recovery:
+         1. BROKEN state (any)
+         2. Scheduled jobs with no next_run_date (lost Quartz trigger) -->
+    <select id="findBrokenEnabledJobs" resultMap="JobResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM scheduler_jobs j
+        WHERE j.is_enabled = true
+          AND (
+            j.current_state = 'BROKEN'
+            OR (
+              j.current_state IN ('SCHEDULED', 'RUNNING', 'WAITING')
+              AND j.next_run_date IS NULL
+              AND j.repeat_interval IS NOT NULL
+              AND j.workflow_id IS NULL
+            )
+          )
+    </select>
+
 </mapper>

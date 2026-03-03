@@ -131,4 +131,9 @@ public interface JobMapper {
      * - repeat_interval IS NOT NULL (scheduled jobs)
      */
     List<JobVO> findMissedRestartableJobs(@Param("now") Long now);
+
+    /**
+     * Find all enabled jobs stuck in BROKEN state for automatic recovery
+     */
+    List<JobVO> findBrokenEnabledJobs();
 }

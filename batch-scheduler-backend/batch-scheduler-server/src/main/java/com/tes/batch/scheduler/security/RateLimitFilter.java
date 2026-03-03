@@ -26,9 +26,9 @@ public class RateLimitFilter implements Filter {
     private final Map<String, Bucket> generalBuckets = new ConcurrentHashMap<>();
     private final Map<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
 
-    // General rate limit: 100 requests per minute
-    private static final int GENERAL_CAPACITY = 100;
-    private static final int GENERAL_REFILL_TOKENS = 100;
+    // General rate limit: 1000 requests per minute (increased for Dashboard usage)
+    private static final int GENERAL_CAPACITY = 1000;
+    private static final int GENERAL_REFILL_TOKENS = 1000;
     private static final Duration GENERAL_REFILL_DURATION = Duration.ofMinutes(1);
 
     // Login rate limit: 5 attempts per minute
@@ -45,6 +45,12 @@ public class RateLimitFilter implements Filter {
         String clientIp = getClientIp(httpRequest);
         String path = httpRequest.getRequestURI();
 
+        // Whitelist local/private IPs (development environment)
+        if (isWhitelistedIp(clientIp)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         // Check if login endpoint
         boolean isLoginEndpoint = path.contains("/login");
         Bucket bucket = isLoginEndpoint
@@ -59,6 +65,32 @@ public class RateLimitFilter implements Filter {
             httpResponse.setContentType("application/json");
             httpResponse.getWriter().write("{\"error\":\"Rate limit exceeded. Please try again later.\"}");
         }
+    }
+
+    private boolean isWhitelistedIp(String ip) {
+        if (ip == null) return false;
+        // Whitelist local and private network IPs
+        return ip.equals("127.0.0.1") ||
+               ip.equals("0:0:0:0:0:0:0:1") ||
+               ip.equals("::1") ||
+               ip.startsWith("192.168.") ||
+               ip.startsWith("10.") ||
+               ip.startsWith("172.16.") ||
+               ip.startsWith("172.17.") ||
+               ip.startsWith("172.18.") ||
+               ip.startsWith("172.19.") ||
+               ip.startsWith("172.20.") ||
+               ip.startsWith("172.21.") ||
+               ip.startsWith("172.22.") ||
+               ip.startsWith("172.23.") ||
+               ip.startsWith("172.24.") ||
+               ip.startsWith("172.25.") ||
+               ip.startsWith("172.26.") ||
+               ip.startsWith("172.27.") ||
+               ip.startsWith("172.28.") ||
+               ip.startsWith("172.29.") ||
+               ip.startsWith("172.30.") ||
+               ip.startsWith("172.31.");
     }
 
     private Bucket createGeneralBucket() {

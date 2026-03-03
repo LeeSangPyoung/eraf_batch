@@ -98,6 +98,24 @@ public class ServerController {
     }
 
     /**
+     * Check if agent port is available on the given host
+     * GET /server/checkPort?hostIpAddr=xxx&agentPort=xxx&excludeSystemId=xxx
+     */
+    @GetMapping("/checkPort")
+    public ApiResponse<Boolean> checkPort(
+            @RequestParam String hostIpAddr,
+            @RequestParam Integer agentPort,
+            @RequestParam(required = false) String excludeSystemId) {
+        try {
+            boolean available = serverService.isPortAvailable(hostIpAddr, agentPort, excludeSystemId);
+            return ApiResponse.success(available);
+        } catch (Exception e) {
+            log.error("Failed to check port", e);
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
      * Stop server worker
      * POST /server/stop
      */
@@ -139,6 +157,7 @@ public class ServerController {
         try {
             String systemName = (String) request.get("system_name");
             String previousTypeStr = (String) request.get("previous_deployment_type");
+            String newTypeStr = (String) request.get("new_deployment_type");
 
             DeploymentType previousType = null;
             if (previousTypeStr != null && !previousTypeStr.isEmpty()) {
@@ -149,7 +168,16 @@ public class ServerController {
                 }
             }
 
-            serverService.redeployServer(systemName, previousType);
+            DeploymentType newType = null;
+            if (newTypeStr != null && !newTypeStr.isEmpty()) {
+                try {
+                    newType = DeploymentType.valueOf(newTypeStr.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid new_deployment_type: {}", newTypeStr);
+                }
+            }
+
+            serverService.redeployServer(systemName, previousType, newType);
             return ApiResponse.success(null);
         } catch (Exception e) {
             log.error("Failed to redeploy server", e);

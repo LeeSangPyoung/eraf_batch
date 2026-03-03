@@ -23,6 +23,7 @@
         <result property="actualEndDate" column="end_time"/>
         <result property="reqStartDate" column="scheduled_time"/>
         <result property="retryCount" column="retry_attempt"/>
+        <result property="workflowName" column="workflow_name"/>
         <result property="workflowRunId" column="workflow_run_id"/>
         <result property="workflowPriority" column="workflow_priority"/>
         <result property="logDate" column="frst_reg_date"/>
@@ -70,32 +71,36 @@
 
     <!-- Find Logs with Filters -->
     <select id="findByFilters" resultMap="JobRunLogResultMap">
-        SELECT <include refid="BaseColumns"/>
-        FROM scheduler_job_run_logs
+        SELECT rl.log_id, rl.job_id, rl.job_name, rl.system_id, rl.system_name, rl.group_id, rl.group_name,
+               rl.task_id, rl.batch_type, rl.operation, rl.status, rl.output, rl.error, rl.error_no, rl.duration,
+               rl.start_time, rl.end_time, rl.scheduled_time, rl.retry_attempt, rl.workflow_run_id, rl.workflow_priority,
+               rl.frst_reg_date, rl.user_name, wr.workflow_name
+        FROM scheduler_job_run_logs rl
+        LEFT JOIN scheduler_workflow_run wr ON rl.workflow_run_id = wr.workflow_run_id
         <where>
             <if test="jobId != null and jobId != ''">
-                AND job_id = #{jobId}
+                AND rl.job_id = #{jobId}
             </if>
             <if test="systemId != null and systemId != ''">
-                AND system_id = #{systemId}
+                AND rl.system_id = #{systemId}
             </if>
             <if test="groupId != null and groupId != ''">
-                AND group_id = #{groupId}
+                AND rl.group_id = #{groupId}
             </if>
             <if test="operation != null and operation != ''">
-                AND operation = #{operation}
+                AND rl.operation = #{operation}
             </if>
             <if test="status != null and status != ''">
-                AND status = #{status}
+                AND rl.status = #{status}
             </if>
             <if test="reqStartDateFrom != null">
-                AND scheduled_time &gt;= #{reqStartDateFrom}
+                AND rl.scheduled_time &gt;= #{reqStartDateFrom}
             </if>
             <if test="reqStartDateTo != null">
-                AND scheduled_time &lt;= #{reqStartDateTo}
+                AND rl.scheduled_time &lt;= #{reqStartDateTo}
             </if>
         </where>
-        ORDER BY log_id DESC
+        ORDER BY rl.log_id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
@@ -132,9 +137,11 @@
     <select id="findByFiltersAndGroupIds" resultMap="JobRunLogResultMap">
         SELECT rl.log_id, rl.job_id, rl.job_name, rl.system_id, rl.system_name, rl.group_id, rl.group_name,
                rl.task_id, rl.batch_type, rl.operation, rl.status, rl.output, rl.error, rl.error_no, rl.duration,
-               rl.start_time, rl.end_time, rl.scheduled_time, rl.retry_attempt, rl.workflow_run_id, rl.workflow_priority, rl.frst_reg_date, rl.user_name
+               rl.start_time, rl.end_time, rl.scheduled_time, rl.retry_attempt, rl.workflow_run_id, rl.workflow_priority,
+               rl.frst_reg_date, rl.user_name, wr.workflow_name
         FROM scheduler_job_run_logs rl
         JOIN scheduler_jobs j ON rl.job_id = j.job_id
+        LEFT JOIN scheduler_workflow_run wr ON rl.workflow_run_id = wr.workflow_run_id
         WHERE j.group_id IN
         <foreach collection="groupIds" item="gid" open="(" separator="," close=")">
             #{gid}

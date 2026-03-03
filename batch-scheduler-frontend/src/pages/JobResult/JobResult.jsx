@@ -77,6 +77,7 @@ const JobResult = () => {
               { key: 'group_name', label: t('group_name') },
               { key: 'job_name', label: t('job_name') },
               { key: 'batch_type', label: t('batchType') },
+              { key: 'workflow_name', label: t('workflowName') },
               { key: 'operation', label: t('operation') },
               { key: 'status', label: t('status') },
               { key: 'retry_count', label: t('retryCount') },

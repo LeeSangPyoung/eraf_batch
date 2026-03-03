@@ -137,6 +137,7 @@
   "doYouWantToDeleteSystem": "Do you want to delete the Scheduler System?",
   "doYouWantToSaveServer": "Do you want to save the Batch Job Server?",
   "agentStoppedSuccess": "Agent stopped successfully",
+  "portAlreadyInUse": "This port is already in use on this host",
   "agentStartedSuccess": "Agent started successfully",
   "agentRedeployedSuccess": "Agent redeployed successfully",
   "systemDeletedSuccess": "System deleted successfully",

@@ -240,6 +240,10 @@ public class AgentDeployer {
             session = createSession(server, privateKeyPath);
             session.connect(TIMEOUT);
 
+            // Check port availability before starting
+            int agentPort = server.getAgentPort() != null ? server.getAgentPort() : 8081;
+            checkPortAvailability(session, agentPort);
+
             String targetDir = server.getFolderPath() != null ? server.getFolderPath() : "/opt/batch-agent";
             executeCommand(session, targetDir + "/start-agent.sh");
 
@@ -336,6 +340,10 @@ public class AgentDeployer {
         try {
             session = createSession(server, privateKeyPath);
             session.connect(TIMEOUT);
+
+            // Check port availability before starting
+            int agentPort = server.getAgentPort() != null ? server.getAgentPort() : 8081;
+            checkPortAvailability(session, agentPort);
 
             String targetDir = server.getFolderPath() != null ? server.getFolderPath() : "/opt/batch-agent";
             executeCommand(session, targetDir + "/start-agent.sh");
